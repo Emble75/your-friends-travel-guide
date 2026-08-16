@@ -8,9 +8,9 @@ export function UserAvatar({
   name,
   className,
 }: {
-  avatarPath?: string | null;
-  name?: string | null;
-  className?: string;
+  avatarPath?: string | null | undefined;
+  name?: string | null | undefined;
+  className?: string | undefined;
 }) {
   const { data: url } = useQuery({
     queryKey: ["avatar", avatarPath],
