@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ImagePlus, MapPin, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,9 @@ import {
 import { CATEGORIES } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/new")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    placeId: typeof search["placeId"] === "string" ? (search["placeId"] as string) : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Ort bewerten – Turi" },
@@ -35,6 +38,7 @@ type Place = { id: string; name: string; city: string; category: string };
 
 function NewReviewPage() {
   const navigate = useNavigate();
+  const { placeId } = Route.useSearch();
   const [place, setPlace] = useState<Place | null>(null);
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
@@ -45,6 +49,23 @@ function NewReviewPage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!placeId) return;
+    let active = true;
+    void supabase
+      .from("places")
+      .select("id, name, city, category")
+      .eq("id", placeId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data) setPlace(data);
+      });
+    return () => {
+      active = false;
+    };
+  }, [placeId]);
+
 
   const { data: results } = useQuery({
     queryKey: ["place-search", search],
