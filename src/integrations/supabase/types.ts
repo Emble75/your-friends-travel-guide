@@ -49,27 +49,39 @@ export type Database = {
       }
       places: {
         Row: {
+          address: string | null
           category: string
           city: string
           created_at: string
           created_by: string | null
+          google_place_id: string | null
           id: string
+          lat: number | null
+          lng: number | null
           name: string
         }
         Insert: {
+          address?: string | null
           category?: string
           city: string
           created_at?: string
           created_by?: string | null
+          google_place_id?: string | null
           id?: string
+          lat?: number | null
+          lng?: number | null
           name: string
         }
         Update: {
+          address?: string | null
           category?: string
           city?: string
           created_at?: string
           created_by?: string | null
+          google_place_id?: string | null
           id?: string
+          lat?: number | null
+          lng?: number | null
           name?: string
         }
         Relationships: [
