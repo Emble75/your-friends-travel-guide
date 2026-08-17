@@ -93,8 +93,14 @@ function NewReviewPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!place) return toast.error("Bitte einen Ort wählen");
-    if (rating < 1) return toast.error("Bitte Sterne vergeben");
+    if (!place) {
+      toast.error("Bitte einen Ort wählen");
+      return;
+    }
+    if (rating < 1) {
+      toast.error("Bitte Sterne vergeben");
+      return;
+    }
     setSaving(true);
     try {
       const { data: auth } = await supabase.auth.getUser();

@@ -67,9 +67,15 @@ function MePage() {
     const ext = file.name.split(".").pop() ?? "jpg";
     const path = `${me}/avatar-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     const { error: pErr } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", me);
-    if (pErr) return toast.error(pErr.message);
+    if (pErr) {
+      toast.error(pErr.message);
+      return;
+    }
     toast.success("Profilbild aktualisiert");
     queryClient.invalidateQueries();
   }
@@ -80,7 +86,10 @@ function MePage() {
       .from("profiles")
       .update({ display_name: displayName.trim() || null, bio: bio.trim() || null })
       .eq("id", auth.user!.id);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setEditing(false);
     toast.success("Profil gespeichert");
     queryClient.invalidateQueries();
