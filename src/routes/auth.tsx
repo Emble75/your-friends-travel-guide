@@ -35,7 +35,7 @@ function AuthPage() {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/feed" });
+        navigate({ to: "/map" });
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -46,7 +46,7 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        if (data.session) navigate({ to: "/feed" });
+        if (data.session) navigate({ to: "/map" });
         else setSent(true);
       }
     } catch (err) {

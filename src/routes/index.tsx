@@ -29,7 +29,7 @@ function Landing() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/feed", replace: true });
+      if (data.session) navigate({ to: "/map", replace: true });
     });
   }, [navigate]);
 
