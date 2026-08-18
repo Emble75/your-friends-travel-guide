@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 declare global {
   interface Window {
     __turiMapsReady?: () => void;
-    google?: typeof google;
   }
 }
+
+/// <reference types="google.maps" />
 
 let loadPromise: Promise<void> | null = null;
 

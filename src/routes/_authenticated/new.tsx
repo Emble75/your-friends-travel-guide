@@ -20,9 +20,8 @@ import {
 import { CATEGORIES } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/new")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    placeId: typeof search["placeId"] === "string" ? (search["placeId"] as string) : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>) =>
+    typeof search["placeId"] === "string" ? { placeId: search["placeId"] as string } : {},
   head: () => ({
     meta: [
       { title: "Ort bewerten – Turi" },
