@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
 import { Stars } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
+import { ReportDialog } from "./ReportDialog";
 import { signedUrls, timeAgo } from "@/lib/turi";
 
 export type ReviewWithRelations = {
@@ -40,7 +41,10 @@ export function ReviewCard({
     <article className="rounded-3xl border border-border bg-card p-4 shadow-card">
       <div className="flex items-center gap-3">
         <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
-          <UserAvatar avatarPath={profile?.avatar_url} name={profile?.display_name ?? profile?.username} />
+          <UserAvatar
+            avatarPath={profile?.avatar_url}
+            name={profile?.display_name ?? profile?.username}
+          />
         </Link>
         <div className="min-w-0 flex-1">
           <Link
@@ -55,6 +59,7 @@ export function ReviewCard({
           </p>
         </div>
         <Stars value={review.rating} />
+        <ReportDialog reviewId={review.id} />
       </div>
 
       {showPlace && review.places ? (

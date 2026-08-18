@@ -1,14 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Star, UserCheck, UserPlus } from "lucide-react";
+import { Flag, ShieldOff, Star, UserCheck, UserPlus, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
+import { ReportDialog } from "@/components/turi/ReportDialog";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/u/$username")({
   head: () => ({
@@ -25,6 +44,7 @@ export const Route = createFileRoute("/_authenticated/u/$username")({
 function ProfilePage() {
   const { username } = Route.useParams();
   const queryClient = useQueryClient();
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["profile", username],
@@ -39,33 +59,45 @@ function ProfilePage() {
       if (error) throw error;
       if (!profile) return null;
 
-      const [{ data: follow }, { count: followers }, { count: following }, { data: reviews }] =
-        await Promise.all([
-          supabase
-            .from("follows")
-            .select("follower_id")
-            .eq("follower_id", me)
-            .eq("following_id", profile.id)
-            .maybeSingle(),
-          supabase
-            .from("follows")
-            .select("*", { count: "exact", head: true })
-            .eq("following_id", profile.id),
-          supabase
-            .from("follows")
-            .select("*", { count: "exact", head: true })
-            .eq("follower_id", profile.id),
-          supabase
-            .from("reviews")
-            .select(reviewSelect)
-            .eq("user_id", profile.id)
-            .order("created_at", { ascending: false }),
-        ]);
+      const [
+        { data: follow },
+        { count: followers },
+        { count: following },
+        { data: reviews },
+        { data: block },
+      ] = await Promise.all([
+        supabase
+          .from("follows")
+          .select("follower_id")
+          .eq("follower_id", me)
+          .eq("following_id", profile.id)
+          .maybeSingle(),
+        supabase
+          .from("follows")
+          .select("*", { count: "exact", head: true })
+          .eq("following_id", profile.id),
+        supabase
+          .from("follows")
+          .select("*", { count: "exact", head: true })
+          .eq("follower_id", profile.id),
+        supabase
+          .from("reviews")
+          .select(reviewSelect)
+          .eq("user_id", profile.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("blocks")
+          .select("blocked_id")
+          .eq("blocker_id", me)
+          .eq("blocked_id", profile.id)
+          .maybeSingle(),
+      ]);
 
       return {
         profile,
         isMe: profile.id === me,
         isFollowing: !!follow,
+        isBlocked: !!block,
         followers: followers ?? 0,
         following: following ?? 0,
         reviews: (reviews ?? []) as unknown as ReviewWithRelations[],
@@ -89,6 +121,44 @@ function ProfilePage() {
     else queryClient.invalidateQueries();
   }
 
+  async function toggleBlock() {
+    if (!data) return;
+    const { data: auth } = await supabase.auth.getUser();
+    const me = auth.user?.id;
+    if (!me) return;
+
+    if (data.isBlocked) {
+      const { error } = await supabase
+        .from("blocks")
+        .delete()
+        .eq("blocker_id", me)
+        .eq("blocked_id", data.profile.id);
+      if (error) toast.error(error.message);
+      else {
+        toast.success(`@${data.profile.username} entblockt`);
+        queryClient.invalidateQueries();
+      }
+      return;
+    }
+
+    const { error } = await supabase
+      .from("blocks")
+      .insert({ blocker_id: me, blocked_id: data.profile.id });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    // Gegenseitige Follows aufheben, damit die Inhalte auch wirklich verschwinden.
+    await supabase
+      .from("follows")
+      .delete()
+      .or(
+        `and(follower_id.eq.${me},following_id.eq.${data.profile.id}),and(follower_id.eq.${data.profile.id},following_id.eq.${me})`,
+      );
+    toast.success(`@${data.profile.username} blockiert`);
+    queryClient.invalidateQueries();
+  }
+
   if (isLoading) {
     return (
       <>
@@ -105,7 +175,11 @@ function ProfilePage() {
       <>
         <AppHeader title="Profil" />
         <div className="app-shell py-4">
-          <EmptyState icon={UserPlus} title="Profil nicht gefunden" text={`@${username} gibt es nicht.`} />
+          <EmptyState
+            icon={UserPlus}
+            title="Profil nicht gefunden"
+            text={`@${username} gibt es nicht.`}
+          />
         </div>
       </>
     );
@@ -130,7 +204,70 @@ function ProfilePage() {
               </h1>
               <p className="truncate text-sm text-muted-foreground">@{profile.username}</p>
             </div>
+            {!data.isMe ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+                    aria-label="Weitere Optionen"
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-2xl">
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setReportOpen(true);
+                    }}
+                  >
+                    <Flag size={16} className="mr-2" />
+                    Melden
+                  </DropdownMenuItem>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="text-destructive"
+                      >
+                        <ShieldOff size={16} className="mr-2" />
+                        {data.isBlocked ? "Entblockieren" : "Blockieren"}
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-3xl">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {data.isBlocked
+                            ? `@${profile.username} entblockieren?`
+                            : `@${profile.username} blockieren?`}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {data.isBlocked
+                            ? "Ihr könnt euch danach wieder gegenseitig sehen und folgen."
+                            : "Ihr könnt euch danach gegenseitig keine Bewertungen mehr sehen und folgt euch nicht mehr."}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction onClick={toggleBlock} className="rounded-2xl">
+                          {data.isBlocked ? "Entblockieren" : "Blockieren"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
+          {!data.isMe ? (
+            <ReportDialog
+              reportedUserId={profile.id}
+              trigger={null}
+              open={reportOpen}
+              onOpenChange={setReportOpen}
+            />
+          ) : null}
           {profile.bio ? <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p> : null}
           <div className="mt-4 flex gap-5 text-sm">
             <span>

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CATEGORIES } from "@/lib/turi";
+import { CATEGORIES, compressImage } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/new")({
   validateSearch: (search: Record<string, unknown>) =>
@@ -25,7 +25,10 @@ export const Route = createFileRoute("/_authenticated/new")({
   head: () => ({
     meta: [
       { title: "Ort bewerten – Turi" },
-      { name: "description", content: "Bewerte einen Ort mit Sternen, Text und bis zu drei Fotos." },
+      {
+        name: "description",
+        content: "Bewerte einen Ort mit Sternen, Text und bis zu drei Fotos.",
+      },
       { property: "og:title", content: "Ort bewerten – Turi" },
       { property: "og:description", content: "Sterne, Text und bis zu drei Fotos." },
     ],
@@ -64,7 +67,6 @@ function NewReviewPage() {
       active = false;
     };
   }, [placeId]);
-
 
   const { data: results } = useQuery({
     queryKey: ["place-search", search],
@@ -133,7 +135,8 @@ function NewReviewPage() {
       if (error) throw error;
 
       for (let i = 0; i < files.length; i++) {
-        const file = files[i]!;
+        const original = files[i]!;
+        const file = await compressImage(original, { maxDimension: 1600, quality: 0.8 });
         const ext = file.name.split(".").pop() ?? "jpg";
         const path = `${userId}/${review.id}-${i}.${ext}`;
         const { error: upErr } = await supabase.storage

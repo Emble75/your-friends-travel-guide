@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { compressImage } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/me")({
   head: () => ({
@@ -44,8 +45,14 @@ function MePage() {
             .select("id, username, display_name, avatar_url, bio")
             .eq("id", me)
             .maybeSingle(),
-          supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", me),
-          supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", me),
+          supabase
+            .from("follows")
+            .select("*", { count: "exact", head: true })
+            .eq("following_id", me),
+          supabase
+            .from("follows")
+            .select("*", { count: "exact", head: true })
+            .eq("follower_id", me),
           supabase
             .from("reviews")
             .select(reviewSelect)
@@ -61,9 +68,10 @@ function MePage() {
     },
   });
 
-  async function uploadAvatar(file: File) {
+  async function uploadAvatar(rawFile: File) {
     const { data: auth } = await supabase.auth.getUser();
     const me = auth.user!.id;
+    const file = await compressImage(rawFile, { maxDimension: 512, quality: 0.85 });
     const ext = file.name.split(".").pop() ?? "jpg";
     const path = `${me}/avatar-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
@@ -71,7 +79,10 @@ function MePage() {
       toast.error(error.message);
       return;
     }
-    const { error: pErr } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", me);
+    const { error: pErr } = await supabase
+      .from("profiles")
+      .update({ avatar_url: path })
+      .eq("id", me);
     if (pErr) {
       toast.error(pErr.message);
       return;
@@ -191,7 +202,11 @@ function MePage() {
                 <Button onClick={saveProfile} className="flex-1 rounded-2xl">
                   Speichern
                 </Button>
-                <Button variant="secondary" className="rounded-2xl" onClick={() => setEditing(false)}>
+                <Button
+                  variant="secondary"
+                  className="rounded-2xl"
+                  onClick={() => setEditing(false)}
+                >
                   Abbrechen
                 </Button>
               </div>

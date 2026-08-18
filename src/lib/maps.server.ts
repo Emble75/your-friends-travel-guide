@@ -1,4 +1,44 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+
+// Orte ändern sich selten – 30 Tage Cache spart die meisten Google-Places-Kosten.
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Rundet Koordinaten auf ein ~1,1km-Raster, damit nahe beieinanderliegende
+ * Suchanfragen denselben Cache-Eintrag treffen. */
+function gridCoord(v: number) {
+  return Math.round(v * 100) / 100;
+}
+
+async function withCache<T>(cacheKey: string, fetcher: () => Promise<T>): Promise<T> {
+  const { data: cached } = await supabaseAdmin
+    .from("poi_cache")
+    .select("payload, expires_at")
+    .eq("cache_key", cacheKey)
+    .maybeSingle();
+
+  if (cached && new Date(cached.expires_at) > new Date()) {
+    return cached.payload as T;
+  }
+
+  const fresh = await fetcher();
+
+  // Cache best-effort schreiben – ein Fehler hier darf die eigentliche Antwort nicht blockieren.
+  void supabaseAdmin
+    .from("poi_cache")
+    .upsert({
+      cache_key: cacheKey,
+      payload: fresh as unknown as never,
+      expires_at: new Date(Date.now() + CACHE_TTL_MS).toISOString(),
+    })
+    .then(({ error }) => {
+      if (error)
+        console.error(`[poi_cache] Schreiben fehlgeschlagen für ${cacheKey}:`, error.message);
+    });
+
+  return fresh;
+}
 
 export type MapPlace = {
   googlePlaceId: string;
@@ -62,36 +102,49 @@ async function call(path: string, body: unknown): Promise<MapPlace[]> {
 }
 
 export async function nearbyPlaces(lat: number, lng: number, radius: number) {
-  return call("places/v1/places:searchNearby", {
-    includedTypes: [
-      "restaurant",
-      "cafe",
-      "bar",
-      "hotel",
-      "museum",
-      "tourist_attraction",
-      "park",
-      "bakery",
-      "night_club",
-    ],
-    maxResultCount: 20,
-    languageCode: "de",
-    locationRestriction: {
-      circle: { center: { latitude: lat, longitude: lng }, radius: Math.min(radius, 5000) },
-    },
-  });
+  const roundedRadius = Math.round(Math.min(radius, 5000) / 250) * 250;
+  const cacheKey = `nearby:${gridCoord(lat)}:${gridCoord(lng)}:${roundedRadius}`;
+  return withCache(cacheKey, () =>
+    call("places/v1/places:searchNearby", {
+      includedTypes: [
+        "restaurant",
+        "cafe",
+        "bar",
+        "hotel",
+        "museum",
+        "tourist_attraction",
+        "park",
+        "bakery",
+        "night_club",
+      ],
+      maxResultCount: 20,
+      languageCode: "de",
+      locationRestriction: {
+        circle: { center: { latitude: lat, longitude: lng }, radius: roundedRadius },
+      },
+    }),
+  );
 }
 
 export async function searchPlacesText(query: string, lat?: number, lng?: number) {
-  const body: Record<string, unknown> = {
-    textQuery: query,
-    maxResultCount: 15,
-    languageCode: "de",
-  };
-  if (typeof lat === "number" && typeof lng === "number") {
-    body["locationBias"] = {
-      circle: { center: { latitude: lat, longitude: lng }, radius: 20000 },
+  const normalizedQuery = query.trim().toLowerCase();
+  const locationPart =
+    typeof lat === "number" && typeof lng === "number"
+      ? `${gridCoord(lat)}:${gridCoord(lng)}`
+      : "global";
+  const cacheKey = `text:${normalizedQuery}:${locationPart}`;
+
+  return withCache(cacheKey, () => {
+    const body: Record<string, unknown> = {
+      textQuery: query,
+      maxResultCount: 15,
+      languageCode: "de",
     };
-  }
-  return call("places/v1/places:searchText", body);
+    if (typeof lat === "number" && typeof lng === "number") {
+      body["locationBias"] = {
+        circle: { center: { latitude: lat, longitude: lng }, radius: 20000 },
+      };
+    }
+    return call("places/v1/places:searchText", body);
+  });
 }
