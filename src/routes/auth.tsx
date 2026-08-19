@@ -109,6 +109,19 @@ function AuthPage() {
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
             Orte bewerten und nur die Meinungen deiner Freunde sehen.
           </p>
+          {/* TEMPORAER: zeigt an, welches Supabase-Projekt tatsaechlich geladen ist.
+              Vor echtem Launch wieder entfernen. */}
+          <p className="mt-3 rounded-full bg-yellow-100 px-3 py-1 text-xs font-mono text-yellow-800">
+            DEBUG:{" "}
+            {(() => {
+              const url =
+                (import.meta.env["APP_SUPABASE_URL"] as string | undefined) ||
+                (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ||
+                "keine URL gefunden";
+              const match = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/);
+              return match ? match[1] : url;
+            })()}
+          </p>
         </div>
 
         {sent ? (
