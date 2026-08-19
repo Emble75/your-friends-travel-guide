@@ -16,6 +16,9 @@ dist-ssr
 .nitro
 *.local
 
+# Lokale, nicht versionierte Secrets (z. B. APP_SUPABASE_SERVICE_ROLE_KEY)
+.env.local
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
