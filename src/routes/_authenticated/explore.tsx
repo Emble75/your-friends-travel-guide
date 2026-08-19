@@ -32,7 +32,10 @@ function ExplorePage() {
       <AppHeader title="Suchen" />
       <div className="app-shell space-y-4 py-4">
         <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -122,20 +125,30 @@ function PeopleResults({ term }: { term: string }) {
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id ?? "";
-      let query = supabase.from("profiles").select("id, username, display_name, avatar_url").limit(30);
+      let query = supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url")
+        .limit(30);
       if (term) {
         const t = term.replace(/^@/, "");
         query = query.or(`username.ilike.%${t}%,display_name.ilike.%${t}%`);
       }
       const { data: people, error } = await query;
       if (error) throw error;
-      const { data: follows } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", me);
+      const [{ data: follows }, { data: blocksMade }, { data: blocksReceived }] = await Promise.all(
+        [
+          supabase.from("follows").select("following_id").eq("follower_id", me),
+          supabase.from("blocks").select("blocked_id").eq("blocker_id", me),
+          supabase.from("blocks").select("blocker_id").eq("blocked_id", me),
+        ],
+      );
       const followingIds = new Set((follows ?? []).map((f) => f.following_id));
+      const blockedIds = new Set([
+        ...(blocksMade ?? []).map((b) => b.blocked_id),
+        ...(blocksReceived ?? []).map((b) => b.blocker_id),
+      ]);
       return (people ?? [])
-        .filter((p) => p.id !== me)
+        .filter((p) => p.id !== me && !blockedIds.has(p.id))
         .map((p) => ({ ...p, isFollowing: followingIds.has(p.id) }));
     },
   });
@@ -171,7 +184,11 @@ function PeopleResults({ term }: { term: string }) {
           key={p.id}
           className="flex items-center gap-3 rounded-3xl border border-border bg-card p-3 shadow-card"
         >
-          <Link to="/u/$username" params={{ username: p.username }} className="flex min-w-0 flex-1 items-center gap-3">
+          <Link
+            to="/u/$username"
+            params={{ username: p.username }}
+            className="flex min-w-0 flex-1 items-center gap-3"
+          >
             <UserAvatar avatarPath={p.avatar_url} name={p.display_name ?? p.username} />
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">

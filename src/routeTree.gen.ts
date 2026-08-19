@@ -17,6 +17,8 @@ import { Route as AuthenticatedFeedRouteImport } from './routes/_authenticated/f
 import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
+import { Route as LegalPrivacyRouteImport } from './routes/legal/privacy'
+import { Route as LegalTermsRouteImport } from './routes/legal/terms'
 import { Route as AuthenticatedPlacePlaceIdRouteImport } from './routes/_authenticated/place.$placeId'
 import { Route as AuthenticatedUUsernameRouteImport } from './routes/_authenticated/u.$username'
 
@@ -59,6 +61,16 @@ const AuthenticatedNewRoute = AuthenticatedNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedPlacePlaceIdRoute =
   AuthenticatedPlacePlaceIdRouteImport.update({
     id: '/place/$placeId',
@@ -79,6 +91,8 @@ export interface FileRoutesByFullPath {
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
   '/new': typeof AuthenticatedNewRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/u/$username': typeof AuthenticatedUUsernameRoute
 }
@@ -90,6 +104,8 @@ export interface FileRoutesByTo {
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
   '/new': typeof AuthenticatedNewRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/u/$username': typeof AuthenticatedUUsernameRoute
 }
@@ -103,6 +119,8 @@ export interface FileRoutesById {
   '/_authenticated/map': typeof AuthenticatedMapRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/new': typeof AuthenticatedNewRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/_authenticated/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/_authenticated/u/$username': typeof AuthenticatedUUsernameRoute
 }
@@ -116,6 +134,8 @@ export interface FileRouteTypes {
     | '/map'
     | '/me'
     | '/new'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/place/$placeId'
     | '/u/$username'
   fileRoutesByTo: FileRoutesByTo
@@ -127,6 +147,8 @@ export interface FileRouteTypes {
     | '/map'
     | '/me'
     | '/new'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/place/$placeId'
     | '/u/$username'
   id:
@@ -139,6 +161,8 @@ export interface FileRouteTypes {
     | '/_authenticated/map'
     | '/_authenticated/me'
     | '/_authenticated/new'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/_authenticated/place/$placeId'
     | '/_authenticated/u/$username'
   fileRoutesById: FileRoutesById
@@ -147,6 +171,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -207,6 +233,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/place/$placeId': {
       id: '/_authenticated/place/$placeId'
       path: '/place/$placeId'
@@ -251,6 +291,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
