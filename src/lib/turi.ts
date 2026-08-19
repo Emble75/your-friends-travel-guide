@@ -83,3 +83,17 @@ export const CATEGORIES = [
   "Natur",
   "Sonstiges",
 ] as const;
+
+/**
+ * Extrahiert eine lesbare Fehlermeldung aus caught errors. Supabase-/
+ * PostgREST-Fehler sind KEINE echten Error-Instanzen (kein `instanceof
+ * Error`), haben aber ein `.message`-Feld -- ein reines `err instanceof
+ * Error`-Check verschluckt deren eigentliche Ursache.
+ */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) {
+    return String((err as { message: unknown }).message);
+  }
+  return fallback;
+}

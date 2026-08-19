@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TuriMark } from "@/components/turi/Logo";
 import { TurnstileWidget } from "@/components/turi/TurnstileWidget";
+import { getErrorMessage } from "@/lib/turi";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -94,7 +95,7 @@ function AuthPage() {
         }
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Etwas ist schiefgelaufen");
+      toast.error(getErrorMessage(err, "Etwas ist schiefgelaufen"));
     } finally {
       setLoading(false);
     }

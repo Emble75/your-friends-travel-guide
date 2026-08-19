@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CATEGORIES, compressImage } from "@/lib/turi";
+import { CATEGORIES, compressImage, getErrorMessage } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/new")({
   validateSearch: (search: Record<string, unknown>) =>
@@ -152,7 +152,8 @@ function NewReviewPage() {
       toast.success("Bewertung gespeichert");
       navigate({ to: "/place/$placeId", params: { placeId: place.id } });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+      console.error("[new review] Speichern fehlgeschlagen:", err);
+      toast.error(getErrorMessage(err, "Speichern fehlgeschlagen"));
     } finally {
       setSaving(false);
     }

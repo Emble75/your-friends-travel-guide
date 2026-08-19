@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Flag } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/turi";
 import {
   Dialog,
   DialogContent,
@@ -74,7 +75,7 @@ export function ReportDialog({
       setReason("");
       setDetails("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Melden fehlgeschlagen");
+      toast.error(getErrorMessage(err, "Melden fehlgeschlagen"));
     } finally {
       setSubmitting(false);
     }
