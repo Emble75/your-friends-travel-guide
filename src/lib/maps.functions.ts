@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAppSupabaseAuth } from "@/integrations/supabase/app-auth-middleware";
 
 export const getNearbyPlaces = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppSupabaseAuth])
   .inputValidator((data: unknown) =>
     z
       .object({
@@ -19,7 +19,7 @@ export const getNearbyPlaces = createServerFn({ method: "POST" })
   });
 
 export const searchMapPlaces = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppSupabaseAuth])
   .inputValidator((data: unknown) =>
     z
       .object({
