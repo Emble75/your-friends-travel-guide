@@ -30,24 +30,25 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseClient() {
-  // Bevorzugt eigene, nicht von Lovable reservierte Variablennamen (VITE_APP_...),
+  // Bevorzugt eigene, nicht von Lovable reservierte Variablennamen (APP_...),
   // damit die Verbindung zum externen Supabase-Projekt bestehen bleibt, selbst
   // wenn Lovable die auto-generierten VITE_SUPABASE_*-Werte zurücksetzt.
+  // "APP_" wird ueber vite.config.ts envPrefix zusaetzlich ins Frontend durchgereicht.
   const SUPABASE_URL =
-    import.meta.env["VITE_APP_SUPABASE_URL"] ||
+    import.meta.env["APP_SUPABASE_URL"] ||
     import.meta.env["VITE_SUPABASE_URL"] ||
     process.env["APP_SUPABASE_URL"] ||
     process.env["SUPABASE_URL"];
   const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env["VITE_APP_SUPABASE_PUBLISHABLE_KEY"] ||
+    import.meta.env["APP_SUPABASE_PUBLISHABLE_KEY"] ||
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
     process.env["APP_SUPABASE_PUBLISHABLE_KEY"] ||
     process.env["SUPABASE_PUBLISHABLE_KEY"];
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
-      ...(!SUPABASE_URL ? ["VITE_APP_SUPABASE_URL"] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ["VITE_APP_SUPABASE_PUBLISHABLE_KEY"] : []),
+      ...(!SUPABASE_URL ? ["APP_SUPABASE_URL"] : []),
+      ...(!SUPABASE_PUBLISHABLE_KEY ? ["APP_SUPABASE_PUBLISHABLE_KEY"] : []),
     ];
     const message = `Missing Supabase environment variable(s): ${missing.join(", ")}.`;
     console.error(`[Supabase] ${message}`);
