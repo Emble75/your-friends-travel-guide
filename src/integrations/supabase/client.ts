@@ -29,21 +29,32 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+declare global {
+  interface Window {
+    __SUPABASE_CONFIG__?: { url: string; publishableKey: string };
+  }
+}
+
 function createSupabaseClient() {
-  // Bevorzugt eigene, nicht von Lovable reservierte Variablennamen (APP_...),
-  // damit die Verbindung zum externen Supabase-Projekt bestehen bleibt, selbst
-  // wenn Lovable die auto-generierten VITE_SUPABASE_*-Werte zurücksetzt.
-  // "APP_" wird ueber vite.config.ts envPrefix zusaetzlich ins Frontend durchgereicht.
+  // Reihenfolge, robust gegen Lovables Build-Zeit-vs-Laufzeit-Problem:
+  // 1) Vom Server zur Laufzeit injizierte Werte (siehe __root.tsx) -- korrekt
+  //    auch wenn Secrets beim Build nicht verfuegbar waren.
+  // 2) process.env direkt (SSR-Kontext, laeuft server-seitig).
+  // 3) import.meta.env als letzter Fallback (rein clientseitiger Build/Preview
+  //    ohne SSR, z. B. lokales `vite build`).
+  const injected = typeof window !== "undefined" ? window.__SUPABASE_CONFIG__ : undefined;
   const SUPABASE_URL =
+    injected?.url ||
+    (typeof process !== "undefined" ? process.env["APP_SUPABASE_URL"] : undefined) ||
+    (typeof process !== "undefined" ? process.env["SUPABASE_URL"] : undefined) ||
     import.meta.env["APP_SUPABASE_URL"] ||
-    import.meta.env["VITE_SUPABASE_URL"] ||
-    process.env["APP_SUPABASE_URL"] ||
-    process.env["SUPABASE_URL"];
+    import.meta.env["VITE_SUPABASE_URL"];
   const SUPABASE_PUBLISHABLE_KEY =
+    injected?.publishableKey ||
+    (typeof process !== "undefined" ? process.env["APP_SUPABASE_PUBLISHABLE_KEY"] : undefined) ||
+    (typeof process !== "undefined" ? process.env["SUPABASE_PUBLISHABLE_KEY"] : undefined) ||
     import.meta.env["APP_SUPABASE_PUBLISHABLE_KEY"] ||
-    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["APP_SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["SUPABASE_PUBLISHABLE_KEY"];
+    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [

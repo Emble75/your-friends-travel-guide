@@ -114,7 +114,10 @@ function AuthPage() {
           <p className="mt-3 rounded-full bg-yellow-100 px-3 py-1 text-xs font-mono text-yellow-800">
             DEBUG:{" "}
             {(() => {
+              const injected =
+                typeof window !== "undefined" ? window.__SUPABASE_CONFIG__?.url : undefined;
               const url =
+                injected ||
                 (import.meta.env["APP_SUPABASE_URL"] as string | undefined) ||
                 (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ||
                 "keine URL gefunden";

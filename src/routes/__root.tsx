@@ -105,11 +105,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+function getPublicSupabaseConfigServerSide(): { url: string; publishableKey: string } | null {
+  // Laeuft nur server-seitig (SSR/Node), wo process.env zur LAUFZEIT (nicht
+  // zur Build-Zeit) korrekt gesetzt ist -- anders als der zur Build-Zeit
+  // eingebackene import.meta.env, der bei Lovable die auto-generierten,
+  // oft veralteten Werte enthaelt.
+  if (typeof process === "undefined" || !process.env) return null;
+  const url = process.env["APP_SUPABASE_URL"] ?? process.env["SUPABASE_URL"];
+  const publishableKey =
+    process.env["APP_SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"];
+  if (!url || !publishableKey) return null;
+  return { url, publishableKey };
+}
+
 function RootShell({ children }: { children: ReactNode }) {
+  const config = getPublicSupabaseConfigServerSide();
   return (
     <html lang="de">
       <head>
         <HeadContent />
+        {config ? (
+          <script
+            // Macht die zur Laufzeit korrekten Supabase-Werte im Browser
+            // verfuegbar, bevor irgendein anderes Skript laeuft.
+            dangerouslySetInnerHTML={{
+              __html: `window.__SUPABASE_CONFIG__ = ${JSON.stringify(config).replace(/</g, "\\u003c")};`,
+            }}
+          />
+        ) : null}
       </head>
       <body>
         {children}
