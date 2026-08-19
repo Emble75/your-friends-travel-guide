@@ -33,7 +33,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env["SUPABASE_URL"];
+  const SUPABASE_URL = process.env["APP_SUPABASE_URL"] ?? process.env["SUPABASE_URL"];
   // Lovable blockiert Secret-Namen mit dem Praefix "SUPABASE_" (reserviert fuer
   // die eigene Cloud-Integration). Fuer die veroeffentlichte App nutzen wir
   // deshalb APP_SUPABASE_SERVICE_ROLE_KEY; lokal (.env) bleibt der
