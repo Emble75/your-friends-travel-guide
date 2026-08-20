@@ -45,7 +45,7 @@ export function FollowListSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[75vh] rounded-t-3xl border-0 pb-8">
         <SheetHeader className="text-left">
-          <SheetTitle>{type === "followers" ? "Follower" : "Folgt"}</SheetTitle>
+          <SheetTitle>{type === "followers" ? "Followers" : "Following"}</SheetTitle>
         </SheetHeader>
         <div className="mt-2 max-h-[55vh] space-y-1 overflow-y-auto px-1">
           {isLoading ? (
@@ -75,7 +75,7 @@ export function FollowListSheet({
             ))
           ) : (
             <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-              {type === "followers" ? "Noch keine Follower." : "Folgt noch niemandem."}
+              {type === "followers" ? "No followers yet." : "Not following anyone yet."}
             </p>
           )}
         </div>

@@ -17,7 +17,7 @@ function loadMaps() {
     if (window.google?.maps) return resolve();
     const key = import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
     const channel = import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID"];
-    if (!key) return reject(new Error("Karten-Schlüssel fehlt"));
+    if (!key) return reject(new Error("Missing maps API key"));
     window.__turiMapsReady = () => resolve();
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&loading=async&callback=__turiMapsReady&language=de${

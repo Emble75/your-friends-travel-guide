@@ -17,11 +17,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
 const REASONS = [
-  { value: "spam", label: "Spam oder Werbung" },
-  { value: "inappropriate", label: "Unangemessener Inhalt" },
-  { value: "harassment", label: "Belästigung oder Mobbing" },
-  { value: "fake", label: "Gefälschte Bewertung" },
-  { value: "other", label: "Sonstiges" },
+  { value: "spam", label: "Spam or advertising" },
+  { value: "inappropriate", label: "Inappropriate content" },
+  { value: "harassment", label: "Harassment or bullying" },
+  { value: "fake", label: "Fake review" },
+  { value: "other", label: "Other" },
 ];
 
 type ReportDialogProps = {
@@ -52,14 +52,14 @@ export function ReportDialog({
 
   async function submit() {
     if (!reason) {
-      toast.error("Bitte einen Grund auswählen");
+      toast.error("Please select a reason");
       return;
     }
     setSubmitting(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
       const reporterId = auth.user?.id;
-      if (!reporterId) throw new Error("Nicht angemeldet");
+      if (!reporterId) throw new Error("Not signed in");
 
       const { error } = await supabase.from("reports").insert({
         reporter_id: reporterId,
@@ -70,12 +70,12 @@ export function ReportDialog({
       });
       if (error) throw error;
 
-      toast.success("Danke, wir prüfen das.");
+      toast.success("Thanks, we'll take a look.");
       setOpen(false);
       setReason("");
       setDetails("");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Melden fehlgeschlagen"));
+      toast.error(getErrorMessage(err, "Report failed"));
     } finally {
       setSubmitting(false);
     }
@@ -90,16 +90,16 @@ export function ReportDialog({
               type="button"
               onClick={() => setOpen(true)}
               className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
-              aria-label="Melden"
+              aria-label="Report"
             >
               <Flag size={16} />
             </button>
           ))}
       <DialogContent className="rounded-3xl">
         <DialogHeader>
-          <DialogTitle>Inhalt melden</DialogTitle>
+          <DialogTitle>Report content</DialogTitle>
           <DialogDescription>
-            Sag uns kurz, worum es geht. Meldungen werden von uns geprüft.
+            Let us know briefly what's going on. Reports are reviewed by us.
           </DialogDescription>
         </DialogHeader>
         <RadioGroup value={reason} onValueChange={setReason} className="gap-3 py-2">
@@ -115,13 +115,13 @@ export function ReportDialog({
         <Textarea
           value={details}
           onChange={(e) => setDetails(e.target.value)}
-          placeholder="Optional: mehr Details"
+          placeholder="Optional: more details"
           rows={3}
           className="rounded-2xl"
         />
         <DialogFooter>
           <Button onClick={submit} disabled={submitting} className="w-full rounded-2xl">
-            {submitting ? "Wird gesendet…" : "Melden"}
+            {submitting ? "Sending…" : "Report"}
           </Button>
         </DialogFooter>
       </DialogContent>

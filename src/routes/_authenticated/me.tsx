@@ -33,10 +33,10 @@ import { compressImage, getErrorMessage } from "@/lib/turi";
 export const Route = createFileRoute("/_authenticated/me")({
   head: () => ({
     meta: [
-      { title: "Mein Profil – Turi" },
-      { name: "description", content: "Dein Turi-Profil mit deinen Ortsbewertungen." },
-      { property: "og:title", content: "Mein Profil – Turi" },
-      { property: "og:description", content: "Dein Turi-Profil mit deinen Ortsbewertungen." },
+      { title: "My Profile – Turi" },
+      { name: "description", content: "Your Turi profile with all your place reviews." },
+      { property: "og:title", content: "My Profile – Turi" },
+      { property: "og:description", content: "Your Turi profile with all your place reviews." },
     ],
   }),
   component: MePage,
@@ -158,10 +158,10 @@ function MePage() {
           .eq("follower_id", followerId)
           .eq("following_id", me);
     if (error) {
-      toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Action failed"));
       return;
     }
-    toast.success(accept ? "Anfrage angenommen" : "Anfrage abgelehnt");
+    toast.success(accept ? "Request accepted" : "Request declined");
     queryClient.invalidateQueries();
   }
 
@@ -173,7 +173,7 @@ function MePage() {
     const path = `${me}/avatar-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
     if (error) {
-      toast.error(getErrorMessage(error, "Upload fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Upload failed"));
       return;
     }
     const { error: pErr } = await supabase
@@ -181,10 +181,10 @@ function MePage() {
       .update({ avatar_url: path })
       .eq("id", me);
     if (pErr) {
-      toast.error(getErrorMessage(pErr, "Speichern fehlgeschlagen"));
+      toast.error(getErrorMessage(pErr, "Could not save"));
       return;
     }
-    toast.success("Profilbild aktualisiert");
+    toast.success("Profile photo updated");
     queryClient.invalidateQueries();
   }
 
@@ -199,11 +199,11 @@ function MePage() {
       })
       .eq("id", auth.user!.id);
     if (error) {
-      toast.error(getErrorMessage(error, "Speichern fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Could not save"));
       return;
     }
     setEditing(false);
-    toast.success("Profil gespeichert");
+    toast.success("Profile saved");
     queryClient.invalidateQueries();
   }
 
@@ -213,10 +213,10 @@ function MePage() {
       await deleteAccountFn();
       await supabase.auth.signOut();
       queryClient.clear();
-      toast.success("Konto gelöscht");
+      toast.success("Account deleted");
       navigate({ to: "/auth" });
     } catch (err) {
-      toast.error(getErrorMessage(err, "Konto konnte nicht gelöscht werden"));
+      toast.error(getErrorMessage(err, "Could not delete account"));
       setDeleting(false);
     }
   }
@@ -241,7 +241,7 @@ function MePage() {
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Abmelden"
+            aria-label="Sign out"
             onClick={async () => {
               await supabase.auth.signOut();
               queryClient.clear();
@@ -277,7 +277,7 @@ function MePage() {
               </h1>
               <p className="truncate text-sm text-muted-foreground">
                 @{profile.username}
-                {profile.is_private ? " · Privat" : ""}
+                {profile.is_private ? " · Private" : ""}
               </p>
             </div>
           </div>
@@ -289,7 +289,7 @@ function MePage() {
           <div className="mt-4 flex gap-5 text-sm">
             <span>
               <strong>{reviews.length}</strong>{" "}
-              <span className="text-muted-foreground">Bewertungen</span>
+              <span className="text-muted-foreground">Reviews</span>
             </span>
             <button
               type="button"
@@ -297,14 +297,15 @@ function MePage() {
               className="text-left"
             >
               <strong>{data.followers}</strong>{" "}
-              <span className="text-muted-foreground">Follower</span>
+              <span className="text-muted-foreground">Followers</span>
             </button>
             <button
               type="button"
               onClick={() => setFollowListOpen("following")}
               className="text-left"
             >
-              <strong>{data.following}</strong> <span className="text-muted-foreground">Folgt</span>
+              <strong>{data.following}</strong>{" "}
+              <span className="text-muted-foreground">Following</span>
             </button>
           </div>
 
@@ -313,37 +314,37 @@ function MePage() {
               <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Anzeigename"
+                placeholder="Display name"
                 className="h-12 rounded-2xl"
               />
               <Textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                placeholder="Kurze Bio"
+                placeholder="Short bio"
                 rows={3}
                 className="rounded-2xl"
               />
               <div className="flex items-center justify-between rounded-2xl border border-border p-3">
                 <div>
                   <Label htmlFor="is-private" className="text-sm font-medium">
-                    Privates Konto
+                    Private account
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Neue Follower musst du erst bestätigen.
+                    New followers must be approved first.
                   </p>
                 </div>
                 <Switch id="is-private" checked={isPrivate} onCheckedChange={setIsPrivate} />
               </div>
               <div className="flex gap-2">
                 <Button onClick={saveProfile} className="flex-1 rounded-2xl">
-                  Speichern
+                  Save
                 </Button>
                 <Button
                   variant="secondary"
                   className="rounded-2xl"
                   onClick={() => setEditing(false)}
                 >
-                  Abbrechen
+                  Cancel
                 </Button>
               </div>
             </div>
@@ -358,7 +359,7 @@ function MePage() {
                 setEditing(true);
               }}
             >
-              Profil bearbeiten
+              Edit profile
             </Button>
           )}
         </section>
@@ -366,7 +367,7 @@ function MePage() {
         {pendingRequests.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
             <h2 className="text-xs uppercase tracking-wide text-muted-foreground">
-              Follow-Anfragen ({pendingRequests.length})
+              Follow requests ({pendingRequests.length})
             </h2>
             <ul className="mt-3 space-y-3">
               {pendingRequests.map((r) => (
@@ -383,7 +384,7 @@ function MePage() {
                   <Button
                     size="icon"
                     className="rounded-full"
-                    aria-label="Annehmen"
+                    aria-label="Accept"
                     onClick={() => respondToRequest(r.followerId, true)}
                   >
                     <UserCheck size={16} />
@@ -392,7 +393,7 @@ function MePage() {
                     size="icon"
                     variant="secondary"
                     className="rounded-full"
-                    aria-label="Ablehnen"
+                    aria-label="Decline"
                     onClick={() => respondToRequest(r.followerId, false)}
                   >
                     <UserX size={16} />
@@ -405,7 +406,7 @@ function MePage() {
 
         {folders.length > 0 || sharedWithMe.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">Meine Reisen</h2>
+            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">My Trips</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {folders.map((f) => (
                 <Link
@@ -425,7 +426,9 @@ function MePage() {
                   className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-2 text-sm font-medium text-primary"
                 >
                   <Folder size={14} /> {f.name}
-                  <span className="text-xs text-muted-foreground">von @{f.profiles?.username}</span>
+                  <span className="text-xs text-muted-foreground">
+                    from @{f.profiles?.username}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -437,44 +440,44 @@ function MePage() {
         ) : (
           <EmptyState
             icon={Star}
-            title="Noch keine Bewertungen"
-            text="Bewerte deinen ersten Ort – deine Freunde sehen ihn sofort."
+            title="No reviews yet"
+            text="Review your first place — your friends will see it right away."
             action={
               <Button asChild className="rounded-2xl">
-                <Link to="/new">Ort bewerten</Link>
+                <Link to="/new">Review a place</Link>
               </Button>
             }
           />
         )}
 
         <section className="rounded-3xl border border-destructive/30 bg-card p-4 shadow-card">
-          <h2 className="text-sm font-semibold text-destructive">Konto löschen</h2>
+          <h2 className="text-sm font-semibold text-destructive">Delete account</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Löscht dein Konto und alle deine Bewertungen, Fotos und Follows dauerhaft. Das kann
-            nicht rückgängig gemacht werden.
+            Permanently deletes your account and all your reviews, photos, and follows. This can't
+            be undone.
           </p>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" className="mt-3 rounded-2xl">
-                <Trash2 size={16} className="mr-2" /> Konto endgültig löschen
+                <Trash2 size={16} className="mr-2" /> Permanently delete account
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="rounded-3xl">
               <AlertDialogHeader>
-                <AlertDialogTitle>Konto wirklich löschen?</AlertDialogTitle>
+                <AlertDialogTitle>Really delete your account?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Alle deine Bewertungen, Fotos, Follower und Anfragen werden unwiderruflich
-                  gelöscht. Das kann nicht rückgängig gemacht werden.
+                  All your reviews, photos, followers, and requests will be permanently deleted.
+                  This can't be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
+                <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={deleteAccount}
                   disabled={deleting}
                   className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {deleting ? "Wird gelöscht…" : "Endgültig löschen"}
+                  {deleting ? "Deleting…" : "Permanently delete"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

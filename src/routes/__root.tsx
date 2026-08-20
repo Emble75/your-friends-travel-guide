@@ -47,10 +47,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Diese Seite konnte nicht geladen werden
+          This page couldn't be loaded
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Bitte versuche es erneut oder gehe zurück zum Start.
+          Please try again or go back to the home page.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -60,13 +60,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Nochmal versuchen
+            Try again
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-full border border-input bg-background px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Zur Startseite
+            Go to home
           </a>
         </div>
       </div>
@@ -79,10 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Turi – Reise-Bewertungen von Freunden" },
+      { title: "Turi – Travel reviews from friends" },
       {
         name: "description",
-        content: "Turi zeigt dir zu jedem Ort nur die Bewertungen deiner Freunde.",
+        content: "Turi shows you only your friends' reviews for every place.",
       },
       { name: "theme-color", content: "#2B2724" },
       { property: "og:type", content: "website" },
@@ -121,7 +121,7 @@ function getPublicSupabaseConfigServerSide(): { url: string; publishableKey: str
 function RootShell({ children }: { children: ReactNode }) {
   const config = getPublicSupabaseConfigServerSide();
   return (
-    <html lang="de">
+    <html lang="en">
       <head>
         <HeadContent />
         {config ? (

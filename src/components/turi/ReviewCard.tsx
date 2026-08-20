@@ -82,7 +82,7 @@ export function ReviewCard({
 
   async function saveEdit() {
     if (editRating < 1) {
-      toast.error("Bitte Sterne vergeben");
+      toast.error("Please give a star rating");
       return;
     }
     setSaving(true);
@@ -92,10 +92,10 @@ export function ReviewCard({
       .eq("id", review.id);
     setSaving(false);
     if (error) {
-      toast.error(getErrorMessage(error, "Speichern fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Could not save"));
       return;
     }
-    toast.success("Bewertung aktualisiert");
+    toast.success("Review updated");
     setEditOpen(false);
     queryClient.invalidateQueries();
   }
@@ -109,10 +109,10 @@ export function ReviewCard({
       }
       const { error } = await supabase.from("reviews").delete().eq("id", review.id);
       if (error) throw error;
-      toast.success("Bewertung gelöscht");
+      toast.success("Review deleted");
       queryClient.invalidateQueries();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Löschen fehlgeschlagen"));
+      toast.error(getErrorMessage(err, "Could not delete"));
     } finally {
       setDeleting(false);
     }
@@ -146,7 +146,7 @@ export function ReviewCard({
               <button
                 type="button"
                 className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
-                aria-label="Weitere Optionen"
+                aria-label="More options"
               >
                 <MoreVertical size={16} />
               </button>
@@ -161,7 +161,7 @@ export function ReviewCard({
                 }}
               >
                 <Pencil size={16} className="mr-2" />
-                Bearbeiten
+                Edit
               </DropdownMenuItem>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -170,15 +170,13 @@ export function ReviewCard({
                     className="text-destructive"
                   >
                     <Trash2 size={16} className="mr-2" />
-                    Löschen
+                    Delete
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
                 <AlertDialogContent className="rounded-3xl">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Bewertung löschen?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Das kann nicht rückgängig gemacht werden.
-                    </AlertDialogDescription>
+                    <AlertDialogTitle>Delete review?</AlertDialogTitle>
+                    <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
@@ -187,7 +185,7 @@ export function ReviewCard({
                       disabled={deleting}
                       className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {deleting ? "Wird gelöscht…" : "Löschen"}
+                      {deleting ? "Deleting…" : "Delete"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -227,7 +225,7 @@ export function ReviewCard({
               {url ? (
                 <img
                   src={url}
-                  alt={`Foto ${i + 1} von ${review.places?.name ?? "Ort"}`}
+                  alt={`Photo ${i + 1} of ${review.places?.name ?? "place"}`}
                   loading="lazy"
                   className="size-full object-cover"
                 />
@@ -240,7 +238,7 @@ export function ReviewCard({
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="rounded-3xl">
           <DialogHeader>
-            <DialogTitle>Bewertung bearbeiten</DialogTitle>
+            <DialogTitle>Edit review</DialogTitle>
           </DialogHeader>
           <div className="flex justify-center py-2">
             <StarPicker value={editRating} onChange={setEditRating} />
@@ -248,13 +246,13 @@ export function ReviewCard({
           <Textarea
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
-            placeholder="Wie war's?"
+            placeholder="How was it?"
             rows={5}
             className="rounded-2xl"
           />
           <DialogFooter>
             <Button onClick={saveEdit} disabled={saving} className="w-full rounded-2xl">
-              {saving ? "Speichern…" : "Speichern"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

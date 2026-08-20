@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_authenticated/place/$placeId")({
   head: () => ({
     meta: [
-      { title: "Ort – Turi" },
-      { name: "description", content: "Bewertungen deiner Freunde zu diesem Ort." },
-      { property: "og:title", content: "Ort – Turi" },
-      { property: "og:description", content: "Bewertungen deiner Freunde zu diesem Ort." },
+      { title: "Place – Turi" },
+      { name: "description", content: "Your friends' reviews of this place." },
+      { property: "og:title", content: "Place – Turi" },
+      { property: "og:description", content: "Your friends' reviews of this place." },
     ],
   }),
   component: PlacePage,
@@ -58,7 +58,7 @@ function PlacePage() {
 
   return (
     <>
-      <AppHeader title={place?.name ?? "Ort"} />
+      <AppHeader title={place?.name ?? "Place"} />
       <div className="app-shell space-y-4 py-4">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
           <div className="flex items-start gap-3">
@@ -80,20 +80,16 @@ function PlacePage() {
                 <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
                 <Stars value={avg} size={16} />
                 <span className="ml-auto text-xs text-muted-foreground">
-                  {reviews!.length} {reviews!.length === 1 ? "Freund" : "Freunde"}
+                  {reviews!.length} {reviews!.length === 1 ? "friend" : "friends"}
                 </span>
               </>
             ) : (
-              <span className="text-xs text-muted-foreground">
-                Noch kein Schnitt aus deinem Freundeskreis
-              </span>
+              <span className="text-xs text-muted-foreground">No average from your circle yet</span>
             )}
           </div>
         </section>
 
-        <h2 className="px-1 text-sm font-semibold text-muted-foreground">
-          Aus deinem Freundeskreis
-        </h2>
+        <h2 className="px-1 text-sm font-semibold text-muted-foreground">From your circle</h2>
 
         {isLoading ? (
           <Skeleton className="h-48 rounded-3xl" />
@@ -102,15 +98,15 @@ function PlacePage() {
         ) : (
           <EmptyState
             icon={Users}
-            title="Noch keine Freunde-Bewertungen für diesen Ort"
-            text="Folge mehr Freunden oder sei selbst die erste Person, die hier bewertet."
+            title="No friend reviews for this place yet"
+            text="Follow more friends, or be the first to review it yourself."
             action={
               <div className="flex gap-2">
                 <Button asChild className="rounded-2xl">
-                  <Link to="/new">Jetzt bewerten</Link>
+                  <Link to="/new">Review now</Link>
                 </Button>
                 <Button asChild variant="secondary" className="rounded-2xl">
-                  <Link to="/explore">Freunde finden</Link>
+                  <Link to="/explore">Find friends</Link>
                 </Button>
               </div>
             }

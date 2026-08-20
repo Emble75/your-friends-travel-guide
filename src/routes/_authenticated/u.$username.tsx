@@ -43,10 +43,10 @@ import {
 export const Route = createFileRoute("/_authenticated/u/$username")({
   head: () => ({
     meta: [
-      { title: "Profil – Turi" },
-      { name: "description", content: "Bewertungen und Orte dieser Person auf Turi." },
-      { property: "og:title", content: "Profil – Turi" },
-      { property: "og:description", content: "Bewertungen und Orte dieser Person auf Turi." },
+      { title: "Profile – Turi" },
+      { name: "description", content: "This person's reviews and places on Turi." },
+      { property: "og:title", content: "Profile – Turi" },
+      { property: "og:description", content: "This person's reviews and places on Turi." },
     ],
   }),
   component: ProfilePage,
@@ -131,7 +131,7 @@ function ProfilePage() {
           .eq("follower_id", me)
           .eq("following_id", data.profile.id)
       : await supabase.from("follows").insert({ follower_id: me, following_id: data.profile.id });
-    if (error) toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+    if (error) toast.error(getErrorMessage(error, "Action failed"));
     else queryClient.invalidateQueries();
   }
 
@@ -147,9 +147,9 @@ function ProfilePage() {
         .delete()
         .eq("blocker_id", me)
         .eq("blocked_id", data.profile.id);
-      if (error) toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+      if (error) toast.error(getErrorMessage(error, "Action failed"));
       else {
-        toast.success(`@${data.profile.username} entblockt`);
+        toast.success(`@${data.profile.username} unblocked`);
         queryClient.invalidateQueries();
       }
       return;
@@ -159,7 +159,7 @@ function ProfilePage() {
       .from("blocks")
       .insert({ blocker_id: me, blocked_id: data.profile.id });
     if (error) {
-      toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Action failed"));
       return;
     }
     // Gegenseitige Follows aufheben, damit die Inhalte auch wirklich verschwinden.
@@ -169,14 +169,14 @@ function ProfilePage() {
       .or(
         `and(follower_id.eq.${me},following_id.eq.${data.profile.id}),and(follower_id.eq.${data.profile.id},following_id.eq.${me})`,
       );
-    toast.success(`@${data.profile.username} blockiert`);
+    toast.success(`@${data.profile.username} blocked`);
     queryClient.invalidateQueries();
   }
 
   if (isLoading) {
     return (
       <>
-        <AppHeader title="Profil" />
+        <AppHeader title="Profile" />
         <div className="app-shell py-4">
           <Skeleton className="h-40 rounded-3xl" />
         </div>
@@ -187,12 +187,12 @@ function ProfilePage() {
   if (!data) {
     return (
       <>
-        <AppHeader title="Profil" />
+        <AppHeader title="Profile" />
         <div className="app-shell py-4">
           <EmptyState
             icon={UserPlus}
-            title="Profil nicht gefunden"
-            text={`@${username} gibt es nicht.`}
+            title="Profile not found"
+            text={`@${username} doesn't exist.`}
           />
         </div>
       </>
@@ -224,7 +224,7 @@ function ProfilePage() {
                   <button
                     type="button"
                     className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
-                    aria-label="Weitere Optionen"
+                    aria-label="More options"
                   >
                     <MoreVertical size={18} />
                   </button>
@@ -237,7 +237,7 @@ function ProfilePage() {
                     }}
                   >
                     <Flag size={16} className="mr-2" />
-                    Melden
+                    Report
                   </DropdownMenuItem>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -253,17 +253,17 @@ function ProfilePage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>
                           {data.isBlocked
-                            ? `@${profile.username} entblockieren?`
-                            : `@${profile.username} blockieren?`}
+                            ? `Unblock @${profile.username}?`
+                            : `Block @${profile.username}?`}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                           {data.isBlocked
-                            ? "Ihr könnt euch danach wieder gegenseitig sehen und folgen."
-                            : "Ihr könnt euch danach gegenseitig keine Bewertungen mehr sehen und folgt euch nicht mehr."}
+                            ? "You'll be able to see and follow each other again afterward."
+                            : "You won't be able to see each other's reviews or follow each other anymore."}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
+                        <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={toggleBlock} className="rounded-2xl">
                           {data.isBlocked ? "Entblockieren" : "Blockieren"}
                         </AlertDialogAction>
@@ -286,7 +286,7 @@ function ProfilePage() {
           <div className="mt-4 flex gap-5 text-sm">
             <span>
               <strong>{reviews.length}</strong>{" "}
-              <span className="text-muted-foreground">Bewertungen</span>
+              <span className="text-muted-foreground">Reviews</span>
             </span>
             <button
               type="button"
@@ -294,14 +294,15 @@ function ProfilePage() {
               className="text-left"
             >
               <strong>{data.followers}</strong>{" "}
-              <span className="text-muted-foreground">Follower</span>
+              <span className="text-muted-foreground">Followers</span>
             </button>
             <button
               type="button"
               onClick={() => setFollowListOpen("following")}
               className="text-left"
             >
-              <strong>{data.following}</strong> <span className="text-muted-foreground">Folgt</span>
+              <strong>{data.following}</strong>{" "}
+              <span className="text-muted-foreground">Following</span>
             </button>
           </div>
           {!data.isMe ? (
@@ -319,12 +320,12 @@ function ProfilePage() {
               )}
               <span className="ml-1">
                 {data.followStatus === "accepted"
-                  ? "Du folgst"
+                  ? "Following"
                   : data.followStatus === "pending"
-                    ? "Angefragt"
+                    ? "Requested"
                     : profile.is_private
-                      ? "Anfrage senden"
-                      : "Folgen"}
+                      ? "Send request"
+                      : "Follow"}
               </span>
             </Button>
           ) : null}
@@ -333,11 +334,11 @@ function ProfilePage() {
         {profile.is_private && data.followStatus !== "accepted" && !data.isMe ? (
           <EmptyState
             icon={Lock}
-            title="Privates Konto"
+            title="Private account"
             text={
               data.followStatus === "pending"
-                ? "Deine Anfrage wartet auf Bestätigung."
-                : `Folge @${profile.username}, um Bewertungen zu sehen.`
+                ? "Your request is waiting for approval."
+                : `Follow @${profile.username} to see reviews.`
             }
           />
         ) : reviews.length > 0 ? (
@@ -345,8 +346,8 @@ function ProfilePage() {
         ) : (
           <EmptyState
             icon={Star}
-            title="Noch keine Bewertungen"
-            text="Hier erscheinen alle bewerteten Orte."
+            title="No reviews yet"
+            text="All reviewed places will appear here."
           />
         )}
       </div>

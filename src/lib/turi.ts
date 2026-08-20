@@ -74,14 +74,14 @@ export async function compressImage(
 
 export const CATEGORIES = [
   "Restaurant",
-  "Café",
+  "Cafe",
   "Bar",
   "Hotel",
-  "Strand",
+  "Beach",
   "Museum",
-  "Sehenswürdigkeit",
-  "Natur",
-  "Sonstiges",
+  "Landmark",
+  "Nature",
+  "Other",
 ] as const;
 
 /**

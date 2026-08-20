@@ -27,7 +27,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/folder/$folderId")({
   head: () => ({
-    meta: [{ title: "Ordner – Turi" }],
+    meta: [{ title: "Folder – Turi" }],
   }),
   component: FolderPage,
 });
@@ -63,10 +63,10 @@ function FolderPage() {
   async function deleteFolder() {
     const { error } = await supabase.from("trip_folders").delete().eq("id", folderId);
     if (error) {
-      toast.error(getErrorMessage(error, "Löschen fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Could not delete"));
       return;
     }
-    toast.success("Ordner gelöscht");
+    toast.success("Folder deleted");
     queryClient.invalidateQueries();
     navigate({ to: "/me" });
   }
@@ -74,7 +74,7 @@ function FolderPage() {
   if (isLoading) {
     return (
       <>
-        <AppHeader title="Ordner" />
+        <AppHeader title="Folder" />
         <div className="app-shell py-4">
           <Skeleton className="h-40 rounded-3xl" />
         </div>
@@ -85,12 +85,12 @@ function FolderPage() {
   if (!data?.folder) {
     return (
       <>
-        <AppHeader title="Ordner" />
+        <AppHeader title="Folder" />
         <div className="app-shell py-4">
           <EmptyState
             icon={Folder}
-            title="Ordner nicht gefunden"
-            text="Entweder existiert er nicht mehr, oder er wurde nicht mit dir geteilt."
+            title="Folder not found"
+            text="Either it no longer exists, or it hasn't been shared with you."
           />
         </div>
       </>
@@ -104,7 +104,7 @@ function FolderPage() {
       <AppHeader title={folder.name} />
       <div className="app-shell space-y-4 py-4">
         <Link to="/me" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <ArrowLeft size={14} /> Zurück zum Profil
+          <ArrowLeft size={14} /> Back to profile
         </Link>
 
         {isOwn ? (
@@ -114,7 +114,7 @@ function FolderPage() {
               className="flex-1 rounded-2xl"
               onClick={() => setShareOpen(true)}
             >
-              <Share2 size={16} className="mr-2" /> Teilen
+              <Share2 size={16} className="mr-2" /> Share
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -124,19 +124,19 @@ function FolderPage() {
               </AlertDialogTrigger>
               <AlertDialogContent className="rounded-3xl">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Ordner löschen?</AlertDialogTitle>
+                  <AlertDialogTitle>Delete folder?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Die Bewertungen selbst bleiben erhalten, verlieren aber ihre Ordner-Zuordnung
-                    und werden nicht mehr geteilt.
+                    The reviews themselves stay intact but lose their folder assignment and are no
+                    longer shared.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
+                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={deleteFolder}
                     className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Löschen
+                    Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -149,8 +149,8 @@ function FolderPage() {
         ) : (
           <EmptyState
             icon={Star}
-            title="Noch leer"
-            text="Hier erscheinen Bewertungen aus diesem Ordner."
+            title="Still empty"
+            text="Reviews from this folder will appear here."
           />
         )}
       </div>
@@ -228,7 +228,7 @@ function ShareDialog({
           .from("trip_folder_shares")
           .insert({ folder_id: folderId, shared_with_id: personId });
     if (error) {
-      toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Action failed"));
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["folder-share-candidates", folderId] });
@@ -238,18 +238,18 @@ function ShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl">
         <DialogHeader>
-          <DialogTitle>Ordner teilen</DialogTitle>
+          <DialogTitle>Share folder</DialogTitle>
         </DialogHeader>
         <Input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Person suchen"
+          placeholder="Search for a person"
           className="h-11 rounded-2xl"
         />
         <div className="max-h-[45vh] space-y-1 overflow-y-auto">
           {(data ?? []).length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Niemand gefunden in deinem Netzwerk.
+              No one found in your network.
             </p>
           ) : (
             (data ?? []).map((p) => (
@@ -270,7 +270,7 @@ function ShareDialog({
                   onClick={() => toggleShare(p.id, p.shared)}
                 >
                   {p.shared ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                  <span className="ml-1">{p.shared ? "Entfernen" : "Teilen"}</span>
+                  <span className="ml-1">{p.shared ? "Remove" : "Share"}</span>
                 </Button>
               </div>
             ))

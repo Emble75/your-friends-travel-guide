@@ -24,13 +24,13 @@ export const Route = createFileRoute("/_authenticated/new")({
     typeof search["placeId"] === "string" ? { placeId: search["placeId"] as string } : {},
   head: () => ({
     meta: [
-      { title: "Ort bewerten – Turi" },
+      { title: "Review a Place – Turi" },
       {
         name: "description",
-        content: "Bewerte einen Ort mit Sternen, Text und bis zu drei Fotos.",
+        content: "Review a place with a star rating, text, and up to three photos.",
       },
-      { property: "og:title", content: "Ort bewerten – Turi" },
-      { property: "og:description", content: "Sterne, Text und bis zu drei Fotos." },
+      { property: "og:title", content: "Review a Place – Turi" },
+      { property: "og:description", content: "Star rating, text, and up to three photos." },
     ],
   }),
   component: NewReviewPage,
@@ -124,7 +124,7 @@ function NewReviewPage() {
   async function createPlace() {
     const { data: auth } = await supabase.auth.getUser();
     if (!newName.trim() || !newCity.trim()) {
-      toast.error("Name und Stadt angeben");
+      toast.error("Enter a name and city");
       return;
     }
     const { data, error } = await supabase
@@ -138,7 +138,9 @@ function NewReviewPage() {
       .select("id, name, city, category")
       .single();
     if (error) {
-      toast.error(error.message.includes("duplicate") ? "Diesen Ort gibt es schon" : error.message);
+      toast.error(
+        error.message.includes("duplicate") ? "This place already exists" : error.message,
+      );
       return;
     }
     setPlace(data);
@@ -153,11 +155,11 @@ function NewReviewPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!place) {
-      toast.error("Bitte einen Ort wählen");
+      toast.error("Please choose a place");
       return;
     }
     if (rating < 1) {
-      toast.error("Bitte Sterne vergeben");
+      toast.error("Please give a star rating");
       return;
     }
     setSaving(true);
@@ -193,11 +195,11 @@ function NewReviewPage() {
         if (imgErr) throw imgErr;
       }
 
-      toast.success("Bewertung gespeichert");
+      toast.success("Review saved");
       navigate({ to: "/place/$placeId", params: { placeId: place.id } });
     } catch (err) {
-      console.error("[new review] Speichern fehlgeschlagen:", err);
-      toast.error(getErrorMessage(err, "Speichern fehlgeschlagen"));
+      console.error("[new review] Save failed:", err);
+      toast.error(getErrorMessage(err, "Could not save"));
     } finally {
       setSaving(false);
     }
@@ -208,7 +210,7 @@ function NewReviewPage() {
       <AppHeader />
       <form onSubmit={submit} className="app-shell space-y-5 py-4">
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Ort</Label>
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Place</Label>
           {place ? (
             <div className="mt-2 flex items-center gap-3">
               <span className="flex size-11 items-center justify-center rounded-2xl bg-primary-soft text-accent-foreground">
@@ -229,18 +231,18 @@ function NewReviewPage() {
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Name des Orts"
+                placeholder="Place name"
                 className="h-12 rounded-2xl"
               />
               <Input
                 value={newCity}
                 onChange={(e) => setNewCity(e.target.value)}
-                placeholder="Stadt"
+                placeholder="City"
                 className="h-12 rounded-2xl"
               />
               <Select value={newCategory} onValueChange={setNewCategory}>
                 <SelectTrigger className="h-12 rounded-2xl">
-                  <SelectValue placeholder="Kategorie" />
+                  <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
@@ -252,7 +254,7 @@ function NewReviewPage() {
               </Select>
               <div className="flex gap-2">
                 <Button type="button" onClick={createPlace} className="flex-1 rounded-2xl">
-                  Ort anlegen
+                  Create place
                 </Button>
                 <Button
                   type="button"
@@ -260,7 +262,7 @@ function NewReviewPage() {
                   className="rounded-2xl"
                   onClick={() => setCreating(false)}
                 >
-                  Abbrechen
+                  Cancel
                 </Button>
               </div>
             </div>
@@ -269,7 +271,7 @@ function NewReviewPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Ort suchen (Name oder Stadt)"
+                placeholder="Search place (name or city)"
                 className="h-12 rounded-2xl"
               />
               {results && results.length > 0 ? (
@@ -298,7 +300,7 @@ function NewReviewPage() {
                   setCreating(true);
                 }}
               >
-                <Plus size={16} className="mr-1" /> Neuen Ort anlegen
+                <Plus size={16} className="mr-1" /> Add a new place
               </Button>
             </div>
           )}
@@ -306,7 +308,7 @@ function NewReviewPage() {
 
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Deine Bewertung
+            Your Review
           </Label>
           <div className="mt-2 flex justify-center">
             <StarPicker value={rating} onChange={setRating} />
@@ -314,7 +316,7 @@ function NewReviewPage() {
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Wie war's? Was sollten deine Freunde wissen?"
+            placeholder="How was it? What should your friends know?"
             rows={5}
             className="mt-3 rounded-2xl"
           />
@@ -322,7 +324,7 @@ function NewReviewPage() {
 
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Fotos (max. 3)
+            Photos (max. 3)
           </Label>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {files.map((f, i) => (
@@ -332,7 +334,7 @@ function NewReviewPage() {
                   type="button"
                   onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
                   className="absolute right-1 top-1 rounded-full bg-background/90 p-1"
-                  aria-label="Foto entfernen"
+                  aria-label="Remove photo"
                 >
                   <X size={14} />
                 </button>
@@ -341,7 +343,7 @@ function NewReviewPage() {
             {files.length < 3 ? (
               <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-muted-foreground">
                 <ImagePlus size={22} />
-                <span className="text-[11px]">Hinzufügen</span>
+                <span className="text-[11px]">Add</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -356,18 +358,18 @@ function NewReviewPage() {
 
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Ordner (optional)
+            Folder (optional)
           </Label>
           <p className="mt-1 text-xs text-muted-foreground">
-            Gruppiere Orte z. B. nach Reise ("Puglia", "Madrid") und teile den Ordner später gezielt
-            mit einzelnen Personen.
+            Group places by trip (e.g. "Puglia", "Madrid") and later share the folder with specific
+            people.
           </p>
           {newFolderMode ? (
             <div className="mt-2 flex gap-2">
               <Input
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="z. B. Puglia"
+                placeholder="e.g. Puglia"
                 className="h-11 flex-1 rounded-2xl"
                 autoFocus
               />
@@ -380,7 +382,7 @@ function NewReviewPage() {
                   setNewFolderName("");
                 }}
               >
-                Abbrechen
+                Cancel
               </Button>
             </div>
           ) : (
@@ -392,23 +394,23 @@ function NewReviewPage() {
               }}
             >
               <SelectTrigger className="mt-2 h-11 rounded-2xl">
-                <SelectValue placeholder="Kein Ordner" />
+                <SelectValue placeholder="No folder" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none">Kein Ordner</SelectItem>
+                <SelectItem value="__none">No folder</SelectItem>
                 {(folders ?? []).map((f) => (
                   <SelectItem key={f.id} value={f.id}>
                     {f.name}
                   </SelectItem>
                 ))}
-                <SelectItem value="__new">+ Neuer Ordner</SelectItem>
+                <SelectItem value="__new">+ New folder</SelectItem>
               </SelectContent>
             </Select>
           )}
         </section>
 
         <Button type="submit" disabled={saving} className="h-13 w-full rounded-2xl py-4 text-base">
-          {saving ? "Speichern…" : "Bewertung veröffentlichen"}
+          {saving ? "Saving…" : "Publish review"}
         </Button>
       </form>
     </>

@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/turi/AppHeader";
 
 export const Route = createFileRoute("/legal/privacy")({
   head: () => ({
-    meta: [{ title: "Datenschutzerklärung – Turi" }],
+    meta: [{ title: "Privacy Policy – Turi" }],
   }),
   component: PrivacyPage,
 });
@@ -12,57 +12,57 @@ export const Route = createFileRoute("/legal/privacy")({
 function PrivacyPage() {
   return (
     <>
-      <AppHeader title="Datenschutz" />
+      <AppHeader title="Privacy" />
       <div className="app-shell space-y-4 py-6 text-sm leading-relaxed text-foreground/90">
         <Link to="/auth" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <ArrowLeft size={14} /> Zurück
+          <ArrowLeft size={14} /> Back
         </Link>
 
-        <h1 className="text-xl font-bold">Datenschutzerklärung</h1>
+        <h1 className="text-xl font-bold">Privacy Policy</h1>
         <p className="text-xs text-muted-foreground">
-          Platzhaltertext – bitte vor dem Launch von einer sachkundigen Person (z. B. Fachanwalt für
-          Datenschutz) prüfen lassen. Diese Version dient nur als Ausgangspunkt.
+          Placeholder text — please have this reviewed by a qualified professional (e.g. a data
+          protection lawyer) before launch. This version is only a starting point.
         </p>
 
-        <h2 className="font-semibold">1. Verantwortlicher</h2>
-        <p>[Dein Name / Firmenname], [Adresse], [Kontakt-E-Mail]</p>
+        <h2 className="font-semibold">1. Data controller</h2>
+        <p>[Your name / company name], [address], [contact email]</p>
 
-        <h2 className="font-semibold">2. Welche Daten wir verarbeiten</h2>
+        <h2 className="font-semibold">2. What data we process</h2>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Kontodaten: E-Mail-Adresse, Benutzername, Profilbild</li>
-          <li>Inhalte: von dir erstellte Bewertungen, Texte, Fotos</li>
-          <li>Standortdaten: Ortsangaben, die du beim Bewerten oder bei der Ortssuche teilst</li>
-          <li>Nutzungsdaten: welche Funktionen genutzt werden (Analytics)</li>
+          <li>Account data: email address, username, profile picture</li>
+          <li>Content: reviews, text, and photos you create</li>
+          <li>Location data: place details you share when reviewing or searching for places</li>
+          <li>Usage data: which features are used (analytics)</li>
         </ul>
 
-        <h2 className="font-semibold">3. Zweck der Verarbeitung</h2>
+        <h2 className="font-semibold">3. Purpose of processing</h2>
         <p>
-          Bereitstellung der App-Funktionen (Konto, Freundes-Feed, Bewertungen), Verbesserung der
-          App, Missbrauchsprävention.
+          Providing app functionality (account, friends feed, reviews), improving the app,
+          preventing abuse.
         </p>
 
-        <h2 className="font-semibold">4. Empfänger / Dienstleister</h2>
+        <h2 className="font-semibold">4. Recipients / service providers</h2>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Supabase (Datenbank, Authentifizierung, Speicherung von Bildern)</li>
-          <li>Google (Orts-/Kartendaten über die Google Places API)</li>
-          <li>[weitere Dienstleister ergänzen, z. B. E-Mail-Versand, Analytics]</li>
+          <li>Supabase (database, authentication, image storage)</li>
+          <li>Google (place/map data via the Google Places API)</li>
+          <li>[add further service providers, e.g. email delivery, analytics]</li>
         </ul>
 
-        <h2 className="font-semibold">5. Deine Rechte</h2>
+        <h2 className="font-semibold">5. Your rights</h2>
         <p>
-          Du hast das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung
-          deiner Daten sowie auf Datenübertragbarkeit. Kontaktiere uns dafür unter [Kontakt-E-Mail].
+          You have the right to access, rectify, erase, and restrict the processing of your data, as
+          well as the right to data portability. Contact us at [contact email].
         </p>
 
-        <h2 className="font-semibold">6. Speicherdauer</h2>
+        <h2 className="font-semibold">6. Retention period</h2>
         <p>
-          Deine Daten werden gespeichert, solange dein Konto besteht. Bei Löschung deines Kontos
-          werden deine Daten innerhalb von [Frist] gelöscht, soweit keine gesetzlichen
-          Aufbewahrungspflichten entgegenstehen.
+          Your data is stored for as long as your account exists. If you delete your account, your
+          data will be deleted within [period], unless legal retention obligations require
+          otherwise.
         </p>
 
-        <h2 className="font-semibold">7. Kontakt</h2>
-        <p>Fragen zum Datenschutz: [Kontakt-E-Mail]</p>
+        <h2 className="font-semibold">7. Contact</h2>
+        <p>Questions about privacy: [contact email]</p>
       </div>
     </>
   );
