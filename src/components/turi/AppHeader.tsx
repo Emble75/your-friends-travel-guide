@@ -3,7 +3,7 @@ import { TuriWordmark } from "./Logo";
 
 export function AppHeader({ title, action }: { title?: string; action?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur">
+    <header className="sticky top-0 z-30 bg-background/90 backdrop-blur">
       <div className="app-shell flex h-14 items-center justify-between">
         {title ? (
           <h1 className="font-display text-lg font-bold tracking-tight">{title}</h1>
@@ -12,6 +12,7 @@ export function AppHeader({ title, action }: { title?: string; action?: ReactNod
         )}
         {action}
       </div>
+      <div className="brand-accent-line h-px w-full opacity-40" />
     </header>
   );
 }

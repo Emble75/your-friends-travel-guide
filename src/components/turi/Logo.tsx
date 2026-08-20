@@ -4,12 +4,12 @@ export function TuriMark({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "turi-gradient flex items-center justify-center rounded-2xl shadow-glow",
+        "brand-gradient flex items-center justify-center rounded-2xl shadow-glow",
         className,
       )}
     >
       <span
-        className="font-display font-bold leading-none text-primary-foreground"
+        className="font-display font-bold leading-none text-white"
         style={{ fontSize: "0.58em", letterSpacing: "-0.04em" }}
       >
         T
