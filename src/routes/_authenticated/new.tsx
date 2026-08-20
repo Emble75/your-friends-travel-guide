@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CATEGORIES, compressImage, getErrorMessage } from "@/lib/turi";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/_authenticated/new")({
   validateSearch: (search: Record<string, unknown>) =>
@@ -105,10 +106,11 @@ function NewReviewPage() {
     };
   }, [placeId]);
 
+  const debouncedSearch = useDebouncedValue(search, 300);
   const { data: results } = useQuery({
-    queryKey: ["place-search", search],
+    queryKey: ["place-search", debouncedSearch],
     queryFn: async () => {
-      const t = search.trim();
+      const t = debouncedSearch.trim();
       if (!t) return [] as Place[];
       const { data, error } = await supabase
         .from("places")
@@ -118,7 +120,7 @@ function NewReviewPage() {
       if (error) throw error;
       return data ?? [];
     },
-    enabled: search.trim().length > 0 && !place,
+    enabled: debouncedSearch.trim().length > 0 && !place,
   });
 
   async function createPlace() {

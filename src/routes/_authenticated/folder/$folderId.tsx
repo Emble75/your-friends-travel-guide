@@ -174,8 +174,8 @@ function ShareDialog({
   const queryClient = useQueryClient();
   const [term, setTerm] = useState("");
 
-  const { data } = useQuery({
-    queryKey: ["folder-share-candidates", folderId, term],
+  const { data: candidates } = useQuery({
+    queryKey: ["folder-share-candidates", folderId],
     enabled: open,
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
@@ -207,15 +207,14 @@ function ShareDialog({
         if (p) byId.set(p.id, p);
       }
       const sharedIds = new Set((shares ?? []).map((s) => s.shared_with_id));
-      const t = term.trim().toLowerCase();
-      return Array.from(byId.values())
-        .filter(
-          (p) =>
-            !t || p.username.toLowerCase().includes(t) || p.display_name?.toLowerCase().includes(t),
-        )
-        .map((p) => ({ ...p, shared: sharedIds.has(p.id) }));
+      return Array.from(byId.values()).map((p) => ({ ...p, shared: sharedIds.has(p.id) }));
     },
   });
+
+  const t = term.trim().toLowerCase();
+  const data = (candidates ?? []).filter(
+    (p) => !t || p.username.toLowerCase().includes(t) || p.display_name?.toLowerCase().includes(t),
+  );
 
   async function toggleShare(personId: string, shared: boolean) {
     const { error } = shared

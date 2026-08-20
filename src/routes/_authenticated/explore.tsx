@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/_authenticated/explore")({
   head: () => ({
@@ -25,7 +26,8 @@ export const Route = createFileRoute("/_authenticated/explore")({
 
 function ExplorePage() {
   const [q, setQ] = useState("");
-  const term = q.trim();
+  const debouncedQ = useDebouncedValue(q, 300);
+  const term = debouncedQ.trim();
 
   return (
     <>
@@ -53,11 +55,37 @@ function ExplorePage() {
 function PeopleResults({ term }: { term: string }) {
   const queryClient = useQueryClient();
 
-  const { data } = useQuery({
-    queryKey: ["people", term],
+  // Eigener Netzwerk-Status (Follows + Blocks) -- unabhaengig vom Suchbegriff,
+  // muss also nicht bei jedem Tastendruck neu geladen werden.
+  const { data: myNetwork } = useQuery({
+    queryKey: ["my-network"],
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id ?? "";
+      const [{ data: follows }, { data: blocksMade }, { data: blocksReceived }] = await Promise.all(
+        [
+          supabase.from("follows").select("following_id, status").eq("follower_id", me),
+          supabase.from("blocks").select("blocked_id").eq("blocker_id", me),
+          supabase.from("blocks").select("blocker_id").eq("blocked_id", me),
+        ],
+      );
+      return {
+        me,
+        followStatusById: new Map((follows ?? []).map((f) => [f.following_id, f.status])),
+        blockedIds: new Set([
+          ...(blocksMade ?? []).map((b) => b.blocked_id),
+          ...(blocksReceived ?? []).map((b) => b.blocker_id),
+        ]),
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const { data } = useQuery({
+    queryKey: ["people", term],
+    enabled: !!myNetwork,
+    queryFn: async () => {
+      const { me, followStatusById, blockedIds } = myNetwork!;
       let query = supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url, is_private")
@@ -68,18 +96,6 @@ function PeopleResults({ term }: { term: string }) {
       }
       const { data: people, error } = await query;
       if (error) throw error;
-      const [{ data: follows }, { data: blocksMade }, { data: blocksReceived }] = await Promise.all(
-        [
-          supabase.from("follows").select("following_id, status").eq("follower_id", me),
-          supabase.from("blocks").select("blocked_id").eq("blocker_id", me),
-          supabase.from("blocks").select("blocker_id").eq("blocked_id", me),
-        ],
-      );
-      const followStatusById = new Map((follows ?? []).map((f) => [f.following_id, f.status]));
-      const blockedIds = new Set([
-        ...(blocksMade ?? []).map((b) => b.blocked_id),
-        ...(blocksReceived ?? []).map((b) => b.blocker_id),
-      ]);
       return (people ?? [])
         .filter((p) => p.id !== me && !blockedIds.has(p.id))
         .map((p) => ({
@@ -103,7 +119,8 @@ function PeopleResults({ term }: { term: string }) {
     if (followStatus === "accepted") toast.success("Unfollowed");
     else if (followStatus === "pending") toast.success("Request withdrawn");
     else toast.success("Requested");
-    queryClient.invalidateQueries();
+    queryClient.invalidateQueries({ queryKey: ["my-network"] });
+    queryClient.invalidateQueries({ queryKey: ["people"] });
   }
 
   if (!term) {

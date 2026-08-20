@@ -12,6 +12,7 @@ import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { TuriWordmark } from "@/components/turi/Logo";
 import { Stars } from "@/components/turi/Stars";
 import { UserAvatar } from "@/components/turi/UserAvatar";
+import { getErrorMessage } from "@/lib/turi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -230,7 +231,7 @@ function MapPage() {
         toast.info("Nothing found");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Search failed");
+      toast.error(getErrorMessage(e, "Search failed"));
     }
   }, [query, center, searchFn]);
 
@@ -366,7 +367,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
       if (target === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
       else navigate({ to: "/new", search: { placeId: id } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not open place");
+      toast.error(getErrorMessage(e, "Could not open place"));
     } finally {
       setBusy(false);
     }
