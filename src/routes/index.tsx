@@ -39,9 +39,9 @@ function Landing() {
         <div>
           <TuriMark className="size-16 text-[4rem]" />
           <h1 className="mt-8 text-4xl font-bold leading-tight">
-            Skip the reviews.
+            Finally, reviews
             <br />
-            Trust your people.
+            you can actually trust.
           </h1>
           <p className="mt-4 text-base text-muted-foreground">
             Every place, rated only by the friends whose taste you actually share. No strangers, no
