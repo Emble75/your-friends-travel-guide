@@ -35,6 +35,7 @@ function AuthPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const captchaRequired = Boolean(import.meta.env["VITE_TURNSTILE_SITE_KEY"]);
 
@@ -101,6 +102,25 @@ function AuthPage() {
     }
   }
 
+  async function onForgotPassword() {
+    if (!email.trim()) {
+      toast.error("Bitte zuerst deine E-Mail eintragen");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Etwas ist schiefgelaufen"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="flex min-h-screen flex-col justify-center bg-background">
       <div className="app-shell py-10">
@@ -110,25 +130,24 @@ function AuthPage() {
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
             Orte bewerten und nur die Meinungen deiner Freunde sehen.
           </p>
-          {/* TEMPORAER: zeigt an, welches Supabase-Projekt tatsaechlich geladen ist.
-              Vor echtem Launch wieder entfernen. */}
-          <p className="mt-3 rounded-full bg-yellow-100 px-3 py-1 text-xs font-mono text-yellow-800">
-            DEBUG:{" "}
-            {(() => {
-              const injected =
-                typeof window !== "undefined" ? window.__SUPABASE_CONFIG__?.url : undefined;
-              const url =
-                injected ||
-                (import.meta.env["APP_SUPABASE_URL"] as string | undefined) ||
-                (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ||
-                "keine URL gefunden";
-              const match = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/);
-              return match ? match[1] : url;
-            })()}
-          </p>
         </div>
 
-        {sent ? (
+        {resetSent ? (
+          <div className="mt-8 rounded-3xl border border-border bg-card p-6 text-center shadow-card">
+            <h2 className="text-lg font-semibold">E-Mail unterwegs</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Falls ein Konto mit dieser Adresse existiert, haben wir dir einen Link zum
+              Zurücksetzen deines Passworts geschickt.
+            </p>
+            <Button
+              variant="secondary"
+              className="mt-4 rounded-2xl"
+              onClick={() => setResetSent(false)}
+            >
+              Zurück zur Anmeldung
+            </Button>
+          </div>
+        ) : sent ? (
           <div className="mt-8 rounded-3xl border border-border bg-card p-6 text-center shadow-card">
             <h2 className="text-lg font-semibold">Fast geschafft</h2>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -179,7 +198,15 @@ function AuthPage() {
               />
               {mode === "signup" ? (
                 <p className="text-xs text-muted-foreground">Mindestens 8 Zeichen.</p>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={onForgotPassword}
+                  className="text-xs font-medium text-primary"
+                >
+                  Passwort vergessen?
+                </button>
+              )}
             </div>
             {mode === "signup" ? (
               <label className="flex items-start gap-2 text-xs text-muted-foreground">

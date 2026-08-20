@@ -1,10 +1,39 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { MapPin } from "lucide-react";
-import { Stars } from "./Stars";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MapPin, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Stars, StarPicker } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
 import { ReportDialog } from "./ReportDialog";
-import { signedUrls, timeAgo } from "@/lib/turi";
+import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export type ReviewWithRelations = {
   id: string;
@@ -24,6 +53,20 @@ export function ReviewCard({
   review: ReviewWithRelations;
   showPlace?: boolean;
 }) {
+  const queryClient = useQueryClient();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editRating, setEditRating] = useState(review.rating);
+  const [editText, setEditText] = useState(review.text ?? "");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const { data: me } = useQuery({
+    queryKey: ["current-user-id"],
+    queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
+    staleTime: 5 * 60_000,
+  });
+  const isOwn = me === review.user_id;
+
   const paths = review.review_images
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -36,6 +79,44 @@ export function ReviewCard({
   });
 
   const profile = review.profiles;
+
+  async function saveEdit() {
+    if (editRating < 1) {
+      toast.error("Bitte Sterne vergeben");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("reviews")
+      .update({ rating: editRating, text: editText.trim() || null })
+      .eq("id", review.id);
+    setSaving(false);
+    if (error) {
+      toast.error(getErrorMessage(error, "Speichern fehlgeschlagen"));
+      return;
+    }
+    toast.success("Bewertung aktualisiert");
+    setEditOpen(false);
+    queryClient.invalidateQueries();
+  }
+
+  async function deleteReview() {
+    setDeleting(true);
+    try {
+      if (paths.length > 0) {
+        // Best-effort: eigene Fotos dieser Bewertung im Storage entfernen.
+        await supabase.storage.from("review-photos").remove(paths);
+      }
+      const { error } = await supabase.from("reviews").delete().eq("id", review.id);
+      if (error) throw error;
+      toast.success("Bewertung gelöscht");
+      queryClient.invalidateQueries();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Löschen fehlgeschlagen"));
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <article className="rounded-3xl border border-border bg-card p-4 shadow-card">
@@ -59,7 +140,63 @@ export function ReviewCard({
           </p>
         </div>
         <Stars value={review.rating} />
-        <ReportDialog reviewId={review.id} />
+        {isOwn ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+                aria-label="Weitere Optionen"
+              >
+                <MoreVertical size={16} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-2xl">
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setEditRating(review.rating);
+                  setEditText(review.text ?? "");
+                  setEditOpen(true);
+                }}
+              >
+                <Pencil size={16} className="mr-2" />
+                Bearbeiten
+              </DropdownMenuItem>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()}
+                    className="text-destructive"
+                  >
+                    <Trash2 size={16} className="mr-2" />
+                    Löschen
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-3xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Bewertung löschen?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Das kann nicht rückgängig gemacht werden.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={deleteReview}
+                      disabled={deleting}
+                      className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleting ? "Wird gelöscht…" : "Löschen"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <ReportDialog reviewId={review.id} />
+        )}
       </div>
 
       {showPlace && review.places ? (
@@ -99,6 +236,29 @@ export function ReviewCard({
           ))}
         </div>
       ) : null}
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Bewertung bearbeiten</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center py-2">
+            <StarPicker value={editRating} onChange={setEditRating} />
+          </div>
+          <Textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            placeholder="Wie war's?"
+            rows={5}
+            className="rounded-2xl"
+          />
+          <DialogFooter>
+            <Button onClick={saveEdit} disabled={saving} className="w-full rounded-2xl">
+              {saving ? "Speichern…" : "Speichern"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 }

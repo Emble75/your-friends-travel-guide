@@ -1,12 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Camera, LogOut, Star, UserCheck, UserX } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { Camera, LogOut, Star, Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteOwnAccount } from "@/lib/account.functions";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
+import { FollowListSheet } from "@/components/turi/FollowListSheet";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +17,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { compressImage, getErrorMessage } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/me")({
@@ -38,10 +52,13 @@ type PendingRequest = {
 function MePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const deleteAccountFn = useServerFn(deleteOwnAccount);
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["me"],
@@ -170,6 +187,20 @@ function MePage() {
     queryClient.invalidateQueries();
   }
 
+  async function deleteAccount() {
+    setDeleting(true);
+    try {
+      await deleteAccountFn();
+      await supabase.auth.signOut();
+      queryClient.clear();
+      toast.success("Konto gelöscht");
+      navigate({ to: "/auth" });
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Konto konnte nicht gelöscht werden"));
+      setDeleting(false);
+    }
+  }
+
   if (isLoading || !data?.profile) {
     return (
       <>
@@ -240,13 +271,21 @@ function MePage() {
               <strong>{reviews.length}</strong>{" "}
               <span className="text-muted-foreground">Bewertungen</span>
             </span>
-            <span>
+            <button
+              type="button"
+              onClick={() => setFollowListOpen("followers")}
+              className="text-left"
+            >
               <strong>{data.followers}</strong>{" "}
               <span className="text-muted-foreground">Follower</span>
-            </span>
-            <span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFollowListOpen("following")}
+              className="text-left"
+            >
               <strong>{data.following}</strong> <span className="text-muted-foreground">Folgt</span>
-            </span>
+            </button>
           </div>
 
           {editing ? (
@@ -358,7 +397,48 @@ function MePage() {
             }
           />
         )}
+
+        <section className="rounded-3xl border border-destructive/30 bg-card p-4 shadow-card">
+          <h2 className="text-sm font-semibold text-destructive">Konto löschen</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Löscht dein Konto und alle deine Bewertungen, Fotos und Follows dauerhaft. Das kann
+            nicht rückgängig gemacht werden.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="mt-3 rounded-2xl">
+                <Trash2 size={16} className="mr-2" /> Konto endgültig löschen
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-3xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Konto wirklich löschen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Alle deine Bewertungen, Fotos, Follower und Anfragen werden unwiderruflich
+                  gelöscht. Das kann nicht rückgängig gemacht werden.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={deleteAccount}
+                  disabled={deleting}
+                  className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? "Wird gelöscht…" : "Endgültig löschen"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </section>
       </div>
+
+      <FollowListSheet
+        userId={profile.id}
+        type={followListOpen ?? "followers"}
+        open={followListOpen !== null}
+        onOpenChange={(open) => !open && setFollowListOpen(null)}
+      />
     </>
   );
 }

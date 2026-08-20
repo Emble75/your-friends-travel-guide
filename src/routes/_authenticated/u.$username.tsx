@@ -18,6 +18,7 @@ import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { ReportDialog } from "@/components/turi/ReportDialog";
+import { FollowListSheet } from "@/components/turi/FollowListSheet";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,6 +56,7 @@ function ProfilePage() {
   const { username } = Route.useParams();
   const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
+  const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["profile", username],
@@ -286,13 +288,21 @@ function ProfilePage() {
               <strong>{reviews.length}</strong>{" "}
               <span className="text-muted-foreground">Bewertungen</span>
             </span>
-            <span>
+            <button
+              type="button"
+              onClick={() => setFollowListOpen("followers")}
+              className="text-left"
+            >
               <strong>{data.followers}</strong>{" "}
               <span className="text-muted-foreground">Follower</span>
-            </span>
-            <span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFollowListOpen("following")}
+              className="text-left"
+            >
               <strong>{data.following}</strong> <span className="text-muted-foreground">Folgt</span>
-            </span>
+            </button>
           </div>
           {!data.isMe ? (
             <Button
@@ -340,6 +350,13 @@ function ProfilePage() {
           />
         )}
       </div>
+
+      <FollowListSheet
+        userId={profile.id}
+        type={followListOpen ?? "followers"}
+        open={followListOpen !== null}
+        onOpenChange={(open) => !open && setFollowListOpen(null)}
+      />
     </>
   );
 }
