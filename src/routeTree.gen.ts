@@ -20,6 +20,7 @@ import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
 import { Route as LegalPrivacyRouteImport } from './routes/legal/privacy'
 import { Route as LegalTermsRouteImport } from './routes/legal/terms'
+import { Route as AuthenticatedFolderFolderIdRouteImport } from './routes/_authenticated/folder/$folderId'
 import { Route as AuthenticatedPlacePlaceIdRouteImport } from './routes/_authenticated/place.$placeId'
 import { Route as AuthenticatedUUsernameRouteImport } from './routes/_authenticated/u.$username'
 
@@ -77,6 +78,12 @@ const LegalTermsRoute = LegalTermsRouteImport.update({
   path: '/legal/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedFolderFolderIdRoute =
+  AuthenticatedFolderFolderIdRouteImport.update({
+    id: '/folder/$folderId',
+    path: '/folder/$folderId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPlacePlaceIdRoute =
   AuthenticatedPlacePlaceIdRouteImport.update({
     id: '/place/$placeId',
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/new': typeof AuthenticatedNewRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/folder/$folderId': typeof AuthenticatedFolderFolderIdRoute
   '/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/u/$username': typeof AuthenticatedUUsernameRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesByTo {
   '/new': typeof AuthenticatedNewRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/folder/$folderId': typeof AuthenticatedFolderFolderIdRoute
   '/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/u/$username': typeof AuthenticatedUUsernameRoute
 }
@@ -130,6 +139,7 @@ export interface FileRoutesById {
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/_authenticated/folder/$folderId': typeof AuthenticatedFolderFolderIdRoute
   '/_authenticated/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/_authenticated/u/$username': typeof AuthenticatedUUsernameRoute
 }
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/new'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/folder/$folderId'
     | '/place/$placeId'
     | '/u/$username'
   fileRoutesByTo: FileRoutesByTo
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/new'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/folder/$folderId'
     | '/place/$placeId'
     | '/u/$username'
   id:
@@ -175,6 +187,7 @@ export interface FileRouteTypes {
     | '/_authenticated/new'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/_authenticated/folder/$folderId'
     | '/_authenticated/place/$placeId'
     | '/_authenticated/u/$username'
   fileRoutesById: FileRoutesById
@@ -267,6 +280,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegalTermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/folder/$folderId': {
+      id: '/_authenticated/folder/$folderId'
+      path: '/folder/$folderId'
+      fullPath: '/folder/$folderId'
+      preLoaderRoute: typeof AuthenticatedFolderFolderIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/place/$placeId': {
       id: '/_authenticated/place/$placeId'
       path: '/place/$placeId'
@@ -290,6 +310,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMapRoute: typeof AuthenticatedMapRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
+  AuthenticatedFolderFolderIdRoute: typeof AuthenticatedFolderFolderIdRoute
   AuthenticatedPlacePlaceIdRoute: typeof AuthenticatedPlacePlaceIdRoute
   AuthenticatedUUsernameRoute: typeof AuthenticatedUUsernameRoute
 }
@@ -300,6 +321,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMapRoute: AuthenticatedMapRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
+  AuthenticatedFolderFolderIdRoute: AuthenticatedFolderFolderIdRoute,
   AuthenticatedPlacePlaceIdRoute: AuthenticatedPlacePlaceIdRoute,
   AuthenticatedUUsernameRoute: AuthenticatedUUsernameRoute,
 }

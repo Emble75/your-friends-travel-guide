@@ -272,6 +272,7 @@ export type Database = {
           place_id: string;
           rating: number;
           text: string | null;
+          trip_folder_id: string | null;
           user_id: string;
         };
         Insert: {
@@ -280,6 +281,7 @@ export type Database = {
           place_id: string;
           rating: number;
           text?: string | null;
+          trip_folder_id?: string | null;
           user_id: string;
         };
         Update: {
@@ -288,6 +290,7 @@ export type Database = {
           place_id?: string;
           rating?: number;
           text?: string | null;
+          trip_folder_id?: string | null;
           user_id?: string;
         };
         Relationships: [
@@ -299,8 +302,77 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "reviews_trip_folder_id_fkey";
+            columns: ["trip_folder_id"];
+            isOneToOne: false;
+            referencedRelation: "trip_folders";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "reviews_user_id_fkey";
             columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      trip_folders: {
+        Row: {
+          created_at: string;
+          id: string;
+          name: string;
+          owner_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          name: string;
+          owner_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          name?: string;
+          owner_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trip_folders_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      trip_folder_shares: {
+        Row: {
+          created_at: string;
+          folder_id: string;
+          shared_with_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          folder_id: string;
+          shared_with_id: string;
+        };
+        Update: {
+          created_at?: string;
+          folder_id?: string;
+          shared_with_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trip_folder_shares_folder_id_fkey";
+            columns: ["folder_id"];
+            isOneToOne: false;
+            referencedRelation: "trip_folders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trip_folder_shares_shared_with_id_fkey";
+            columns: ["shared_with_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];

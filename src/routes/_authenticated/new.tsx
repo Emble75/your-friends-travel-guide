@@ -51,6 +51,43 @@ function NewReviewPage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [newFolderMode, setNewFolderMode] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+
+  const { data: folders } = useQuery({
+    queryKey: ["my-trip-folders"],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("trip_folders")
+        .select("id, name")
+        .eq("owner_id", auth.user!.id)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  async function resolveFolderId(userId: string): Promise<string | null> {
+    if (!newFolderMode) return folderId;
+    const name = newFolderName.trim();
+    if (!name) return null;
+    const { data: existing } = await supabase
+      .from("trip_folders")
+      .select("id")
+      .eq("owner_id", userId)
+      .ilike("name", name)
+      .maybeSingle();
+    if (existing) return existing.id;
+    const { data: created, error } = await supabase
+      .from("trip_folders")
+      .insert({ owner_id: userId, name })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return created.id;
+  }
 
   useEffect(() => {
     if (!placeId) return;
@@ -127,9 +164,16 @@ function NewReviewPage() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user!.id;
+      const resolvedFolderId = await resolveFolderId(userId);
       const { data: review, error } = await supabase
         .from("reviews")
-        .insert({ user_id: userId, place_id: place.id, rating, text: text.trim() || null })
+        .insert({
+          user_id: userId,
+          place_id: place.id,
+          rating,
+          text: text.trim() || null,
+          trip_folder_id: resolvedFolderId,
+        })
         .select("id")
         .single();
       if (error) throw error;
@@ -308,6 +352,59 @@ function NewReviewPage() {
               </label>
             ) : null}
           </div>
+        </section>
+
+        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+            Ordner (optional)
+          </Label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Gruppiere Orte z. B. nach Reise ("Puglia", "Madrid") und teile den Ordner später gezielt
+            mit einzelnen Personen.
+          </p>
+          {newFolderMode ? (
+            <div className="mt-2 flex gap-2">
+              <Input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="z. B. Puglia"
+                className="h-11 flex-1 rounded-2xl"
+                autoFocus
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="rounded-2xl"
+                onClick={() => {
+                  setNewFolderMode(false);
+                  setNewFolderName("");
+                }}
+              >
+                Abbrechen
+              </Button>
+            </div>
+          ) : (
+            <Select
+              value={folderId ?? "__none"}
+              onValueChange={(v) => {
+                if (v === "__new") setNewFolderMode(true);
+                else setFolderId(v === "__none" ? null : v);
+              }}
+            >
+              <SelectTrigger className="mt-2 h-11 rounded-2xl">
+                <SelectValue placeholder="Kein Ordner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Kein Ordner</SelectItem>
+                {(folders ?? []).map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__new">+ Neuer Ordner</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </section>
 
         <Button type="submit" disabled={saving} className="h-13 w-full rounded-2xl py-4 text-base">
