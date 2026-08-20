@@ -8,16 +8,16 @@ import { TuriMark } from "@/components/turi/Logo";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Turi – Trust your people, not strangers" },
+      { title: "Turi – The map only your friends could draw" },
       {
         name: "description",
         content:
-          "Turi is the social travel app: rate places with your friends' honesty, and see only what people you trust actually think.",
+          "Turi is the social travel app: rate places for your friends, and discover every place through the people who actually get your taste.",
       },
-      { property: "og:title", content: "Turi – Trust your people, not strangers" },
+      { property: "og:title", content: "Turi – The map only your friends could draw" },
       {
         property: "og:description",
-        content: "Rate places for your friends. See only what they actually think.",
+        content: "Discover every place through the people who actually get your taste.",
       },
     ],
   }),
@@ -39,13 +39,13 @@ function Landing() {
         <div>
           <TuriMark className="size-16 text-[4rem]" />
           <h1 className="mt-8 text-4xl font-bold leading-tight">
-            Finally, reviews
+            The map only
             <br />
-            you can actually trust.
+            your friends could draw.
           </h1>
           <p className="mt-4 text-base text-muted-foreground">
-            Every place, rated only by the friends whose taste you actually share. No strangers, no
-            bots, no five stars for a free appetizer.
+            Every place, seen through the people who actually get your taste. No strangers, no bots,
+            no five stars for a free appetizer.
           </p>
 
           <ul className="mt-8 space-y-3">
