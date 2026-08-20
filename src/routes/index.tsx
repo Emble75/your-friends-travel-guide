@@ -8,16 +8,16 @@ import { TuriMark } from "@/components/turi/Logo";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Turi – Places your friends recommend" },
+      { title: "Turi – Trust your people, not strangers" },
       {
         name: "description",
         content:
-          "Turi is the social travel app: review places with stars and photos, and see only your friends' reviews for every place.",
+          "Turi is the social travel app: rate places with your friends' honesty, and see only what people you trust actually think.",
       },
-      { property: "og:title", content: "Turi – Places your friends recommend" },
+      { property: "og:title", content: "Turi – Trust your people, not strangers" },
       {
         property: "og:description",
-        content: "Review places with stars and photos and see only what your friends think.",
+        content: "Rate places for your friends. See only what they actually think.",
       },
     ],
   }),
@@ -39,23 +39,31 @@ function Landing() {
         <div>
           <TuriMark className="size-16 text-[4rem]" />
           <h1 className="mt-8 text-4xl font-bold leading-tight">
-            Travel tips from the people
+            Skip the reviews.
             <br />
-            you actually trust.
+            Trust your people.
           </h1>
           <p className="mt-4 text-base text-muted-foreground">
-            Turi shows you only your friends' reviews for every place — no strangers, no bought
-            stars.
+            Every place, rated only by the friends whose taste you actually share. No strangers, no
+            bots, no five stars for a free appetizer.
           </p>
 
           <ul className="mt-8 space-y-3">
             {[
-              { icon: Users, title: "Follow friends", text: "Your circle, your recommendations." },
-              { icon: Star, title: "Review places", text: "Stars, text, and up to 3 photos." },
+              {
+                icon: Users,
+                title: "Build your circle",
+                text: "Follow the friends whose recommendations you'd actually take.",
+              },
+              {
+                icon: Star,
+                title: "Rate the real thing",
+                text: "Stars, a few words, and the photo that proves you were there.",
+              },
               {
                 icon: MapPin,
-                title: "See it instantly",
-                text: "Who from your circle has been here?",
+                title: "Never guess again",
+                text: "Open any spot and see instantly who from your circle already loved it.",
               },
             ].map(({ icon: Icon, title, text }) => (
               <li
@@ -79,7 +87,7 @@ function Landing() {
             <Link to="/auth">Get started</Link>
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Free. Ready to go with email in 30 seconds.
+            Free forever. In your feed in under 30 seconds.
           </p>
         </div>
       </div>
