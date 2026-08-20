@@ -161,7 +161,7 @@ function NewReviewPage() {
 
   return (
     <>
-      <AppHeader title="Ort bewerten" />
+      <AppHeader />
       <form onSubmit={submit} className="app-shell space-y-5 py-4">
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">Ort</Label>

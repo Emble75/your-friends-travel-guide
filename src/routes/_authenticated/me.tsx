@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Camera, LogOut, Star } from "lucide-react";
+import { Camera, LogOut, Star, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/turi/AppHeader";
@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { compressImage } from "@/lib/turi";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { compressImage, getErrorMessage } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/me")({
   head: () => ({
@@ -26,47 +28,105 @@ export const Route = createFileRoute("/_authenticated/me")({
   component: MePage,
 });
 
+type PendingRequest = {
+  followerId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+
 function MePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user!.id;
-      const [{ data: profile }, { count: followers }, { count: following }, { data: reviews }] =
-        await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, username, display_name, avatar_url, bio")
-            .eq("id", me)
-            .maybeSingle(),
-          supabase
-            .from("follows")
-            .select("*", { count: "exact", head: true })
-            .eq("following_id", me),
-          supabase
-            .from("follows")
-            .select("*", { count: "exact", head: true })
-            .eq("follower_id", me),
-          supabase
-            .from("reviews")
-            .select(reviewSelect)
-            .eq("user_id", me)
-            .order("created_at", { ascending: false }),
-        ]);
+      const [
+        { data: profile },
+        { count: followers },
+        { count: following },
+        { data: reviews },
+        { data: pending },
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url, bio, is_private")
+          .eq("id", me)
+          .maybeSingle(),
+        supabase
+          .from("follows")
+          .select("*", { count: "exact", head: true })
+          .eq("following_id", me)
+          .eq("status", "accepted"),
+        supabase
+          .from("follows")
+          .select("*", { count: "exact", head: true })
+          .eq("follower_id", me)
+          .eq("status", "accepted"),
+        supabase
+          .from("reviews")
+          .select(reviewSelect)
+          .eq("user_id", me)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("follows")
+          .select(
+            "follower_id, profiles!follows_follower_id_fkey(username, display_name, avatar_url)",
+          )
+          .eq("following_id", me)
+          .eq("status", "pending"),
+      ]);
+      const pendingRequests: PendingRequest[] = (pending ?? []).map((p) => {
+        const requester = p.profiles as unknown as {
+          username: string;
+          display_name: string | null;
+          avatar_url: string | null;
+        };
+        return {
+          followerId: p.follower_id,
+          username: requester.username,
+          displayName: requester.display_name,
+          avatarUrl: requester.avatar_url,
+        };
+      });
       return {
         profile,
         followers: followers ?? 0,
         following: following ?? 0,
         reviews: (reviews ?? []) as unknown as ReviewWithRelations[],
+        pendingRequests,
       };
     },
   });
+
+  async function respondToRequest(followerId: string, accept: boolean) {
+    const { data: auth } = await supabase.auth.getUser();
+    const me = auth.user!.id;
+    const { error } = accept
+      ? await supabase
+          .from("follows")
+          .update({ status: "accepted" })
+          .eq("follower_id", followerId)
+          .eq("following_id", me)
+      : await supabase
+          .from("follows")
+          .delete()
+          .eq("follower_id", followerId)
+          .eq("following_id", me);
+    if (error) {
+      toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+      return;
+    }
+    toast.success(accept ? "Anfrage angenommen" : "Anfrage abgelehnt");
+    queryClient.invalidateQueries();
+  }
 
   async function uploadAvatar(rawFile: File) {
     const { data: auth } = await supabase.auth.getUser();
@@ -76,7 +136,7 @@ function MePage() {
     const path = `${me}/avatar-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
     if (error) {
-      toast.error(error.message);
+      toast.error(getErrorMessage(error, "Upload fehlgeschlagen"));
       return;
     }
     const { error: pErr } = await supabase
@@ -84,7 +144,7 @@ function MePage() {
       .update({ avatar_url: path })
       .eq("id", me);
     if (pErr) {
-      toast.error(pErr.message);
+      toast.error(getErrorMessage(pErr, "Speichern fehlgeschlagen"));
       return;
     }
     toast.success("Profilbild aktualisiert");
@@ -95,10 +155,14 @@ function MePage() {
     const { data: auth } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName.trim() || null, bio: bio.trim() || null })
+      .update({
+        display_name: displayName.trim() || null,
+        bio: bio.trim() || null,
+        is_private: isPrivate,
+      })
       .eq("id", auth.user!.id);
     if (error) {
-      toast.error(error.message);
+      toast.error(getErrorMessage(error, "Speichern fehlgeschlagen"));
       return;
     }
     setEditing(false);
@@ -109,7 +173,7 @@ function MePage() {
   if (isLoading || !data?.profile) {
     return (
       <>
-        <AppHeader title="Profil" />
+        <AppHeader />
         <div className="app-shell py-4">
           <Skeleton className="h-40 rounded-3xl" />
         </div>
@@ -117,12 +181,11 @@ function MePage() {
     );
   }
 
-  const { profile, reviews } = data;
+  const { profile, reviews, pendingRequests } = data;
 
   return (
     <>
       <AppHeader
-        title="Mein Profil"
         action={
           <Button
             variant="ghost"
@@ -161,7 +224,10 @@ function MePage() {
               <h1 className="truncate text-lg font-bold">
                 {profile.display_name || profile.username}
               </h1>
-              <p className="truncate text-sm text-muted-foreground">@{profile.username}</p>
+              <p className="truncate text-sm text-muted-foreground">
+                @{profile.username}
+                {profile.is_private ? " · Privat" : ""}
+              </p>
             </div>
           </div>
 
@@ -198,6 +264,17 @@ function MePage() {
                 rows={3}
                 className="rounded-2xl"
               />
+              <div className="flex items-center justify-between rounded-2xl border border-border p-3">
+                <div>
+                  <Label htmlFor="is-private" className="text-sm font-medium">
+                    Privates Konto
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Neue Follower musst du erst bestätigen.
+                  </p>
+                </div>
+                <Switch id="is-private" checked={isPrivate} onCheckedChange={setIsPrivate} />
+              </div>
               <div className="flex gap-2">
                 <Button onClick={saveProfile} className="flex-1 rounded-2xl">
                   Speichern
@@ -218,6 +295,7 @@ function MePage() {
               onClick={() => {
                 setDisplayName(profile.display_name ?? "");
                 setBio(profile.bio ?? "");
+                setIsPrivate(profile.is_private);
                 setEditing(true);
               }}
             >
@@ -225,6 +303,46 @@ function MePage() {
             </Button>
           )}
         </section>
+
+        {pendingRequests.length > 0 ? (
+          <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">
+              Follow-Anfragen ({pendingRequests.length})
+            </h2>
+            <ul className="mt-3 space-y-3">
+              {pendingRequests.map((r) => (
+                <li key={r.followerId} className="flex items-center gap-3">
+                  <UserAvatar avatarPath={r.avatarUrl} name={r.displayName ?? r.username} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">
+                      {r.displayName || r.username}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      @{r.username}
+                    </span>
+                  </span>
+                  <Button
+                    size="icon"
+                    className="rounded-full"
+                    aria-label="Annehmen"
+                    onClick={() => respondToRequest(r.followerId, true)}
+                  >
+                    <UserCheck size={16} />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="rounded-full"
+                    aria-label="Ablehnen"
+                    onClick={() => respondToRequest(r.followerId, false)}
+                  >
+                    <UserX size={16} />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {reviews.length > 0 ? (
           reviews.map((r) => <ReviewCard key={r.id} review={r} />)

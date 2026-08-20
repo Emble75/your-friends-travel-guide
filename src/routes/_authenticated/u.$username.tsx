@@ -1,9 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, ShieldOff, Star, UserCheck, UserPlus, MoreVertical } from "lucide-react";
+import {
+  Clock,
+  Flag,
+  Lock,
+  ShieldOff,
+  Star,
+  UserCheck,
+  UserPlus,
+  MoreVertical,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/turi";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -53,7 +63,7 @@ function ProfilePage() {
       const me = auth.user?.id ?? "";
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio")
+        .select("id, username, display_name, avatar_url, bio, is_private")
         .eq("username", username)
         .maybeSingle();
       if (error) throw error;
@@ -68,18 +78,20 @@ function ProfilePage() {
       ] = await Promise.all([
         supabase
           .from("follows")
-          .select("follower_id")
+          .select("status")
           .eq("follower_id", me)
           .eq("following_id", profile.id)
           .maybeSingle(),
         supabase
           .from("follows")
           .select("*", { count: "exact", head: true })
-          .eq("following_id", profile.id),
+          .eq("following_id", profile.id)
+          .eq("status", "accepted"),
         supabase
           .from("follows")
           .select("*", { count: "exact", head: true })
-          .eq("follower_id", profile.id),
+          .eq("follower_id", profile.id)
+          .eq("status", "accepted"),
         supabase
           .from("reviews")
           .select(reviewSelect)
@@ -96,7 +108,7 @@ function ProfilePage() {
       return {
         profile,
         isMe: profile.id === me,
-        isFollowing: !!follow,
+        followStatus: follow?.status as "pending" | "accepted" | undefined,
         isBlocked: !!block,
         followers: followers ?? 0,
         following: following ?? 0,
@@ -110,14 +122,14 @@ function ProfilePage() {
     const { data: auth } = await supabase.auth.getUser();
     const me = auth.user?.id;
     if (!me) return;
-    const { error } = data.isFollowing
+    const { error } = data.followStatus
       ? await supabase
           .from("follows")
           .delete()
           .eq("follower_id", me)
           .eq("following_id", data.profile.id)
       : await supabase.from("follows").insert({ follower_id: me, following_id: data.profile.id });
-    if (error) toast.error(error.message);
+    if (error) toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
     else queryClient.invalidateQueries();
   }
 
@@ -133,7 +145,7 @@ function ProfilePage() {
         .delete()
         .eq("blocker_id", me)
         .eq("blocked_id", data.profile.id);
-      if (error) toast.error(error.message);
+      if (error) toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
       else {
         toast.success(`@${data.profile.username} entblockt`);
         queryClient.invalidateQueries();
@@ -145,7 +157,7 @@ function ProfilePage() {
       .from("blocks")
       .insert({ blocker_id: me, blocked_id: data.profile.id });
     if (error) {
-      toast.error(error.message);
+      toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
       return;
     }
     // Gegenseitige Follows aufheben, damit die Inhalte auch wirklich verschwinden.
@@ -285,26 +297,46 @@ function ProfilePage() {
           {!data.isMe ? (
             <Button
               onClick={toggleFollow}
-              variant={data.isFollowing ? "secondary" : "default"}
+              variant={data.followStatus ? "secondary" : "default"}
               className="mt-4 h-11 w-full rounded-2xl"
             >
-              {data.isFollowing ? <UserCheck size={18} /> : <UserPlus size={18} />}
-              <span className="ml-1">{data.isFollowing ? "Du folgst" : "Folgen"}</span>
+              {data.followStatus === "accepted" ? (
+                <UserCheck size={18} />
+              ) : data.followStatus === "pending" ? (
+                <Clock size={18} />
+              ) : (
+                <UserPlus size={18} />
+              )}
+              <span className="ml-1">
+                {data.followStatus === "accepted"
+                  ? "Du folgst"
+                  : data.followStatus === "pending"
+                    ? "Angefragt"
+                    : profile.is_private
+                      ? "Anfrage senden"
+                      : "Folgen"}
+              </span>
             </Button>
           ) : null}
         </section>
 
-        {reviews.length > 0 ? (
+        {profile.is_private && data.followStatus !== "accepted" && !data.isMe ? (
+          <EmptyState
+            icon={Lock}
+            title="Privates Konto"
+            text={
+              data.followStatus === "pending"
+                ? "Deine Anfrage wartet auf Bestätigung."
+                : `Folge @${profile.username}, um Bewertungen zu sehen.`
+            }
+          />
+        ) : reviews.length > 0 ? (
           reviews.map((r) => <ReviewCard key={r.id} review={r} />)
         ) : (
           <EmptyState
             icon={Star}
-            title={data.isFollowing || data.isMe ? "Noch keine Bewertungen" : "Folge, um zu sehen"}
-            text={
-              data.isFollowing || data.isMe
-                ? "Hier erscheinen alle bewerteten Orte."
-                : `Bewertungen von @${profile.username} siehst du, sobald du folgst.`
-            }
+            title="Noch keine Bewertungen"
+            text="Hier erscheinen alle bewerteten Orte."
           />
         )}
       </div>

@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { MapPin, Search, UserPlus, UserCheck, Users } from "lucide-react";
+import { MapPin, Search, UserPlus, UserCheck, Clock, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/turi";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -29,7 +30,7 @@ function ExplorePage() {
 
   return (
     <>
-      <AppHeader title="Suchen" />
+      <AppHeader />
       <div className="app-shell space-y-4 py-4">
         <div className="relative">
           <Search
@@ -127,7 +128,7 @@ function PeopleResults({ term }: { term: string }) {
       const me = auth.user?.id ?? "";
       let query = supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url")
+        .select("id, username, display_name, avatar_url, is_private")
         .limit(30);
       if (term) {
         const t = term.replace(/^@/, "");
@@ -137,34 +138,42 @@ function PeopleResults({ term }: { term: string }) {
       if (error) throw error;
       const [{ data: follows }, { data: blocksMade }, { data: blocksReceived }] = await Promise.all(
         [
-          supabase.from("follows").select("following_id").eq("follower_id", me),
+          supabase.from("follows").select("following_id, status").eq("follower_id", me),
           supabase.from("blocks").select("blocked_id").eq("blocker_id", me),
           supabase.from("blocks").select("blocker_id").eq("blocked_id", me),
         ],
       );
-      const followingIds = new Set((follows ?? []).map((f) => f.following_id));
+      const followStatusById = new Map((follows ?? []).map((f) => [f.following_id, f.status]));
       const blockedIds = new Set([
         ...(blocksMade ?? []).map((b) => b.blocked_id),
         ...(blocksReceived ?? []).map((b) => b.blocker_id),
       ]);
       return (people ?? [])
         .filter((p) => p.id !== me && !blockedIds.has(p.id))
-        .map((p) => ({ ...p, isFollowing: followingIds.has(p.id) }));
+        .map((p) => ({
+          ...p,
+          followStatus: followStatusById.get(p.id) as "pending" | "accepted" | undefined,
+        }));
     },
   });
 
-  async function toggleFollow(id: string, isFollowing: boolean) {
+  async function toggleFollow(id: string, followStatus: "pending" | "accepted" | undefined) {
     const { data: auth } = await supabase.auth.getUser();
     const me = auth.user?.id;
     if (!me) return;
-    const { error } = isFollowing
+    // Bei "pending" oder "accepted" wird die Beziehung entfernt (Anfrage
+    // zurueckziehen bzw. entfolgen); ohne bestehenden Follow wird neu angefragt.
+    const { error } = followStatus
       ? await supabase.from("follows").delete().eq("follower_id", me).eq("following_id", id)
       : await supabase.from("follows").insert({ follower_id: me, following_id: id });
-    if (error) toast.error(error.message);
-    else {
-      toast.success(isFollowing ? "Nicht mehr gefolgt" : "Du folgst jetzt");
-      queryClient.invalidateQueries();
+    if (error) {
+      toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+      return;
     }
+    if (followStatus === "accepted") toast.success("Nicht mehr gefolgt");
+    else if (followStatus === "pending") toast.success("Anfrage zurückgezogen");
+    else toast.success("Angefragt");
+    queryClient.invalidateQueries();
   }
 
   if (!data || data.length === 0) {
@@ -199,12 +208,26 @@ function PeopleResults({ term }: { term: string }) {
           </Link>
           <Button
             size="sm"
-            variant={p.isFollowing ? "secondary" : "default"}
+            variant={p.followStatus ? "secondary" : "default"}
             className="rounded-full"
-            onClick={() => toggleFollow(p.id, p.isFollowing)}
+            onClick={() => toggleFollow(p.id, p.followStatus)}
           >
-            {p.isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
-            <span className="ml-1">{p.isFollowing ? "Folgst du" : "Folgen"}</span>
+            {p.followStatus === "accepted" ? (
+              <UserCheck size={16} />
+            ) : p.followStatus === "pending" ? (
+              <Clock size={16} />
+            ) : (
+              <UserPlus size={16} />
+            )}
+            <span className="ml-1">
+              {p.followStatus === "accepted"
+                ? "Folgst du"
+                : p.followStatus === "pending"
+                  ? "Angefragt"
+                  : p.is_private
+                    ? "Anfragen"
+                    : "Folgen"}
+            </span>
           </Button>
         </li>
       ))}
