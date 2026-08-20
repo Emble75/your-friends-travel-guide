@@ -14,10 +14,10 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_authenticated/explore")({
   head: () => ({
     meta: [
-      { title: "Suchen – Turi" },
-      { name: "description", content: "Finde Freunde auf Turi." },
-      { property: "og:title", content: "Suchen – Turi" },
-      { property: "og:description", content: "Finde Freunde auf Turi." },
+      { title: "Search – Turi" },
+      { name: "description", content: "Find friends on Turi." },
+      { property: "og:title", content: "Search – Turi" },
+      { property: "og:description", content: "Find friends on Turi." },
     ],
   }),
   component: ExplorePage,
@@ -39,7 +39,7 @@ function ExplorePage() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="@username suchen"
+            placeholder="Search @username"
             className="h-12 rounded-2xl pl-11"
           />
         </div>
@@ -97,27 +97,23 @@ function PeopleResults({ term }: { term: string }) {
       ? await supabase.from("follows").delete().eq("follower_id", me).eq("following_id", id)
       : await supabase.from("follows").insert({ follower_id: me, following_id: id });
     if (error) {
-      toast.error(getErrorMessage(error, "Aktion fehlgeschlagen"));
+      toast.error(getErrorMessage(error, "Action failed"));
       return;
     }
-    if (followStatus === "accepted") toast.success("Nicht mehr gefolgt");
-    else if (followStatus === "pending") toast.success("Anfrage zurückgezogen");
-    else toast.success("Angefragt");
+    if (followStatus === "accepted") toast.success("Unfollowed");
+    else if (followStatus === "pending") toast.success("Request withdrawn");
+    else toast.success("Requested");
     queryClient.invalidateQueries();
   }
 
   if (!term) {
     return (
-      <EmptyState
-        icon={Users}
-        title="Freunde finden"
-        text="Suche nach dem Benutzernamen deiner Freunde."
-      />
+      <EmptyState icon={Users} title="Find friends" text="Search for your friends' usernames." />
     );
   }
 
   if (!data || data.length === 0) {
-    return <EmptyState icon={Users} title="Niemand gefunden" text="Prüfe die Schreibweise." />;
+    return <EmptyState icon={Users} title="No one found" text="Check the spelling." />;
   }
 
   return (
@@ -155,12 +151,12 @@ function PeopleResults({ term }: { term: string }) {
             )}
             <span className="ml-1">
               {p.followStatus === "accepted"
-                ? "Folgst du"
+                ? "Following"
                 : p.followStatus === "pending"
-                  ? "Angefragt"
+                  ? "Requested"
                   : p.is_private
-                    ? "Anfragen"
-                    : "Folgen"}
+                    ? "Request"
+                    : "Follow"}
             </span>
           </Button>
         </li>

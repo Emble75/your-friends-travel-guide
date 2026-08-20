@@ -13,12 +13,12 @@ import { getErrorMessage } from "@/lib/turi";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Anmelden bei Turi" },
-      { name: "description", content: "Melde dich an und sieh die Reisetipps deiner Freunde." },
-      { property: "og:title", content: "Anmelden bei Turi" },
+      { title: "Sign in to Turi" },
+      { name: "description", content: "Sign in and see your friends' travel tips." },
+      { property: "og:title", content: "Sign in to Turi" },
       {
         property: "og:description",
-        content: "Melde dich an und sieh die Reisetipps deiner Freunde.",
+        content: "Sign in and see your friends' travel tips.",
       },
     ],
   }),
@@ -42,11 +42,11 @@ function AuthPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (mode === "signup" && !acceptedTerms) {
-      toast.error("Bitte den Nutzungsbedingungen und der Datenschutzerklärung zustimmen");
+      toast.error("Please agree to the Terms of Service and Privacy Policy");
       return;
     }
     if (captchaRequired && !captchaToken) {
-      toast.error("Bitte den Sicherheitscheck oben ausfüllen");
+      toast.error("Please complete the security check above");
       return;
     }
     setLoading(true);
@@ -71,14 +71,14 @@ function AuthPage() {
         if (error) throw error;
 
         if (data.session && data.user) {
-          // Zustimmung protokollieren, jetzt wo wir eine authentifizierte Session haben.
+          // Record consent now that we have an authenticated session.
           await supabase
             .from("profiles")
             .update({ accepted_terms_at: new Date().toISOString() })
             .eq("id", data.user.id);
 
-          // Der Benutzername kann kollidieren — die DB haengt dann automatisch eine
-          // Zahl an. Nutzer informieren, falls das passiert ist.
+          // The username can collide -- the DB then automatically appends a
+          // number. Let the user know if that happened.
           const { data: profile } = await supabase
             .from("profiles")
             .select("username")
@@ -86,7 +86,7 @@ function AuthPage() {
             .maybeSingle();
           if (profile && profile.username !== typedUsername) {
             toast.info(
-              `"${typedUsername}" war schon vergeben — dein Benutzername ist jetzt @${profile.username}`,
+              `"${typedUsername}" was already taken — your username is now @${profile.username}`,
             );
           }
 
@@ -96,7 +96,7 @@ function AuthPage() {
         }
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "Etwas ist schiefgelaufen"));
+      toast.error(getErrorMessage(err, "Something went wrong"));
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ function AuthPage() {
 
   async function onForgotPassword() {
     if (!email.trim()) {
-      toast.error("Bitte zuerst deine E-Mail eintragen");
+      toast.error("Please enter your email first");
       return;
     }
     setLoading(true);
@@ -115,7 +115,7 @@ function AuthPage() {
       if (error) throw error;
       setResetSent(true);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Etwas ist schiefgelaufen"));
+      toast.error(getErrorMessage(err, "Something went wrong"));
     } finally {
       setLoading(false);
     }
@@ -128,30 +128,29 @@ function AuthPage() {
           <TuriMark className="size-20 text-[5rem]" />
           <h1 className="mt-5 text-3xl font-bold">Turi</h1>
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-            Orte bewerten und nur die Meinungen deiner Freunde sehen.
+            Review places and only see what your friends think.
           </p>
         </div>
 
         {resetSent ? (
           <div className="mt-8 rounded-3xl border border-border bg-card p-6 text-center shadow-card">
-            <h2 className="text-lg font-semibold">E-Mail unterwegs</h2>
+            <h2 className="text-lg font-semibold">Email on its way</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Falls ein Konto mit dieser Adresse existiert, haben wir dir einen Link zum
-              Zurücksetzen deines Passworts geschickt.
+              If an account with this address exists, we've sent a link to reset your password.
             </p>
             <Button
               variant="secondary"
               className="mt-4 rounded-2xl"
               onClick={() => setResetSent(false)}
             >
-              Zurück zur Anmeldung
+              Back to sign in
             </Button>
           </div>
         ) : sent ? (
           <div className="mt-8 rounded-3xl border border-border bg-card p-6 text-center shadow-card">
-            <h2 className="text-lg font-semibold">Fast geschafft</h2>
+            <h2 className="text-lg font-semibold">Almost there</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Wir haben dir eine E-Mail geschickt. Bestätige deine Adresse, um loszulegen.
+              We've sent you an email. Confirm your address to get started.
             </p>
           </div>
         ) : (
@@ -161,12 +160,12 @@ function AuthPage() {
           >
             {mode === "signup" ? (
               <div className="space-y-1.5">
-                <Label htmlFor="username">Benutzername</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="reisemaus"
+                  placeholder="travelbug"
                   required
                   minLength={3}
                   className="h-12 rounded-2xl"
@@ -174,19 +173,19 @@ function AuthPage() {
               </div>
             ) : null}
             <div className="space-y-1.5">
-              <Label htmlFor="email">E-Mail</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="du@beispiel.de"
+                placeholder="you@example.com"
                 required
                 className="h-12 rounded-2xl"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Passwort</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -197,14 +196,14 @@ function AuthPage() {
                 className="h-12 rounded-2xl"
               />
               {mode === "signup" ? (
-                <p className="text-xs text-muted-foreground">Mindestens 8 Zeichen.</p>
+                <p className="text-xs text-muted-foreground">At least 8 characters.</p>
               ) : (
                 <button
                   type="button"
                   onClick={onForgotPassword}
                   className="text-xs font-medium text-primary"
                 >
-                  Passwort vergessen?
+                  Forgot password?
                 </button>
               )}
             </div>
@@ -216,29 +215,29 @@ function AuthPage() {
                   className="mt-0.5"
                 />
                 <span>
-                  Ich stimme den{" "}
+                  I agree to the{" "}
                   <Link
                     to="/legal/terms"
                     target="_blank"
                     className="font-medium text-primary underline"
                   >
-                    Nutzungsbedingungen
+                    Terms of Service
                   </Link>{" "}
-                  und der{" "}
+                  and{" "}
                   <Link
                     to="/legal/privacy"
                     target="_blank"
                     className="font-medium text-primary underline"
                   >
-                    Datenschutzerklärung
-                  </Link>{" "}
-                  zu.
+                    Privacy Policy
+                  </Link>
+                  .
                 </span>
               </label>
             ) : null}
             <TurnstileWidget onToken={setCaptchaToken} />
             <Button type="submit" disabled={loading} className="h-12 w-full rounded-2xl text-base">
-              {loading ? "Moment…" : mode === "login" ? "Anmelden" : "Konto erstellen"}
+              {loading ? "One moment…" : mode === "login" ? "Sign in" : "Create account"}
             </Button>
             <button
               type="button"
@@ -247,11 +246,11 @@ function AuthPage() {
             >
               {mode === "login" ? (
                 <>
-                  Noch kein Konto? <span className="font-semibold text-primary">Registrieren</span>
+                  No account yet? <span className="font-semibold text-primary">Sign up</span>
                 </>
               ) : (
                 <>
-                  Schon dabei? <span className="font-semibold text-primary">Anmelden</span>
+                  Already have one? <span className="font-semibold text-primary">Sign in</span>
                 </>
               )}
             </button>
@@ -260,7 +259,7 @@ function AuthPage() {
 
         <div className="mt-6 text-center">
           <Link to="/" className="text-xs text-muted-foreground">
-            Zurück zur Startseite
+            Back to home
           </Link>
         </div>
       </div>

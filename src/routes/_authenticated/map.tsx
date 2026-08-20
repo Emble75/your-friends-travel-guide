@@ -19,16 +19,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 export const Route = createFileRoute("/_authenticated/map")({
   head: () => ({
     meta: [
-      { title: "Karte – Turi" },
+      { title: "Map – Turi" },
       {
         name: "description",
         content:
-          "Entdecke Cafés, Restaurants und Sehenswürdigkeiten auf der Karte und sieh die Bewertungen deiner Freunde.",
+          "Discover cafes, restaurants, and sights on the map and see your friends' reviews.",
       },
-      { property: "og:title", content: "Karte – Turi" },
+      { property: "og:title", content: "Map – Turi" },
       {
         property: "og:description",
-        content: "Orte auf der Karte entdecken und Freunde-Bewertungen sehen.",
+        content: "Discover places on the map and see friends' reviews.",
       },
     ],
   }),
@@ -37,8 +37,11 @@ export const Route = createFileRoute("/_authenticated/map")({
 
 const DEFAULT_CENTER = { lat: 41.9028, lng: 12.4964 };
 
+type MyPlace = { id: string; name: string; lat: number; lng: number; category: string };
+
 function MapPage() {
   const { ready, error } = useGoogleMaps();
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -46,6 +49,7 @@ function MapPage() {
   const [selected, setSelected] = useState<MapPlace | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MapPlace[] | null>(null);
+  const [mode, setMode] = useState<"discover" | "mine">("discover");
 
   const nearby = useServerFn(getNearbyPlaces);
   const searchFn = useServerFn(searchMapPlaces);
@@ -53,8 +57,37 @@ function MapPage() {
   const { data: places, isFetching } = useQuery({
     queryKey: ["nearby", center.lat.toFixed(3), center.lng.toFixed(3)],
     queryFn: () => nearby({ data: { lat: center.lat, lng: center.lng, radius: 1500 } }),
-    enabled: ready,
+    enabled: ready && mode === "discover",
     staleTime: 5 * 60_000,
+  });
+
+  const { data: myPlaces } = useQuery({
+    queryKey: ["my-reviewed-places"],
+    enabled: mode === "mine",
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user!.id;
+      const { data } = await supabase
+        .from("reviews")
+        .select("place_id, places(id, name, lat, lng, category)")
+        .eq("user_id", me);
+      const seen = new Set<string>();
+      const result: MyPlace[] = [];
+      for (const r of data ?? []) {
+        const p = r.places as unknown as {
+          id: string;
+          name: string;
+          lat: number | null;
+          lng: number | null;
+          category: string;
+        } | null;
+        if (p && p.lat != null && p.lng != null && !seen.has(p.id)) {
+          seen.add(p.id);
+          result.push({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, category: p.category });
+        }
+      }
+      return result;
+    },
   });
 
   const visibleMarkers = useMemo(() => searchResults ?? places ?? [], [searchResults, places]);
@@ -127,6 +160,31 @@ function MapPage() {
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     markersRef.current.forEach((m) => m.setMap(null));
+
+    if (mode === "mine") {
+      markersRef.current = (myPlaces ?? []).map((p) => {
+        const marker = new google.maps.Marker({
+          map: mapRef.current!,
+          position: { lat: p.lat, lng: p.lng },
+          title: p.name,
+          zIndex: 10,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: "#C9A227",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 3,
+          },
+        });
+        marker.addListener("click", () =>
+          navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+        );
+        return marker;
+      });
+      return;
+    }
+
     markersRef.current = visibleMarkers.map((p) => {
       const isReviewedByFriends = reviewedGoogleIds?.has(p.googlePlaceId) ?? false;
       const marker = new google.maps.Marker({
@@ -137,7 +195,7 @@ function MapPage() {
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: isReviewedByFriends ? 11 : 8,
-          fillColor: isReviewedByFriends ? "#16A34A" : "#FF6B35",
+          fillColor: isReviewedByFriends ? "#16A34A" : "#2B2724",
           fillOpacity: 1,
           strokeColor: "#ffffff",
           strokeWeight: isReviewedByFriends ? 3 : 2,
@@ -146,7 +204,15 @@ function MapPage() {
       marker.addListener("click", () => setSelected(p));
       return marker;
     });
-  }, [ready, visibleMarkers, reviewedGoogleIds]);
+  }, [ready, mode, visibleMarkers, reviewedGoogleIds, myPlaces, navigate]);
+
+  // "Meine Karte": beim Wechsel in den Modus auf alle eigenen Orte zoomen
+  useEffect(() => {
+    if (mode !== "mine" || !myPlaces || myPlaces.length === 0 || !mapRef.current) return;
+    const bounds = new google.maps.LatLngBounds();
+    myPlaces.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+    mapRef.current.fitBounds(bounds, 60);
+  }, [mode, myPlaces]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -161,10 +227,10 @@ function MapPage() {
         mapRef.current.panTo({ lat: results[0].lat, lng: results[0].lng });
         mapRef.current.setZoom(14);
       } else {
-        toast.info("Nichts gefunden");
+        toast.info("Nothing found");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Suche fehlgeschlagen");
+      toast.error(e instanceof Error ? e.message : "Search failed");
     }
   }, [query, center, searchFn]);
 
@@ -187,26 +253,57 @@ function MapPage() {
           <TuriWordmark />
           {isFetching ? <Loader2 size={16} className="animate-spin text-primary" /> : null}
         </div>
-        <div className="pointer-events-auto relative">
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              if (!e.target.value.trim()) setSearchResults(null);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && runSearch()}
-            placeholder="Stadt oder Ort suchen"
-            className="h-12 rounded-2xl border-0 bg-card pl-11 shadow-card"
-          />
+
+        <div className="pointer-events-auto flex gap-1 rounded-2xl bg-card/95 p-1 shadow-card backdrop-blur">
+          <button
+            type="button"
+            onClick={() => setMode("discover")}
+            className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-colors ${
+              mode === "discover" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            }`}
+          >
+            Discover
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("mine")}
+            className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-colors ${
+              mode === "mine" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            }`}
+          >
+            My Map
+          </button>
         </div>
-        {reviewedGoogleIds && reviewedGoogleIds.size > 0 ? (
+
+        {mode === "discover" ? (
+          <div className="pointer-events-auto relative">
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (!e.target.value.trim()) setSearchResults(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && runSearch()}
+              placeholder="Search city or place"
+              className="h-12 rounded-2xl border-0 bg-card pl-11 shadow-card"
+            />
+          </div>
+        ) : null}
+
+        {mode === "discover" && reviewedGoogleIds && reviewedGoogleIds.size > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-[#16A34A]" /> von Freunden
-            bewertet
+            <span className="inline-block size-2.5 rounded-full bg-[#16A34A]" /> reviewed by friends
+          </div>
+        ) : null}
+
+        {mode === "mine" ? (
+          <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
+            <span className="inline-block size-2.5 rounded-full bg-[#C9A227]" />{" "}
+            {(myPlaces ?? []).length} places you've reviewed
           </div>
         ) : null}
       </div>
@@ -214,7 +311,7 @@ function MapPage() {
       <Button
         size="icon"
         variant="secondary"
-        aria-label="Meinen Standort zeigen"
+        aria-label="Show my location"
         className="absolute bottom-4 right-4 z-10 size-12 rounded-2xl shadow-card"
         onClick={() =>
           navigator.geolocation?.getCurrentPosition((pos) => {
@@ -269,7 +366,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
       if (target === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
       else navigate({ to: "/new", search: { placeId: id } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Ort konnte nicht geöffnet werden");
+      toast.error(e instanceof Error ? e.message : "Could not open place");
     } finally {
       setBusy(false);
     }
@@ -299,14 +396,14 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
               <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
               <Stars value={avg} size={16} />
               <span className="ml-auto text-xs text-muted-foreground">
-                {reviews.length} aus deinem Kreis
+                {reviews.length} from your circle
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
               <Users size={18} className="text-primary" />
               <p className="text-xs text-muted-foreground">
-                Noch keine Freunde-Bewertungen für diesen Ort.
+                No reviews from friends for this place yet.
               </p>
             </div>
           )}
@@ -338,7 +435,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
               onClick={() => go("review")}
               className="h-12 flex-1 rounded-2xl"
             >
-              <Star size={18} className="mr-1" /> Bewerten
+              <Star size={18} className="mr-1" /> Review
             </Button>
             <Button
               disabled={busy}
@@ -346,7 +443,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
               onClick={() => go("place")}
               className="h-12 flex-1 rounded-2xl"
             >
-              Alle Bewertungen
+              All reviews
             </Button>
           </div>
         </div>

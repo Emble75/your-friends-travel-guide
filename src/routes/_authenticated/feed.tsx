@@ -12,9 +12,9 @@ export const Route = createFileRoute("/_authenticated/feed")({
   head: () => ({
     meta: [
       { title: "Feed – Turi" },
-      { name: "description", content: "Die neuesten Ortsbewertungen deiner Freunde auf Turi." },
+      { name: "description", content: "Your friends' latest place reviews on Turi." },
       { property: "og:title", content: "Feed – Turi" },
-      { property: "og:description", content: "Die neuesten Ortsbewertungen deiner Freunde." },
+      { property: "og:description", content: "Your friends' latest place reviews." },
     ],
   }),
   component: FeedPage,
@@ -76,18 +76,18 @@ function FeedPage() {
                 disabled={isFetchingNextPage}
                 onClick={() => fetchNextPage()}
               >
-                {isFetchingNextPage ? "Lädt…" : "Mehr laden"}
+                {isFetchingNextPage ? "Loading…" : "Load more"}
               </Button>
             ) : null}
           </>
         ) : (
           <EmptyState
             icon={Compass}
-            title="Dein Feed ist noch leer"
-            text="Folge Freunden, um ihre Ortsbewertungen hier zu sehen."
+            title="Your feed is empty"
+            text="Follow friends to see their place reviews here."
             action={
               <Button asChild className="rounded-2xl">
-                <Link to="/explore">Freunde finden</Link>
+                <Link to="/explore">Find friends</Link>
               </Button>
             }
           />
