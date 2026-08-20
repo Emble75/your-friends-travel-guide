@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, LocateFixed, MapPin, Search, Star, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -57,6 +57,41 @@ function MapPage() {
     staleTime: 5 * 60_000,
   });
 
+  const visibleMarkers = useMemo(() => searchResults ?? places ?? [], [searchResults, places]);
+  const googlePlaceIds = useMemo(
+    () => visibleMarkers.map((p) => p.googlePlaceId).sort(),
+    [visibleMarkers],
+  );
+
+  // Welche der gerade angezeigten Orte haben schon eine (fuer mich sichtbare)
+  // Freundes-Bewertung? RLS filtert reviews bereits automatisch auf das, was
+  // ich sehen darf -- kein extra Berechtigungscheck noetig.
+  const { data: reviewedGoogleIds } = useQuery({
+    queryKey: ["reviewed-google-ids", googlePlaceIds.join(",")],
+    enabled: googlePlaceIds.length > 0,
+    queryFn: async () => {
+      const { data: localPlaces } = await supabase
+        .from("places")
+        .select("id, google_place_id")
+        .in("google_place_id", googlePlaceIds);
+      if (!localPlaces || localPlaces.length === 0) return new Set<string>();
+      const idToGoogleId = new Map(localPlaces.map((p) => [p.id, p.google_place_id]));
+      const { data: reviewed } = await supabase
+        .from("reviews")
+        .select("place_id")
+        .in(
+          "place_id",
+          localPlaces.map((p) => p.id),
+        );
+      const result = new Set<string>();
+      for (const r of reviewed ?? []) {
+        const gId = idToGoogleId.get(r.place_id);
+        if (gId) result.add(gId);
+      }
+      return result;
+    },
+  });
+
   // Init map
   useEffect(() => {
     if (!ready || !containerRef.current || mapRef.current) return;
@@ -92,24 +127,26 @@ function MapPage() {
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = (searchResults ?? places ?? []).map((p) => {
+    markersRef.current = visibleMarkers.map((p) => {
+      const isReviewedByFriends = reviewedGoogleIds?.has(p.googlePlaceId) ?? false;
       const marker = new google.maps.Marker({
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
+        zIndex: isReviewedByFriends ? 10 : 1,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: "#FF6B35",
+          scale: isReviewedByFriends ? 11 : 8,
+          fillColor: isReviewedByFriends ? "#16A34A" : "#FF6B35",
           fillOpacity: 1,
           strokeColor: "#ffffff",
-          strokeWeight: 2,
+          strokeWeight: isReviewedByFriends ? 3 : 2,
         },
       });
       marker.addListener("click", () => setSelected(p));
       return marker;
     });
-  }, [ready, places, searchResults]);
+  }, [ready, visibleMarkers, reviewedGoogleIds]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -151,7 +188,10 @@ function MapPage() {
           {isFetching ? <Loader2 size={16} className="animate-spin text-primary" /> : null}
         </div>
         <div className="pointer-events-auto relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             value={query}
             onChange={(e) => {
@@ -163,6 +203,12 @@ function MapPage() {
             className="h-12 rounded-2xl border-0 bg-card pl-11 shadow-card"
           />
         </div>
+        {reviewedGoogleIds && reviewedGoogleIds.size > 0 ? (
+          <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
+            <span className="inline-block size-2.5 rounded-full bg-[#16A34A]" /> von Freunden
+            bewertet
+          </div>
+        ) : null}
       </div>
 
       <Button
@@ -213,9 +259,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
   });
 
   const reviews = data?.reviews ?? [];
-  const avg = reviews.length
-    ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
-    : null;
+  const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
 
   async function go(target: "place" | "review") {
     if (!place) return;
@@ -289,7 +333,11 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
           ))}
 
           <div className="flex gap-2 pt-1">
-            <Button disabled={busy} onClick={() => go("review")} className="h-12 flex-1 rounded-2xl">
+            <Button
+              disabled={busy}
+              onClick={() => go("review")}
+              className="h-12 flex-1 rounded-2xl"
+            >
               <Star size={18} className="mr-1" /> Bewerten
             </Button>
             <Button
