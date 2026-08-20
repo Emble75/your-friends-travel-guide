@@ -5,6 +5,8 @@ import {
   Clock,
   Flag,
   Lock,
+  Map,
+  Rows3,
   ShieldOff,
   Star,
   UserCheck,
@@ -19,6 +21,7 @@ import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { ReportDialog } from "@/components/turi/ReportDialog";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
+import { PlacesMiniMap, type MiniMapPlace } from "@/components/turi/PlacesMiniMap";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,6 +60,7 @@ function ProfilePage() {
   const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
   const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
+  const [view, setView] = useState<"feed" | "map">("feed");
 
   const { data, isLoading } = useQuery({
     queryKey: ["profile", username],
@@ -172,6 +176,38 @@ function ProfilePage() {
     toast.success(`@${data.profile.username} blocked`);
     queryClient.invalidateQueries();
   }
+
+  const canSeeReviews = data
+    ? !data.profile.is_private || data.followStatus === "accepted" || data.isMe
+    : false;
+
+  const { data: mapPlaces } = useQuery({
+    queryKey: ["profile-map-places", data?.profile.id],
+    enabled: view === "map" && !!data?.profile && canSeeReviews,
+    queryFn: async () => {
+      // RLS auf reviews filtert automatisch auf das, was ich bei dieser
+      // Person sehen darf (gleiche Sichtbarkeit wie im Feed).
+      const { data: rows } = await supabase
+        .from("reviews")
+        .select("place_id, places(id, name, lat, lng, category)")
+        .eq("user_id", data!.profile.id);
+      const seen = new Set<string>();
+      const result: MiniMapPlace[] = [];
+      for (const r of rows ?? []) {
+        const p = r.places as unknown as {
+          id: string;
+          name: string;
+          lat: number | null;
+          lng: number | null;
+        } | null;
+        if (p && p.lat != null && p.lng != null && !seen.has(p.id)) {
+          seen.add(p.id);
+          result.push({ id: p.id, name: p.name, lat: p.lat, lng: p.lng });
+        }
+      }
+      return result;
+    },
+  });
 
   if (isLoading) {
     return (
@@ -341,14 +377,43 @@ function ProfilePage() {
                 : `Follow @${profile.username} to see reviews.`
             }
           />
-        ) : reviews.length > 0 ? (
-          reviews.map((r) => <ReviewCard key={r.id} review={r} />)
         ) : (
-          <EmptyState
-            icon={Star}
-            title="No reviews yet"
-            text="All reviewed places will appear here."
-          />
+          <>
+            <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+              <button
+                type="button"
+                onClick={() => setView("feed")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+                  view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
+                }`}
+              >
+                <Rows3 size={15} /> Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("map")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+                  view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
+                }`}
+              >
+                <Map size={15} /> Map
+              </button>
+            </div>
+
+            {view === "map" ? (
+              <div className="h-[60vh] overflow-hidden rounded-3xl border border-border shadow-card">
+                <PlacesMiniMap places={mapPlaces ?? []} />
+              </div>
+            ) : reviews.length > 0 ? (
+              reviews.map((r) => <ReviewCard key={r.id} review={r} />)
+            ) : (
+              <EmptyState
+                icon={Star}
+                title="No reviews yet"
+                text="All reviewed places will appear here."
+              />
+            )}
+          </>
         )}
       </div>
 
