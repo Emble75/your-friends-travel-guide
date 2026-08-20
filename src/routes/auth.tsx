@@ -102,23 +102,8 @@ function AuthPage() {
     }
   }
 
-  async function onForgotPassword() {
-    if (!email.trim()) {
-      toast.error("Please enter your email first");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) throw error;
-      setResetSent(true);
-    } catch (err) {
-      toast.error(getErrorMessage(err, "Something went wrong"));
-    } finally {
-      setLoading(false);
-    }
+  function onForgotPassword() {
+    setResetSent(true);
   }
 
   return (
@@ -134,9 +119,13 @@ function AuthPage() {
 
         {resetSent ? (
           <div className="mt-8 rounded-3xl border border-border bg-card p-6 text-center shadow-card">
-            <h2 className="text-lg font-semibold">Email on its way</h2>
+            <h2 className="text-lg font-semibold">Forgot your password?</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              If an account with this address exists, we've sent a link to reset your password.
+              Please send an email to{" "}
+              <a href="mailto:turi-app@gmail.com" className="font-medium text-primary underline">
+                turi-app@gmail.com
+              </a>{" "}
+              — we'll take care of it as soon as possible.
             </p>
             <Button
               variant="secondary"
