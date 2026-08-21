@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Bookmark, Loader2, LocateFixed, MapPin, Plus, Search, Star, Users } from "lucide-react";
 import { toast } from "sonner";
-import { getNearbyPlaces, getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
+import { getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
 import { ratingPinIcon } from "@/lib/mapIcons";
@@ -67,22 +67,19 @@ function MapPage() {
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const [center, setCenter] = useState(DEFAULT_CENTER);
+  const [bounds, setBounds] = useState<{
+    swLat: number;
+    swLng: number;
+    neLat: number;
+    neLng: number;
+  } | null>(null);
   const [selected, setSelected] = useState<MapPlace | null>(null);
   const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<MapPlace[] | null>(null);
   const [searchCandidates, setSearchCandidates] = useState<MapPlace[] | null>(null);
   const [mode, setMode] = useState<"discover" | "mine">("discover");
 
-  const nearby = useServerFn(getNearbyPlaces);
-  const searchFn = useServerFn(searchMapPlaces);
   const placeByIdFn = useServerFn(getPlaceById);
-
-  const { data: places, isFetching } = useQuery({
-    queryKey: ["nearby", center.lat.toFixed(3), center.lng.toFixed(3)],
-    queryFn: () => nearby({ data: { lat: center.lat, lng: center.lng, radius: 1500 } }),
-    enabled: ready && mode === "discover",
-    staleTime: 5 * 60_000,
-  });
+  const searchFn = useServerFn(searchMapPlaces);
 
   const { data: myPlaces } = useQuery({
     queryKey: ["my-reviewed-places"],
@@ -121,75 +118,89 @@ function MapPage() {
     },
   });
 
-  const visibleMarkers = useMemo(() => searchResults ?? places ?? [], [searchResults, places]);
-  const googlePlaceIds = useMemo(
-    () => visibleMarkers.map((p) => p.googlePlaceId).sort(),
-    [visibleMarkers],
-  );
+  const boundsKey = bounds
+    ? `${bounds.swLat.toFixed(3)},${bounds.swLng.toFixed(3)},${bounds.neLat.toFixed(3)},${bounds.neLng.toFixed(3)}`
+    : null;
 
-  // Welche der gerade angezeigten Orte haben schon eine (fuer mich sichtbare)
-  // Freundes-Bewertung, und mit welchem Schnitt? RLS filtert reviews bereits
-  // automatisch auf das, was ich sehen darf -- kein extra Check noetig.
-  const { data: reviewedGoogleRatings } = useQuery({
-    queryKey: ["reviewed-google-ratings", googlePlaceIds.join(",")],
-    enabled: googlePlaceIds.length > 0,
+  // Von Freunden (oder mir) bewertete Orte im aktuell sichtbaren Kartenbereich
+  // -- direkt aus unserer eigenen Datenbank, ganz ohne Google-Nearby-Search.
+  // RLS auf reviews filtert bereits automatisch auf das, was ich sehen darf.
+  const { data: reviewedInView, isFetching: reviewedLoading } = useQuery({
+    queryKey: ["reviewed-in-view", boundsKey],
+    enabled: mode === "discover" && !!bounds,
     queryFn: async () => {
-      const { data: localPlaces } = await supabase
-        .from("places")
-        .select("id, google_place_id")
-        .in("google_place_id", googlePlaceIds);
-      if (!localPlaces || localPlaces.length === 0) return new Map<string, number>();
-      const idToGoogleId = new Map(localPlaces.map((p) => [p.id, p.google_place_id]));
-      const { data: reviewed } = await supabase
+      const { swLat, swLng, neLat, neLng } = bounds!;
+      const { data, error: qErr } = await supabase
         .from("reviews")
-        .select("place_id, rating")
-        .in(
-          "place_id",
-          localPlaces.map((p) => p.id),
-        );
-      const sums = new Map<string, { total: number; count: number }>();
-      for (const r of reviewed ?? []) {
-        const gId = idToGoogleId.get(r.place_id);
-        if (!gId) continue;
-        const entry = sums.get(gId) ?? { total: 0, count: 0 };
+        .select("rating, places!inner(id, name, lat, lng, google_place_id, category)")
+        .gte("places.lat", swLat)
+        .lte("places.lat", neLat)
+        .gte("places.lng", swLng)
+        .lte("places.lng", neLng);
+      if (qErr) throw qErr;
+      const seen = new Map<
+        string,
+        {
+          name: string;
+          lat: number;
+          lng: number;
+          googlePlaceId: string | null;
+          total: number;
+          count: number;
+        }
+      >();
+      for (const r of data ?? []) {
+        const p = r.places as unknown as {
+          id: string;
+          name: string;
+          lat: number;
+          lng: number;
+          google_place_id: string | null;
+        };
+        const entry = seen.get(p.id) ?? {
+          name: p.name,
+          lat: p.lat,
+          lng: p.lng,
+          googlePlaceId: p.google_place_id,
+          total: 0,
+          count: 0,
+        };
         entry.total += r.rating;
         entry.count += 1;
-        sums.set(gId, entry);
+        seen.set(p.id, entry);
       }
-      const result = new Map<string, number>();
-      for (const [gId, { total, count }] of sums) result.set(gId, total / count);
-      return result;
+      return Array.from(seen.entries()).map(([id, v]) => ({
+        id,
+        name: v.name,
+        lat: v.lat,
+        lng: v.lng,
+        rating: v.total / v.count,
+      }));
     },
   });
 
-  // "Will ich noch hin": eigene gemerkte Orte unter den gerade angezeigten Markern.
-  const { data: savedGoogleIds } = useQuery({
-    queryKey: ["saved-google-ids", googlePlaceIds.join(",")],
-    enabled: googlePlaceIds.length > 0,
+  // "Will ich noch hin" im aktuell sichtbaren Kartenbereich.
+  const { data: savedInView } = useQuery({
+    queryKey: ["saved-in-view", boundsKey],
+    enabled: mode === "discover" && !!bounds,
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id;
-      if (!me) return new Set<string>();
-      const { data: localPlaces } = await supabase
-        .from("places")
-        .select("id, google_place_id")
-        .in("google_place_id", googlePlaceIds);
-      if (!localPlaces || localPlaces.length === 0) return new Set<string>();
-      const idToGoogleId = new Map(localPlaces.map((p) => [p.id, p.google_place_id]));
-      const { data: saved } = await supabase
+      if (!me) return [];
+      const { swLat, swLng, neLat, neLng } = bounds!;
+      const { data, error: qErr } = await supabase
         .from("saved_places")
-        .select("place_id")
+        .select("places!inner(id, name, lat, lng)")
         .eq("user_id", me)
-        .in(
-          "place_id",
-          localPlaces.map((p) => p.id),
-        );
-      const result = new Set<string>();
-      for (const s of saved ?? []) {
-        const gId = idToGoogleId.get(s.place_id);
-        if (gId) result.add(gId);
-      }
-      return result;
+        .gte("places.lat", swLat)
+        .lte("places.lat", neLat)
+        .gte("places.lng", swLng)
+        .lte("places.lng", neLng);
+      if (qErr) throw qErr;
+      return (data ?? []).map((r) => {
+        const p = r.places as unknown as { id: string; name: string; lat: number; lng: number };
+        return { id: p.id, name: p.name, lat: p.lat, lng: p.lng };
+      });
     },
   });
 
@@ -212,6 +223,12 @@ function MapPage() {
       const c = mapRef.current!.getCenter();
       if (!c) return;
       setCenter({ lat: c.lat(), lng: c.lng() });
+      const b = mapRef.current!.getBounds();
+      if (b) {
+        const ne = b.getNorthEast();
+        const sw = b.getSouthWest();
+        setBounds({ swLat: sw.lat(), swLng: sw.lng(), neLat: ne.lat(), neLng: ne.lng() });
+      }
     });
     mapRef.current.addListener("click", async (event: google.maps.MapMouseEvent) => {
       const iconEvent = event as google.maps.IconMouseEvent;
@@ -264,43 +281,59 @@ function MapPage() {
       return;
     }
 
-    markersRef.current = visibleMarkers.map((p) => {
-      const friendRating = reviewedGoogleRatings?.get(p.googlePlaceId);
-      const isSaved = friendRating === undefined && (savedGoogleIds?.has(p.googlePlaceId) ?? false);
+    // Entdecken-Modus: nur unsere eigenen Pins (bewertet/gemerkt). Alles
+    // andere zeigt Google selbst ueber die eingebauten, kostenlosen Symbole
+    // (siehe clickableIcons + Klick-Listener oben).
+    const reviewedIds = new Set((reviewedInView ?? []).map((p) => p.id));
+    const reviewedMarkers = (reviewedInView ?? []).map((p) => {
       const marker = new google.maps.Marker({
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
-        zIndex: friendRating !== undefined || isSaved ? 10 : 1,
-        icon:
-          friendRating !== undefined
-            ? ratingPinIcon("#FF6B35", friendRating)
-            : {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: isSaved ? 11 : 8,
-                fillColor: isSaved ? "#3B7A8C" : "#2B2724",
-                fillOpacity: 1,
-                strokeColor: "#ffffff",
-                strokeWeight: isSaved ? 3 : 2,
-              },
+        zIndex: 10,
+        icon: ratingPinIcon("#FF6B35", p.rating),
       });
-      marker.addListener("click", () => setSelected(p));
+      marker.addListener("click", () =>
+        navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+      );
       return marker;
     });
-  }, [ready, mode, visibleMarkers, reviewedGoogleRatings, savedGoogleIds, myPlaces, navigate]);
+    const savedMarkers = (savedInView ?? [])
+      .filter((p) => !reviewedIds.has(p.id))
+      .map((p) => {
+        const marker = new google.maps.Marker({
+          map: mapRef.current!,
+          position: { lat: p.lat, lng: p.lng },
+          title: p.name,
+          zIndex: 9,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: "#3B7A8C",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 3,
+          },
+        });
+        marker.addListener("click", () =>
+          navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+        );
+        return marker;
+      });
+    markersRef.current = [...reviewedMarkers, ...savedMarkers];
+  }, [ready, mode, reviewedInView, savedInView, myPlaces, navigate]);
 
   // "Meine Karte": beim Wechsel in den Modus auf alle eigenen Orte zoomen
   useEffect(() => {
     if (mode !== "mine" || !myPlaces || myPlaces.length === 0 || !mapRef.current) return;
-    const bounds = new google.maps.LatLngBounds();
-    myPlaces.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
-    mapRef.current.fitBounds(bounds, 60);
+    const fitBounds = new google.maps.LatLngBounds();
+    myPlaces.forEach((p) => fitBounds.extend({ lat: p.lat, lng: p.lng }));
+    mapRef.current.fitBounds(fitBounds, 60);
   }, [mode, myPlaces]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
     if (q.length < 2) {
-      setSearchResults(null);
       setSearchCandidates(null);
       return;
     }
@@ -314,21 +347,22 @@ function MapPage() {
         setCenter(newCenter);
         setQuery("");
 
-        if (top.rawType && AREA_TYPES.has(top.rawType)) {
-          // Stadt/Region gesucht: hinzoomen und normale "Orte in der Naehe"-
-          // Ansicht zeigen, statt nur den einen Treffer als Marker.
-          setSearchResults(null);
+        // Ohne erkannten Geschaefts-Typ ODER ohne genaue Adresse ist das
+        // vermutlich eine Stadt/Region (auch wenn ihr Typ nicht in unserer
+        // AREA_TYPES-Liste steht) -- dann nur hinzoomen, nicht automatisch
+        // oeffnen.
+        const looksLikeArea = !top.rawType || AREA_TYPES.has(top.rawType) || !top.address;
+
+        if (looksLikeArea) {
           setSearchCandidates(null);
         } else if (results.length === 1) {
           // Eindeutiger Treffer -- direkt oeffnen, kein Rateaufwand noetig.
-          setSearchResults(null);
           setSearchCandidates(null);
           setSelected(top);
         } else {
           // Mehrere aehnliche Orte gefunden (z. B. bei nur teilweise
           // erinnertem Namen) -- Auswahl zeigen statt blind den ersten zu
           // oeffnen.
-          setSearchResults(null);
           setSearchCandidates(results.slice(0, 5));
         }
       } else {
@@ -356,7 +390,7 @@ function MapPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 p-4">
         <div className="pointer-events-auto flex items-center justify-between rounded-3xl bg-card/95 px-4 py-2 shadow-card backdrop-blur">
           <TuriWordmark />
-          {isFetching ? <Loader2 size={16} className="animate-spin text-primary" /> : null}
+          {reviewedLoading ? <Loader2 size={16} className="animate-spin text-primary" /> : null}
         </div>
 
         <div className="pointer-events-auto flex gap-1 rounded-2xl bg-card/95 p-1 shadow-card backdrop-blur">
@@ -391,7 +425,6 @@ function MapPage() {
               onChange={(e) => {
                 setQuery(e.target.value);
                 if (!e.target.value.trim()) {
-                  setSearchResults(null);
                   setSearchCandidates(null);
                 }
               }}
@@ -431,13 +464,13 @@ function MapPage() {
           </div>
         ) : null}
 
-        {mode === "discover" && reviewedGoogleRatings && reviewedGoogleRatings.size > 0 ? (
+        {mode === "discover" && reviewedInView && reviewedInView.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
             <span className="inline-block size-2.5 rounded-full bg-[#FF6B35]" /> reviewed by friends
           </div>
         ) : null}
 
-        {mode === "discover" && savedGoogleIds && savedGoogleIds.size > 0 ? (
+        {mode === "discover" && savedInView && savedInView.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
             <span className="inline-block size-2.5 rounded-full bg-[#3B7A8C]" /> want to go
           </div>
@@ -461,7 +494,6 @@ function MapPage() {
             const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             mapRef.current?.panTo(c);
             setCenter(c);
-            setSearchResults(null);
           })
         }
       >
