@@ -1,8 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, LocateFixed, MapPin, Search, Star, Users } from "lucide-react";
+import { Loader2, LocateFixed, MapPin, Plus, Search, Star, Users } from "lucide-react";
 import { toast } from "sonner";
 import { getNearbyPlaces, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
@@ -325,6 +325,18 @@ function MapPage() {
       >
         <LocateFixed size={20} />
       </Button>
+
+      {mode === "discover" ? (
+        <Button
+          asChild
+          variant="secondary"
+          className="absolute bottom-4 left-4 z-10 h-9 rounded-full px-3 text-xs shadow-card"
+        >
+          <Link to="/new">
+            <Plus size={14} className="mr-1" /> Can't find it?
+          </Link>
+        </Button>
+      ) : null}
 
       <PlaceSheet place={selected} onClose={() => setSelected(null)} />
     </div>
