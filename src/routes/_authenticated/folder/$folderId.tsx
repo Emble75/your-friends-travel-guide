@@ -1,7 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, Folder, Share2, Star, Trash2, UserMinus, UserPlus } from "lucide-react";
+import {
+  ArrowLeft,
+  Folder,
+  Share2,
+  Sparkles,
+  Star,
+  Trash2,
+  UserMinus,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/turi";
@@ -106,6 +115,16 @@ function FolderPage() {
         <Link to="/me" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
           <ArrowLeft size={14} /> Back to profile
         </Link>
+
+        {reviews.length > 0 ? (
+          <Link
+            to="/folder/$folderId/recap"
+            params={{ folderId }}
+            className="brand-gradient flex items-center justify-center gap-2 rounded-3xl py-4 text-sm font-semibold text-white shadow-glow"
+          >
+            <Sparkles size={16} /> View recap
+          </Link>
+        ) : null}
 
         {isOwn ? (
           <div className="flex gap-2">

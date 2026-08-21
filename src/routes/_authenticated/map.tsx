@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, LocateFixed, MapPin, Plus, Search, Star, Users } from "lucide-react";
+import { Bookmark, Loader2, LocateFixed, MapPin, Plus, Search, Star, Users } from "lucide-react";
 import { toast } from "sonner";
 import { getNearbyPlaces, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
+import { ratingPinIcon } from "@/lib/mapIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { TuriWordmark } from "@/components/turi/Logo";
@@ -38,7 +39,14 @@ export const Route = createFileRoute("/_authenticated/map")({
 
 const DEFAULT_CENTER = { lat: 41.9028, lng: 12.4964 };
 
-type MyPlace = { id: string; name: string; lat: number; lng: number; category: string };
+type MyPlace = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  category: string;
+  rating: number;
+};
 
 function MapPage() {
   const { ready, error } = useGoogleMaps();
@@ -70,10 +78,10 @@ function MapPage() {
       const me = auth.user!.id;
       const { data } = await supabase
         .from("reviews")
-        .select("place_id, places(id, name, lat, lng, category)")
+        .select("place_id, rating, places(id, name, lat, lng, category)")
         .eq("user_id", me);
-      const seen = new Set<string>();
-      const result: MyPlace[] = [];
+      const seen = new Map<string, { total: number; count: number }>();
+      const byId = new Map<string, { name: string; lat: number; lng: number; category: string }>();
       for (const r of data ?? []) {
         const p = r.places as unknown as {
           id: string;
@@ -82,10 +90,18 @@ function MapPage() {
           lng: number | null;
           category: string;
         } | null;
-        if (p && p.lat != null && p.lng != null && !seen.has(p.id)) {
-          seen.add(p.id);
-          result.push({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, category: p.category });
+        if (p && p.lat != null && p.lng != null) {
+          byId.set(p.id, { name: p.name, lat: p.lat, lng: p.lng, category: p.category });
+          const entry = seen.get(p.id) ?? { total: 0, count: 0 };
+          entry.total += r.rating;
+          entry.count += 1;
+          seen.set(p.id, entry);
         }
+      }
+      const result: MyPlace[] = [];
+      for (const [id, place] of byId) {
+        const { total, count } = seen.get(id)!;
+        result.push({ id, ...place, rating: total / count });
       }
       return result;
     },
@@ -98,28 +114,65 @@ function MapPage() {
   );
 
   // Welche der gerade angezeigten Orte haben schon eine (fuer mich sichtbare)
-  // Freundes-Bewertung? RLS filtert reviews bereits automatisch auf das, was
-  // ich sehen darf -- kein extra Berechtigungscheck noetig.
-  const { data: reviewedGoogleIds } = useQuery({
-    queryKey: ["reviewed-google-ids", googlePlaceIds.join(",")],
+  // Freundes-Bewertung, und mit welchem Schnitt? RLS filtert reviews bereits
+  // automatisch auf das, was ich sehen darf -- kein extra Check noetig.
+  const { data: reviewedGoogleRatings } = useQuery({
+    queryKey: ["reviewed-google-ratings", googlePlaceIds.join(",")],
     enabled: googlePlaceIds.length > 0,
     queryFn: async () => {
       const { data: localPlaces } = await supabase
         .from("places")
         .select("id, google_place_id")
         .in("google_place_id", googlePlaceIds);
-      if (!localPlaces || localPlaces.length === 0) return new Set<string>();
+      if (!localPlaces || localPlaces.length === 0) return new Map<string, number>();
       const idToGoogleId = new Map(localPlaces.map((p) => [p.id, p.google_place_id]));
       const { data: reviewed } = await supabase
         .from("reviews")
+        .select("place_id, rating")
+        .in(
+          "place_id",
+          localPlaces.map((p) => p.id),
+        );
+      const sums = new Map<string, { total: number; count: number }>();
+      for (const r of reviewed ?? []) {
+        const gId = idToGoogleId.get(r.place_id);
+        if (!gId) continue;
+        const entry = sums.get(gId) ?? { total: 0, count: 0 };
+        entry.total += r.rating;
+        entry.count += 1;
+        sums.set(gId, entry);
+      }
+      const result = new Map<string, number>();
+      for (const [gId, { total, count }] of sums) result.set(gId, total / count);
+      return result;
+    },
+  });
+
+  // "Will ich noch hin": eigene gemerkte Orte unter den gerade angezeigten Markern.
+  const { data: savedGoogleIds } = useQuery({
+    queryKey: ["saved-google-ids", googlePlaceIds.join(",")],
+    enabled: googlePlaceIds.length > 0,
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user?.id;
+      if (!me) return new Set<string>();
+      const { data: localPlaces } = await supabase
+        .from("places")
+        .select("id, google_place_id")
+        .in("google_place_id", googlePlaceIds);
+      if (!localPlaces || localPlaces.length === 0) return new Set<string>();
+      const idToGoogleId = new Map(localPlaces.map((p) => [p.id, p.google_place_id]));
+      const { data: saved } = await supabase
+        .from("saved_places")
         .select("place_id")
+        .eq("user_id", me)
         .in(
           "place_id",
           localPlaces.map((p) => p.id),
         );
       const result = new Set<string>();
-      for (const r of reviewed ?? []) {
-        const gId = idToGoogleId.get(r.place_id);
+      for (const s of saved ?? []) {
+        const gId = idToGoogleId.get(s.place_id);
         if (gId) result.add(gId);
       }
       return result;
@@ -169,14 +222,7 @@ function MapPage() {
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 10,
-            fillColor: "#C9A227",
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 3,
-          },
+          icon: ratingPinIcon("#C9A227", p.rating),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -187,25 +233,29 @@ function MapPage() {
     }
 
     markersRef.current = visibleMarkers.map((p) => {
-      const isReviewedByFriends = reviewedGoogleIds?.has(p.googlePlaceId) ?? false;
+      const friendRating = reviewedGoogleRatings?.get(p.googlePlaceId);
+      const isSaved = friendRating === undefined && (savedGoogleIds?.has(p.googlePlaceId) ?? false);
       const marker = new google.maps.Marker({
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
-        zIndex: isReviewedByFriends ? 10 : 1,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: isReviewedByFriends ? 11 : 8,
-          fillColor: isReviewedByFriends ? "#FF6B35" : "#2B2724",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: isReviewedByFriends ? 3 : 2,
-        },
+        zIndex: friendRating !== undefined || isSaved ? 10 : 1,
+        icon:
+          friendRating !== undefined
+            ? ratingPinIcon("#FF6B35", friendRating)
+            : {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: isSaved ? 11 : 8,
+                fillColor: isSaved ? "#3B7A8C" : "#2B2724",
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: isSaved ? 3 : 2,
+              },
       });
       marker.addListener("click", () => setSelected(p));
       return marker;
     });
-  }, [ready, mode, visibleMarkers, reviewedGoogleIds, myPlaces, navigate]);
+  }, [ready, mode, visibleMarkers, reviewedGoogleRatings, savedGoogleIds, myPlaces, navigate]);
 
   // "Meine Karte": beim Wechsel in den Modus auf alle eigenen Orte zoomen
   useEffect(() => {
@@ -295,9 +345,15 @@ function MapPage() {
           </div>
         ) : null}
 
-        {mode === "discover" && reviewedGoogleIds && reviewedGoogleIds.size > 0 ? (
+        {mode === "discover" && reviewedGoogleRatings && reviewedGoogleRatings.size > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
             <span className="inline-block size-2.5 rounded-full bg-[#FF6B35]" /> reviewed by friends
+          </div>
+        ) : null}
+
+        {mode === "discover" && savedGoogleIds && savedGoogleIds.size > 0 ? (
+          <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
+            <span className="inline-block size-2.5 rounded-full bg-[#3B7A8C]" /> want to go
           </div>
         ) : null}
 
@@ -345,26 +401,39 @@ function MapPage() {
 
 function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () => void }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["map-place-reviews", place?.googlePlaceId],
     enabled: !!place,
     queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user?.id;
       const { data: local } = await supabase
         .from("places")
         .select("id")
         .eq("google_place_id", place!.googlePlaceId)
         .maybeSingle();
-      if (!local) return { localId: null, reviews: [] };
-      const { data: reviews } = await supabase
-        .from("reviews")
-        .select(
-          "id, rating, text, created_at, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url)",
-        )
-        .eq("place_id", local.id)
-        .order("created_at", { ascending: false });
-      return { localId: local.id, reviews: reviews ?? [] };
+      if (!local) return { localId: null, reviews: [], isSaved: false };
+      const [{ data: reviews }, savedRes] = await Promise.all([
+        supabase
+          .from("reviews")
+          .select(
+            "id, rating, text, created_at, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url)",
+          )
+          .eq("place_id", local.id)
+          .order("created_at", { ascending: false }),
+        me
+          ? supabase
+              .from("saved_places")
+              .select("place_id")
+              .eq("user_id", me)
+              .eq("place_id", local.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      return { localId: local.id, reviews: reviews ?? [], isSaved: !!savedRes.data };
     },
   });
 
@@ -385,6 +454,29 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
     }
   }
 
+  async function toggleSave() {
+    if (!place) return;
+    setBusy(true);
+    try {
+      const id = await ensureLocalPlace(place);
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user?.id;
+      if (!me) return;
+      if (data?.isSaved) {
+        await supabase.from("saved_places").delete().eq("user_id", me).eq("place_id", id);
+      } else {
+        await supabase.from("saved_places").insert({ user_id: me, place_id: id });
+      }
+      queryClient.invalidateQueries({ queryKey: ["map-place-reviews", place.googlePlaceId] });
+      queryClient.invalidateQueries({ queryKey: ["saved-google-ids"] });
+      queryClient.invalidateQueries({ queryKey: ["my-saved-places"] });
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Action failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Sheet open={!!place} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="bottom" className="rounded-t-3xl border-0 pb-8">
@@ -393,13 +485,24 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
             <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-accent-foreground">
               <MapPin size={20} />
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
               <span className="block truncate text-lg font-bold">{place?.name}</span>
               <span className="block truncate text-xs font-normal text-muted-foreground">
                 {place?.category ? `${place.category} · ` : ""}
                 {place?.address}
               </span>
             </span>
+            <button
+              type="button"
+              onClick={toggleSave}
+              disabled={busy}
+              aria-label={data?.isSaved ? "Remove from want to go" : "Add to want to go"}
+              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full ${
+                data?.isSaved ? "text-[#3B7A8C]" : "text-muted-foreground"
+              }`}
+            >
+              <Bookmark size={20} fill={data?.isSaved ? "currentColor" : "none"} />
+            </button>
           </SheetTitle>
         </SheetHeader>
 

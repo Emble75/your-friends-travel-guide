@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { MapPin, Users } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bookmark, MapPin, Users } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/turi";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
@@ -23,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/place/$placeId")({
 
 function PlacePage() {
   const { placeId } = Route.useParams();
+  const queryClient = useQueryClient();
 
   const { data: place } = useQuery({
     queryKey: ["place", placeId],
@@ -36,6 +39,37 @@ function PlacePage() {
       return data;
     },
   });
+
+  const { data: isSaved } = useQuery({
+    queryKey: ["is-place-saved", placeId],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user?.id;
+      if (!me) return false;
+      const { data } = await supabase
+        .from("saved_places")
+        .select("place_id")
+        .eq("user_id", me)
+        .eq("place_id", placeId)
+        .maybeSingle();
+      return !!data;
+    },
+  });
+
+  async function toggleSave() {
+    const { data: auth } = await supabase.auth.getUser();
+    const me = auth.user?.id;
+    if (!me) return;
+    const { error } = isSaved
+      ? await supabase.from("saved_places").delete().eq("user_id", me).eq("place_id", placeId)
+      : await supabase.from("saved_places").insert({ user_id: me, place_id: placeId });
+    if (error) {
+      toast.error(getErrorMessage(error, "Action failed"));
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["is-place-saved", placeId] });
+    queryClient.invalidateQueries({ queryKey: ["my-saved-places"] });
+  }
 
   const { data: reviews, isLoading } = useQuery({
     queryKey: ["place-reviews", placeId],
@@ -72,6 +106,16 @@ function PlacePage() {
                 {place?.category ? ` · ${place.category}` : ""}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={toggleSave}
+              aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
+              className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
+                isSaved ? "text-[#3B7A8C]" : "text-muted-foreground"
+              }`}
+            >
+              <Bookmark size={20} fill={isSaved ? "currentColor" : "none"} />
+            </button>
           </div>
 
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">

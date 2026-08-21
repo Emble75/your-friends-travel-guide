@@ -179,7 +179,7 @@ export function ReviewCard({
                     <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-2xl">Abbrechen</AlertDialogCancel>
+                    <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={deleteReview}
                       disabled={deleting}

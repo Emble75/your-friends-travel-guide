@@ -5,7 +5,7 @@ import {
   Clock,
   Flag,
   Lock,
-  Map,
+  Map as MapIcon,
   Rows3,
   ShieldOff,
   Star,
@@ -189,10 +189,10 @@ function ProfilePage() {
       // Person sehen darf (gleiche Sichtbarkeit wie im Feed).
       const { data: rows } = await supabase
         .from("reviews")
-        .select("place_id, places(id, name, lat, lng, category)")
+        .select("place_id, rating, places(id, name, lat, lng, category)")
         .eq("user_id", data!.profile.id);
-      const seen = new Set<string>();
-      const result: MiniMapPlace[] = [];
+      const byId = new Map<string, { name: string; lat: number; lng: number }>();
+      const sums = new Map<string, { total: number; count: number }>();
       for (const r of rows ?? []) {
         const p = r.places as unknown as {
           id: string;
@@ -200,10 +200,18 @@ function ProfilePage() {
           lat: number | null;
           lng: number | null;
         } | null;
-        if (p && p.lat != null && p.lng != null && !seen.has(p.id)) {
-          seen.add(p.id);
-          result.push({ id: p.id, name: p.name, lat: p.lat, lng: p.lng });
+        if (p && p.lat != null && p.lng != null) {
+          byId.set(p.id, { name: p.name, lat: p.lat, lng: p.lng });
+          const entry = sums.get(p.id) ?? { total: 0, count: 0 };
+          entry.total += r.rating;
+          entry.count += 1;
+          sums.set(p.id, entry);
         }
+      }
+      const result: MiniMapPlace[] = [];
+      for (const [id, place] of byId) {
+        const { total, count } = sums.get(id)!;
+        result.push({ id, ...place, rating: total / count });
       }
       return result;
     },
@@ -396,7 +404,7 @@ function ProfilePage() {
                   view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
                 }`}
               >
-                <Map size={15} /> Map
+                <MapIcon size={15} /> Map
               </button>
             </div>
 

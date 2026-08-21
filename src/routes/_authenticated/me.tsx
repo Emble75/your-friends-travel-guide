@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, Folder, LogOut, Star, Trash2, UserCheck, UserX } from "lucide-react";
+import { Bookmark, Camera, Folder, LogOut, Star, Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteOwnAccount } from "@/lib/account.functions";
@@ -140,6 +140,22 @@ function MePage() {
         folders: folders ?? [],
         sharedWithMe,
       };
+    },
+  });
+
+  const { data: savedPlaces } = useQuery({
+    queryKey: ["my-saved-places"],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user!.id;
+      const { data, error } = await supabase
+        .from("saved_places")
+        .select("place_id, places(id, name, city)")
+        .eq("user_id", me)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      type Place = { id: string; name: string; city: string };
+      return (data ?? []).map((s) => s.places as unknown as Place).filter(Boolean);
     },
   });
 
@@ -429,6 +445,24 @@ function MePage() {
                   <span className="text-xs text-muted-foreground">
                     from @{f.profiles?.username}
                   </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {savedPlaces && savedPlaces.length > 0 ? (
+          <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">Want to go</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {savedPlaces.map((p) => (
+                <Link
+                  key={p.id}
+                  to="/place/$placeId"
+                  params={{ placeId: p.id }}
+                  className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-2 text-sm font-medium"
+                >
+                  <Bookmark size={14} /> {p.name}
                 </Link>
               ))}
             </div>
