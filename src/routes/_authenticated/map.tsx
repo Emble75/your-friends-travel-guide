@@ -273,10 +273,16 @@ function MapPage() {
     }
     try {
       const results = await searchFn({ data: { query: q, lat: center.lat, lng: center.lng } });
-      setSearchResults(results);
       if (results[0] && mapRef.current) {
-        mapRef.current.panTo({ lat: results[0].lat, lng: results[0].lng });
+        const newCenter = { lat: results[0].lat, lng: results[0].lng };
+        mapRef.current.panTo(newCenter);
         mapRef.current.setZoom(14);
+        setCenter(newCenter);
+        // Direkt wieder auf "Orte in der Naehe entdecken" umschalten, statt
+        // nur den einen Such-Treffer (z. B. die Stadt selbst) als einzigen
+        // Marker zu zeigen -- kein manuelles Leeren des Suchfelds noetig.
+        setSearchResults(null);
+        setQuery("");
       } else {
         toast.info("Nothing found");
       }

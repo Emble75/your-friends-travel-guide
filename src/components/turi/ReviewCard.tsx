@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { ImagePlus, MapPin, MoreVertical, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Stars, StarPicker } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
 import { ReportDialog } from "./ReportDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
+import { compressImage, getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -46,6 +46,8 @@ export type ReviewWithRelations = {
   review_images: { id: string; image_url: string; position: number }[];
 };
 
+type ExistingImage = { id: string; image_url: string; position: number };
+
 export function ReviewCard({
   review,
   showPlace = true,
@@ -57,6 +59,8 @@ export function ReviewCard({
   const [editOpen, setEditOpen] = useState(false);
   const [editRating, setEditRating] = useState(review.rating);
   const [editText, setEditText] = useState(review.text ?? "");
+  const [editExistingImages, setEditExistingImages] = useState<ExistingImage[]>([]);
+  const [editNewFiles, setEditNewFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -67,10 +71,8 @@ export function ReviewCard({
   });
   const isOwn = me === review.user_id;
 
-  const paths = review.review_images
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .map((i) => i.image_url);
+  const sortedImages = review.review_images.slice().sort((a, b) => a.position - b.position);
+  const paths = sortedImages.map((i) => i.image_url);
 
   const { data: urls } = useQuery({
     queryKey: ["review-images", review.id, paths.join(",")],
@@ -78,26 +80,85 @@ export function ReviewCard({
     enabled: paths.length > 0,
   });
 
+  const urlByImageId = new Map(sortedImages.map((img, i) => [img.id, urls?.[i] ?? null]));
+  const editNewPreviews = editNewFiles.map((f) => URL.createObjectURL(f));
+  const totalEditPhotos = editExistingImages.length + editNewFiles.length;
+
   const profile = review.profiles;
+
+  function openEdit() {
+    setEditRating(review.rating);
+    setEditText(review.text ?? "");
+    setEditExistingImages(sortedImages);
+    setEditNewFiles([]);
+    setEditOpen(true);
+  }
+
+  function onPickEditFiles(list: FileList | null) {
+    if (!list) return;
+    const maxNew = Math.max(0, 3 - editExistingImages.length);
+    setEditNewFiles((prev) => [...prev, ...Array.from(list)].slice(0, maxNew));
+  }
 
   async function saveEdit() {
     if (editRating < 1) {
       toast.error("Please give a star rating");
       return;
     }
+    if (!me) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("reviews")
-      .update({ rating: editRating, text: editText.trim() || null })
-      .eq("id", review.id);
-    setSaving(false);
-    if (error) {
-      toast.error(getErrorMessage(error, "Could not save"));
-      return;
+    try {
+      const { error } = await supabase
+        .from("reviews")
+        .update({ rating: editRating, text: editText.trim() || null })
+        .eq("id", review.id);
+      if (error) throw error;
+
+      // Entfernte Fotos aufraeumen (Storage + DB-Zeile)
+      const removedImages = sortedImages.filter(
+        (img) => !editExistingImages.some((e) => e.id === img.id),
+      );
+      if (removedImages.length > 0) {
+        await supabase.storage.from("review-photos").remove(removedImages.map((i) => i.image_url));
+        const { error: delErr } = await supabase
+          .from("review_images")
+          .delete()
+          .in(
+            "id",
+            removedImages.map((i) => i.id),
+          );
+        if (delErr) throw delErr;
+      }
+
+      // Neue Fotos hochladen
+      if (editNewFiles.length > 0) {
+        const startPosition = editExistingImages.length;
+        for (let i = 0; i < editNewFiles.length; i++) {
+          const compressed = await compressImage(editNewFiles[i]!, {
+            maxDimension: 1600,
+            quality: 0.8,
+          });
+          const ext = compressed.name.split(".").pop() ?? "jpg";
+          const path = `${me}/${review.id}-edit-${Date.now()}-${i}.${ext}`;
+          const { error: upErr } = await supabase.storage
+            .from("review-photos")
+            .upload(path, compressed, { upsert: true });
+          if (upErr) throw upErr;
+          const { error: imgErr } = await supabase
+            .from("review_images")
+            .insert({ review_id: review.id, image_url: path, position: startPosition + i });
+          if (imgErr) throw imgErr;
+        }
+      }
+
+      toast.success("Review updated");
+      setEditOpen(false);
+      queryClient.invalidateQueries();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Could not save"));
+    } finally {
+      setSaving(false);
     }
-    toast.success("Review updated");
-    setEditOpen(false);
-    queryClient.invalidateQueries();
   }
 
   async function deleteReview() {
@@ -155,9 +216,7 @@ export function ReviewCard({
               <DropdownMenuItem
                 onSelect={(e) => {
                   e.preventDefault();
-                  setEditRating(review.rating);
-                  setEditText(review.text ?? "");
-                  setEditOpen(true);
+                  openEdit();
                 }}
               >
                 <Pencil size={16} className="mr-2" />
@@ -236,7 +295,7 @@ export function ReviewCard({
       ) : null}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="rounded-3xl">
+        <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
             <DialogTitle>Edit review</DialogTitle>
           </DialogHeader>
@@ -250,6 +309,68 @@ export function ReviewCard({
             rows={5}
             className="rounded-2xl"
           />
+
+          <div>
+            <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+              Photos (max. 3)
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {editExistingImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="relative aspect-square overflow-hidden rounded-2xl bg-muted"
+                >
+                  {urlByImageId.get(img.id) ? (
+                    <img
+                      src={urlByImageId.get(img.id)!}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditExistingImages((prev) => prev.filter((p) => p.id !== img.id))
+                    }
+                    aria-label="Remove photo"
+                    className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              {editNewFiles.map((_, i) => (
+                <div
+                  key={i}
+                  className="relative aspect-square overflow-hidden rounded-2xl bg-muted"
+                >
+                  <img src={editNewPreviews[i]} alt="" className="size-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setEditNewFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                    aria-label="Remove photo"
+                    className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              {totalEditPhotos < 3 ? (
+                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border text-muted-foreground">
+                  <ImagePlus size={22} />
+                  <span className="text-[11px]">Add</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => onPickEditFiles(e.target.files)}
+                  />
+                </label>
+              ) : null}
+            </div>
+          </div>
+
           <DialogFooter>
             <Button onClick={saveEdit} disabled={saving} className="w-full rounded-2xl">
               {saving ? "Saving…" : "Save"}
