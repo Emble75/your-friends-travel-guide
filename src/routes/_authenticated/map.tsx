@@ -196,7 +196,7 @@ function MapPage() {
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: isReviewedByFriends ? 11 : 8,
-          fillColor: isReviewedByFriends ? "#16A34A" : "#2B2724",
+          fillColor: isReviewedByFriends ? "#FF6B35" : "#2B2724",
           fillOpacity: 1,
           strokeColor: "#ffffff",
           strokeWeight: isReviewedByFriends ? 3 : 2,
@@ -297,7 +297,7 @@ function MapPage() {
 
         {mode === "discover" && reviewedGoogleIds && reviewedGoogleIds.size > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-[#16A34A]" /> reviewed by friends
+            <span className="inline-block size-2.5 rounded-full bg-[#FF6B35]" /> reviewed by friends
           </div>
         ) : null}
 
