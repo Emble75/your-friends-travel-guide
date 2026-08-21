@@ -45,6 +45,11 @@ export type MapPlace = {
   name: string;
   address: string | null;
   category: string | null;
+  // Roher Google-Typ (z. B. "restaurant", aber auch "locality",
+  // "administrative_area_level_1" fuer Staedte/Regionen). Wird genutzt,
+  // um bei der Suche zwischen "Stadt/Region gesucht" (hinzoomen) und
+  // "konkreter Ort gesucht" (direkt oeffnen) zu unterscheiden.
+  rawType: string | null;
   lat: number;
   lng: number;
 };
@@ -81,6 +86,7 @@ function map(places: GooglePlace[] | undefined): MapPlace[] {
       name: p.displayName?.text ?? "Unbenannter Ort",
       address: p.formattedAddress ?? null,
       category: p.primaryTypeDisplayName?.text ?? p.primaryType ?? null,
+      rawType: p.primaryType ?? null,
       lat: p.location!.latitude,
       lng: p.location!.longitude,
     }));

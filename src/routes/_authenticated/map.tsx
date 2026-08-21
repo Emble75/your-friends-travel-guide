@@ -39,6 +39,18 @@ export const Route = createFileRoute("/_authenticated/map")({
 
 const DEFAULT_CENTER = { lat: 41.9028, lng: 12.4964 };
 
+const AREA_TYPES = new Set([
+  "locality",
+  "sublocality",
+  "sublocality_level_1",
+  "administrative_area_level_1",
+  "administrative_area_level_2",
+  "administrative_area_level_3",
+  "country",
+  "postal_town",
+  "neighborhood",
+]);
+
 type MyPlace = {
   id: string;
   name: string;
@@ -273,16 +285,25 @@ function MapPage() {
     }
     try {
       const results = await searchFn({ data: { query: q, lat: center.lat, lng: center.lng } });
-      if (results[0] && mapRef.current) {
-        const newCenter = { lat: results[0].lat, lng: results[0].lng };
+      const top = results[0];
+      if (top && mapRef.current) {
+        const newCenter = { lat: top.lat, lng: top.lng };
         mapRef.current.panTo(newCenter);
         mapRef.current.setZoom(14);
         setCenter(newCenter);
-        // Direkt wieder auf "Orte in der Naehe entdecken" umschalten, statt
-        // nur den einen Such-Treffer (z. B. die Stadt selbst) als einzigen
-        // Marker zu zeigen -- kein manuelles Leeren des Suchfelds noetig.
-        setSearchResults(null);
         setQuery("");
+
+        if (top.rawType && AREA_TYPES.has(top.rawType)) {
+          // Stadt/Region gesucht: hinzoomen und normale "Orte in der Naehe"-
+          // Ansicht zeigen, statt nur den einen Treffer als Marker.
+          setSearchResults(null);
+        } else {
+          // Konkreter Ort gesucht (z. B. ein bestimmtes Restaurant) -- direkt
+          // oeffnen und sofort bewertbar machen, auch wenn er sonst wegen
+          // des 20-Ergebnisse-Limits nicht als Punkt angezeigt wuerde.
+          setSearchResults(null);
+          setSelected(top);
+        }
       } else {
         toast.info("Nothing found");
       }
