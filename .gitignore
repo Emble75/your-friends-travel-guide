@@ -33,3 +33,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Capacitor / Xcode -- lokal generiert, nicht versionieren
+ios/App/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+ios/.build/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
