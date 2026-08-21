@@ -236,7 +236,10 @@ function MapPage() {
   }, [query, center, searchFn]);
 
   return (
-    <div className="relative h-[calc(100vh-5.5rem)] w-full overflow-hidden">
+    <div
+      className="relative w-full overflow-hidden"
+      style={{ height: "calc(100vh - 5.5rem - env(safe-area-inset-bottom))" }}
+    >
       <div ref={containerRef} className="absolute inset-0 bg-muted" />
 
       {!ready ? (
@@ -313,7 +316,7 @@ function MapPage() {
         size="icon"
         variant="secondary"
         aria-label="Show my location"
-        className="absolute bottom-4 right-4 z-10 size-12 rounded-2xl shadow-card"
+        className="absolute bottom-6 right-4 z-10 size-12 rounded-2xl shadow-card"
         onClick={() =>
           navigator.geolocation?.getCurrentPosition((pos) => {
             const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -330,7 +333,7 @@ function MapPage() {
         <Button
           asChild
           variant="secondary"
-          className="absolute bottom-4 left-4 z-10 h-9 rounded-full px-3 text-xs shadow-card"
+          className="absolute bottom-6 left-4 z-10 h-9 rounded-full px-3 text-xs shadow-card"
         >
           <Link to="/new">
             <Plus size={14} className="mr-1" /> Can't find it?
