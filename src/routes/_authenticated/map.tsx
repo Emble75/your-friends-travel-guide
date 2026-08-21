@@ -70,6 +70,7 @@ function MapPage() {
   const [selected, setSelected] = useState<MapPlace | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MapPlace[] | null>(null);
+  const [searchCandidates, setSearchCandidates] = useState<MapPlace[] | null>(null);
   const [mode, setMode] = useState<"discover" | "mine">("discover");
 
   const nearby = useServerFn(getNearbyPlaces);
@@ -281,6 +282,7 @@ function MapPage() {
     const q = query.trim();
     if (q.length < 2) {
       setSearchResults(null);
+      setSearchCandidates(null);
       return;
     }
     try {
@@ -297,12 +299,18 @@ function MapPage() {
           // Stadt/Region gesucht: hinzoomen und normale "Orte in der Naehe"-
           // Ansicht zeigen, statt nur den einen Treffer als Marker.
           setSearchResults(null);
-        } else {
-          // Konkreter Ort gesucht (z. B. ein bestimmtes Restaurant) -- direkt
-          // oeffnen und sofort bewertbar machen, auch wenn er sonst wegen
-          // des 20-Ergebnisse-Limits nicht als Punkt angezeigt wuerde.
+          setSearchCandidates(null);
+        } else if (results.length === 1) {
+          // Eindeutiger Treffer -- direkt oeffnen, kein Rateaufwand noetig.
           setSearchResults(null);
+          setSearchCandidates(null);
           setSelected(top);
+        } else {
+          // Mehrere aehnliche Orte gefunden (z. B. bei nur teilweise
+          // erinnertem Namen) -- Auswahl zeigen statt blind den ersten zu
+          // oeffnen.
+          setSearchResults(null);
+          setSearchCandidates(results.slice(0, 5));
         }
       } else {
         toast.info("Nothing found");
@@ -363,12 +371,44 @@ function MapPage() {
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
-                if (!e.target.value.trim()) setSearchResults(null);
+                if (!e.target.value.trim()) {
+                  setSearchResults(null);
+                  setSearchCandidates(null);
+                }
               }}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
               placeholder="Search city or place"
               className="h-12 rounded-2xl border-0 bg-card pl-11 shadow-card"
             />
+          </div>
+        ) : null}
+
+        {searchCandidates && searchCandidates.length > 0 ? (
+          <div className="pointer-events-auto max-h-72 overflow-y-auto rounded-2xl bg-card/95 shadow-card backdrop-blur">
+            <p className="px-3 pt-2.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+              Which one did you mean?
+            </p>
+            {searchCandidates.map((c) => (
+              <button
+                key={c.googlePlaceId}
+                type="button"
+                onClick={() => {
+                  setSearchCandidates(null);
+                  setSelected(c);
+                }}
+                className="flex w-full items-start gap-2 border-t border-border/60 px-3 py-2.5 text-left first:border-t-0"
+              >
+                <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">{c.name}</span>
+                  {c.address ? (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {c.address}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            ))}
           </div>
         ) : null}
 
