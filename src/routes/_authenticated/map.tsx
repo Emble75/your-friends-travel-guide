@@ -236,10 +236,7 @@ function MapPage() {
   }, [query, center, searchFn]);
 
   return (
-    <div
-      className="relative w-full overflow-hidden"
-      style={{ height: "calc(100vh - 5.5rem - env(safe-area-inset-bottom))" }}
-    >
+    <div className="relative h-[calc(100vh-5.5rem)] w-full overflow-hidden">
       <div ref={containerRef} className="absolute inset-0 bg-muted" />
 
       {!ready ? (
