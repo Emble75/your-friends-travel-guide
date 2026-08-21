@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TuriMark } from "@/components/turi/Logo";
 import { TurnstileWidget } from "@/components/turi/TurnstileWidget";
-import { getErrorMessage } from "@/lib/turi";
+import { getAppUrl, getErrorMessage } from "@/lib/turi";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -63,7 +63,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: getAppUrl(),
             data: { username: typedUsername, display_name: username.trim() },
             ...(captchaToken ? { captchaToken } : {}),
           },

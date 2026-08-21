@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getErrorMessage } from "@/lib/turi";
+import { getAppUrl, getErrorMessage } from "@/lib/turi";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -243,7 +243,7 @@ function ShareDialog({
   }
 
   async function sendLink() {
-    const url = `${window.location.origin}/folder/${folderId}`;
+    const url = `${getAppUrl()}/folder/${folderId}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: "Turi trip", url });

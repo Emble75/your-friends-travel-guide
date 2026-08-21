@@ -97,3 +97,23 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+/**
+ * Liefert die oeffentliche, echte Web-Adresse der App -- fuer Links, die
+ * geteilt oder in E-Mails verschickt werden. In einer nativen App-Huelle
+ * (Capacitor) ist window.location.origin KEINE echte, aufrufbare Web-
+ * Adresse (z. B. "capacitor://localhost"), deshalb bevorzugt diese
+ * Funktion eine explizit gesetzte Umgebungsvariable. Solange die noch
+ * nicht gesetzt ist, faellt sie auf window.location.origin zurueck --
+ * funktioniert also schon jetzt im Browser/in Lovables Vorschau, und
+ * muss nur einmal auf die echte Produktions-Domain gesetzt werden,
+ * sobald die feststeht.
+ */
+export function getAppUrl(): string {
+  const configured =
+    (import.meta.env["VITE_APP_URL"] as string | undefined) ||
+    (import.meta.env["APP_URL"] as string | undefined);
+  if (configured) return configured.replace(/\/$/, "");
+  if (typeof window !== "undefined") return window.location.origin;
+  return "";
+}
