@@ -56,6 +56,11 @@ export type MapPlace = {
 
 const FIELD_MASK =
   "places.id,places.displayName,places.formattedAddress,places.location,places.primaryTypeDisplayName,places.primaryType";
+// Bei der Einzelort-Abfrage (Get Place) liefert Google das Objekt direkt
+// zurueck, nicht in ein "places"-Array verpackt -- das Feld-Praefix
+// "places." darf hier deshalb NICHT verwendet werden (sonst 400).
+const SINGLE_FIELD_MASK =
+  "id,displayName,formattedAddress,location,primaryTypeDisplayName,primaryType";
 
 type GooglePlace = {
   id: string;
@@ -66,7 +71,7 @@ type GooglePlace = {
   location?: { latitude: number; longitude: number };
 };
 
-function headers() {
+function headers(fieldMask: string = FIELD_MASK) {
   const lovableKey = process.env["LOVABLE_API_KEY"];
   const connectionKey = process.env["GOOGLE_MAPS_API_KEY"];
   if (!lovableKey || !connectionKey) throw new Error("Google Maps ist nicht verbunden.");
@@ -74,7 +79,7 @@ function headers() {
     Authorization: `Bearer ${lovableKey}`,
     "X-Connection-Api-Key": connectionKey,
     "Content-Type": "application/json",
-    "X-Goog-FieldMask": FIELD_MASK,
+    "X-Goog-FieldMask": fieldMask,
   };
 }
 
@@ -110,7 +115,7 @@ async function call(path: string, body: unknown): Promise<MapPlace[]> {
 async function callGet(path: string): Promise<GooglePlace | null> {
   const response = await fetch(`${GATEWAY_URL}/${path}`, {
     method: "GET",
-    headers: headers(),
+    headers: headers(SINGLE_FIELD_MASK),
   });
   if (!response.ok) {
     const text = await response.text();
