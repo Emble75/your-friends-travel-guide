@@ -23,7 +23,6 @@ import { Route as LegalTermsRouteImport } from './routes/legal/terms'
 import { Route as AuthenticatedFolderFolderIdRouteImport } from './routes/_authenticated/folder/$folderId'
 import { Route as AuthenticatedPlacePlaceIdRouteImport } from './routes/_authenticated/place.$placeId'
 import { Route as AuthenticatedUUsernameRouteImport } from './routes/_authenticated/u.$username'
-import { Route as AuthenticatedFolderFolderIdRecapRouteImport } from './routes/_authenticated/folder/$folderId.recap'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -96,12 +95,6 @@ const AuthenticatedUUsernameRoute = AuthenticatedUUsernameRouteImport.update({
   path: '/u/$username',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedFolderFolderIdRecapRoute =
-  AuthenticatedFolderFolderIdRecapRouteImport.update({
-    id: '/recap',
-    path: '/recap',
-    getParentRoute: () => AuthenticatedFolderFolderIdRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -114,10 +107,9 @@ export interface FileRoutesByFullPath {
   '/new': typeof AuthenticatedNewRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
-  '/folder/$folderId': typeof AuthenticatedFolderFolderIdRouteWithChildren
+  '/folder/$folderId': typeof AuthenticatedFolderFolderIdRoute
   '/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/u/$username': typeof AuthenticatedUUsernameRoute
-  '/folder/$folderId/recap': typeof AuthenticatedFolderFolderIdRecapRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -130,10 +122,9 @@ export interface FileRoutesByTo {
   '/new': typeof AuthenticatedNewRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
-  '/folder/$folderId': typeof AuthenticatedFolderFolderIdRouteWithChildren
+  '/folder/$folderId': typeof AuthenticatedFolderFolderIdRoute
   '/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/u/$username': typeof AuthenticatedUUsernameRoute
-  '/folder/$folderId/recap': typeof AuthenticatedFolderFolderIdRecapRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -148,10 +139,9 @@ export interface FileRoutesById {
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
-  '/_authenticated/folder/$folderId': typeof AuthenticatedFolderFolderIdRouteWithChildren
+  '/_authenticated/folder/$folderId': typeof AuthenticatedFolderFolderIdRoute
   '/_authenticated/place/$placeId': typeof AuthenticatedPlacePlaceIdRoute
   '/_authenticated/u/$username': typeof AuthenticatedUUsernameRoute
-  '/_authenticated/folder/$folderId/recap': typeof AuthenticatedFolderFolderIdRecapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,7 +159,6 @@ export interface FileRouteTypes {
     | '/folder/$folderId'
     | '/place/$placeId'
     | '/u/$username'
-    | '/folder/$folderId/recap'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -185,7 +174,6 @@ export interface FileRouteTypes {
     | '/folder/$folderId'
     | '/place/$placeId'
     | '/u/$username'
-    | '/folder/$folderId/recap'
   id:
     | '__root__'
     | '/'
@@ -202,7 +190,6 @@ export interface FileRouteTypes {
     | '/_authenticated/folder/$folderId'
     | '/_authenticated/place/$placeId'
     | '/_authenticated/u/$username'
-    | '/_authenticated/folder/$folderId/recap'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -314,30 +301,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUUsernameRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/folder/$folderId/recap': {
-      id: '/_authenticated/folder/$folderId/recap'
-      path: '/recap'
-      fullPath: '/folder/$folderId/recap'
-      preLoaderRoute: typeof AuthenticatedFolderFolderIdRecapRouteImport
-      parentRoute: typeof AuthenticatedFolderFolderIdRoute
-    }
   }
 }
-
-interface AuthenticatedFolderFolderIdRouteChildren {
-  AuthenticatedFolderFolderIdRecapRoute: typeof AuthenticatedFolderFolderIdRecapRoute
-}
-
-const AuthenticatedFolderFolderIdRouteChildren: AuthenticatedFolderFolderIdRouteChildren =
-  {
-    AuthenticatedFolderFolderIdRecapRoute:
-      AuthenticatedFolderFolderIdRecapRoute,
-  }
-
-const AuthenticatedFolderFolderIdRouteWithChildren =
-  AuthenticatedFolderFolderIdRoute._addFileChildren(
-    AuthenticatedFolderFolderIdRouteChildren,
-  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedExploreRoute: typeof AuthenticatedExploreRoute
@@ -345,7 +310,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMapRoute: typeof AuthenticatedMapRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
-  AuthenticatedFolderFolderIdRoute: typeof AuthenticatedFolderFolderIdRouteWithChildren
+  AuthenticatedFolderFolderIdRoute: typeof AuthenticatedFolderFolderIdRoute
   AuthenticatedPlacePlaceIdRoute: typeof AuthenticatedPlacePlaceIdRoute
   AuthenticatedUUsernameRoute: typeof AuthenticatedUUsernameRoute
 }
@@ -356,8 +321,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMapRoute: AuthenticatedMapRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedNewRoute: AuthenticatedNewRoute,
-  AuthenticatedFolderFolderIdRoute:
-    AuthenticatedFolderFolderIdRouteWithChildren,
+  AuthenticatedFolderFolderIdRoute: AuthenticatedFolderFolderIdRoute,
   AuthenticatedPlacePlaceIdRoute: AuthenticatedPlacePlaceIdRoute,
   AuthenticatedUUsernameRoute: AuthenticatedUUsernameRoute,
 }

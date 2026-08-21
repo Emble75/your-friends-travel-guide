@@ -3,9 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ArrowLeft,
+  ExternalLink,
   Folder,
   Share2,
-  Sparkles,
   Star,
   Trash2,
   UserMinus,
@@ -115,16 +115,6 @@ function FolderPage() {
         <Link to="/me" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
           <ArrowLeft size={14} /> Back to profile
         </Link>
-
-        {reviews.length > 0 ? (
-          <Link
-            to="/folder/$folderId/recap"
-            params={{ folderId }}
-            className="brand-gradient flex items-center justify-center gap-2 rounded-3xl py-4 text-sm font-semibold text-white shadow-glow"
-          >
-            <Sparkles size={16} /> View recap
-          </Link>
-        ) : null}
 
         {isOwn ? (
           <div className="flex gap-2">
@@ -252,6 +242,22 @@ function ShareDialog({
     queryClient.invalidateQueries({ queryKey: ["folder-share-candidates", folderId] });
   }
 
+  async function sendLink() {
+    const url = `${window.location.origin}/folder/${folderId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Turi trip", url });
+      } catch {
+        // Nutzer hat den Teilen-Dialog abgebrochen -- kein Fehler.
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    }
+  }
+
+  const hasSharedWithAnyone = (data ?? []).some((p) => p.shared);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl">
@@ -294,6 +300,16 @@ function ShareDialog({
             ))
           )}
         </div>
+
+        {hasSharedWithAnyone ? (
+          <Button variant="secondary" className="rounded-2xl" onClick={sendLink}>
+            <ExternalLink size={16} className="mr-2" /> Send link
+          </Button>
+        ) : (
+          <p className="text-center text-xs text-muted-foreground">
+            Share with at least one person above to unlock a sendable link.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );
