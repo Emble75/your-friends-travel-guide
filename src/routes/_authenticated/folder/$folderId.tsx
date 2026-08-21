@@ -1,16 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  ArrowLeft,
-  ExternalLink,
-  Folder,
-  Share2,
-  Star,
-  Trash2,
-  UserMinus,
-  UserPlus,
-} from "lucide-react";
+import { ExternalLink, Folder, Share2, Star, Trash2, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getAppUrl, getErrorMessage } from "@/lib/turi";
@@ -110,12 +101,8 @@ function FolderPage() {
 
   return (
     <>
-      <AppHeader title={folder.name} />
+      <AppHeader title={folder.name} showBack />
       <div className="app-shell space-y-4 py-4">
-        <Link to="/me" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <ArrowLeft size={14} /> Back to profile
-        </Link>
-
         {isOwn ? (
           <div className="flex gap-2">
             <Button
