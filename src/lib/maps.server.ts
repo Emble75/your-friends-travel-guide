@@ -107,6 +107,19 @@ async function call(path: string, body: unknown): Promise<MapPlace[]> {
   return map(json.places);
 }
 
+async function callGet(path: string): Promise<GooglePlace | null> {
+  const response = await fetch(`${GATEWAY_URL}/${path}`, {
+    method: "GET",
+    headers: headers(),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`Google Maps request failed [${response.status}]: ${text}`);
+    throw new Error(`Ortsdetails konnten nicht geladen werden (${response.status}).`);
+  }
+  return (await response.json()) as GooglePlace;
+}
+
 export async function nearbyPlaces(lat: number, lng: number, radius: number) {
   const roundedRadius = Math.round(Math.min(radius, 5000) / 250) * 250;
   const cacheKey = `nearby:${gridCoord(lat)}:${gridCoord(lng)}:${roundedRadius}`;
@@ -153,4 +166,20 @@ export async function searchPlacesText(query: string, lat?: number, lng?: number
     }
     return call("places/v1/places:searchText", body);
   });
+}
+
+/**
+ * Holt genau einen Ort per Google Place-ID -- fuer Klicks auf Googles
+ * eingebaute, kostenlose Kartensymbole (Restaurants, Cafes etc., die
+ * standardmaessig auf jeder Google-Karte angezeigt werden). Deutlich
+ * guenstiger als eine Nearby-Search, da nur der tatsaechlich angeklickte
+ * Ort abgefragt wird, nicht ein ganzer Umkreis.
+ */
+export async function placeById(placeId: string): Promise<MapPlace | null> {
+  const cacheKey = `details:${placeId}`;
+  const result = await withCache(cacheKey, async () => {
+    const p = await callGet(`places/v1/places/${placeId}`);
+    return map(p ? [p] : []);
+  });
+  return result[0] ?? null;
 }

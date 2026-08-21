@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Bookmark, Loader2, LocateFixed, MapPin, Plus, Search, Star, Users } from "lucide-react";
 import { toast } from "sonner";
-import { getNearbyPlaces, searchMapPlaces } from "@/lib/maps.functions";
+import { getNearbyPlaces, getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
 import { ratingPinIcon } from "@/lib/mapIcons";
@@ -75,6 +75,7 @@ function MapPage() {
 
   const nearby = useServerFn(getNearbyPlaces);
   const searchFn = useServerFn(searchMapPlaces);
+  const placeByIdFn = useServerFn(getPlaceById);
 
   const { data: places, isFetching } = useQuery({
     queryKey: ["nearby", center.lat.toFixed(3), center.lng.toFixed(3)],
@@ -200,14 +201,32 @@ function MapPage() {
       zoom: 14,
       disableDefaultUI: true,
       gestureHandling: "greedy",
-      clickableIcons: false,
+      // Googles eingebaute, kostenlose Orts-Symbole (Restaurants, Cafes
+      // etc.) anklickbar lassen -- so sind viel mehr Orte sichtbar/
+      // auswaehlbar, ohne dass wir sie per Nearby-Search selbst einkaufen
+      // muessen. Nur der tatsaechlich angeklickte Ort kostet dann eine
+      // einzelne, guenstige Detailabfrage (siehe Klick-Listener unten).
+      clickableIcons: true,
     });
     mapRef.current.addListener("idle", () => {
       const c = mapRef.current!.getCenter();
       if (!c) return;
       setCenter({ lat: c.lat(), lng: c.lng() });
     });
-  }, [ready]);
+    mapRef.current.addListener("click", async (event: google.maps.MapMouseEvent) => {
+      const iconEvent = event as google.maps.IconMouseEvent;
+      if (!iconEvent.placeId) return;
+      // Verhindert Googles eigenes Standard-Infofenster -- wir zeigen
+      // stattdessen unser eigenes PlaceSheet.
+      iconEvent.stop();
+      try {
+        const place = await placeByIdFn({ data: { placeId: iconEvent.placeId } });
+        if (place) setSelected(place);
+      } catch (e) {
+        toast.error(getErrorMessage(e, "Could not open place"));
+      }
+    });
+  }, [ready, placeByIdFn]);
 
   // Center on the user once
   useEffect(() => {

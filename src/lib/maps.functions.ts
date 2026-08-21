@@ -33,3 +33,13 @@ export const searchMapPlaces = createServerFn({ method: "POST" })
     const { searchPlacesText } = await import("./maps.server");
     return searchPlacesText(data.query, data.lat, data.lng);
   });
+
+export const getPlaceById = createServerFn({ method: "POST" })
+  .middleware([requireAppSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ placeId: z.string().trim().min(1).max(200) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { placeById } = await import("./maps.server");
+    return placeById(data.placeId);
+  });
