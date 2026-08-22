@@ -130,9 +130,12 @@ function MapPage() {
     enabled: mode === "discover" && !!bounds,
     queryFn: async () => {
       const { swLat, swLng, neLat, neLng } = bounds!;
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user?.id ?? "";
       const { data, error: qErr } = await supabase
         .from("reviews")
         .select("rating, places!inner(id, name, lat, lng, google_place_id, category)")
+        .neq("user_id", me)
         .gte("places.lat", swLat)
         .lte("places.lat", neLat)
         .gte("places.lng", swLng)
