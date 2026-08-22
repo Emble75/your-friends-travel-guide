@@ -287,42 +287,47 @@ function MapPage() {
     // Entdecken-Modus: nur unsere eigenen Pins (bewertet/gemerkt). Alles
     // andere zeigt Google selbst ueber die eingebauten, kostenlosen Symbole
     // (siehe clickableIcons + Klick-Listener oben).
-    const reviewedIds = new Set((reviewedInView ?? []).map((p) => p.id));
-    const reviewedMarkers = (reviewedInView ?? []).map((p) => {
-      const marker = new google.maps.Marker({
-        map: mapRef.current!,
-        position: { lat: p.lat, lng: p.lng },
-        title: p.name,
-        zIndex: 10,
-        icon: ratingPinIcon("#FF6B35", p.rating),
-      });
-      marker.addListener("click", () =>
-        navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
-      );
-      return marker;
-    });
-    const savedMarkers = (savedInView ?? [])
-      .filter((p) => !reviewedIds.has(p.id))
+    //
+    // Prioritaet: "Will ich noch hin" (teal) gewinnt gegen "von Freunden
+    // bewertet" (orange), wenn beides auf denselben Ort zutrifft -- die
+    // eigene, bewusste Merkliste soll auf einen Blick erkennbar bleiben,
+    // statt von der Bewertungs-Farbe ueberdeckt zu werden.
+    const savedIds = new Set((savedInView ?? []).map((p) => p.id));
+    const reviewedMarkers = (reviewedInView ?? [])
+      .filter((p) => !savedIds.has(p.id))
       .map((p) => {
         const marker = new google.maps.Marker({
           map: mapRef.current!,
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
-          zIndex: 9,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 10,
-            fillColor: "#3B7A8C",
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 3,
-          },
+          zIndex: 10,
+          icon: ratingPinIcon("#FF6B35", p.rating),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
         );
         return marker;
       });
+    const savedMarkers = (savedInView ?? []).map((p) => {
+      const marker = new google.maps.Marker({
+        map: mapRef.current!,
+        position: { lat: p.lat, lng: p.lng },
+        title: p.name,
+        zIndex: 11,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 11,
+          fillColor: "#3B7A8C",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 3,
+        },
+      });
+      marker.addListener("click", () =>
+        navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+      );
+      return marker;
+    });
     markersRef.current = [...reviewedMarkers, ...savedMarkers];
   }, [ready, mode, reviewedInView, savedInView, myPlaces, navigate]);
 
@@ -613,21 +618,24 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
                 {place?.address}
               </span>
             </span>
-            <button
-              type="button"
-              onClick={toggleSave}
-              disabled={busy}
-              aria-label={data?.isSaved ? "Remove from want to go" : "Add to want to go"}
-              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full ${
-                data?.isSaved ? "text-[#3B7A8C]" : "text-muted-foreground"
-              }`}
-            >
-              <Bookmark size={20} fill={data?.isSaved ? "currentColor" : "none"} />
-            </button>
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-4 space-y-3 px-4">
+          <button
+            type="button"
+            onClick={toggleSave}
+            disabled={busy}
+            className={`flex w-full items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-semibold transition-colors ${
+              data?.isSaved
+                ? "border-[#3B7A8C] bg-[#3B7A8C]/10 text-[#3B7A8C]"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            <Bookmark size={16} fill={data?.isSaved ? "currentColor" : "none"} />
+            {data?.isSaved ? "Saved to want to go" : "Add to want to go"}
+          </button>
+
           {avg !== null ? (
             <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
               <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>

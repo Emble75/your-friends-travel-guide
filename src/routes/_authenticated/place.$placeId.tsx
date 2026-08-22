@@ -106,17 +106,20 @@ function PlacePage() {
                 {place?.category ? ` · ${place.category}` : ""}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={toggleSave}
-              aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
-              className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-                isSaved ? "text-[#3B7A8C]" : "text-muted-foreground"
-              }`}
-            >
-              <Bookmark size={20} fill={isSaved ? "currentColor" : "none"} />
-            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={toggleSave}
+            className={`mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-semibold transition-colors ${
+              isSaved
+                ? "border-[#3B7A8C] bg-[#3B7A8C]/10 text-[#3B7A8C]"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            <Bookmark size={16} fill={isSaved ? "currentColor" : "none"} />
+            {isSaved ? "Saved to want to go" : "Add to want to go"}
+          </button>
 
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
             {avg !== null ? (
