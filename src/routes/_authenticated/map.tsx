@@ -293,6 +293,7 @@ function MapPage() {
     // eigene, bewusste Merkliste soll auf einen Blick erkennbar bleiben,
     // statt von der Bewertungs-Farbe ueberdeckt zu werden.
     const savedIds = new Set((savedInView ?? []).map((p) => p.id));
+    const ratingById = new Map((reviewedInView ?? []).map((p) => [p.id, p.rating]));
     const reviewedMarkers = (reviewedInView ?? [])
       .filter((p) => !savedIds.has(p.id))
       .map((p) => {
@@ -314,14 +315,9 @@ function MapPage() {
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
         zIndex: 11,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 11,
-          fillColor: "#3B7A8C",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 3,
-        },
+        // Pin statt Punkt -- mit Bewertung drin, falls ein Freund den Ort
+        // schon bewertet hat, sonst ein leerer Pin.
+        icon: ratingPinIcon("#3B7A8C", ratingById.get(p.id)),
       });
       marker.addListener("click", () =>
         navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
