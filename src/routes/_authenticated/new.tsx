@@ -21,8 +21,10 @@ import { CATEGORIES, compressImage, getErrorMessage } from "@/lib/turi";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/_authenticated/new")({
-  validateSearch: (search: Record<string, unknown>) =>
-    typeof search["placeId"] === "string" ? { placeId: search["placeId"] as string } : {},
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(typeof search["placeId"] === "string" ? { placeId: search["placeId"] as string } : {}),
+    ...(search["create"] === true ? { create: true as const } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Review a Place – Turi" },
@@ -41,10 +43,10 @@ type Place = { id: string; name: string; city: string; category: string };
 
 function NewReviewPage() {
   const navigate = useNavigate();
-  const { placeId } = Route.useSearch();
+  const { placeId, create } = Route.useSearch();
   const [place, setPlace] = useState<Place | null>(null);
   const [search, setSearch] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(create === true);
   const [newName, setNewName] = useState("");
   const [newCity, setNewCity] = useState("");
   const [newCategory, setNewCategory] = useState<string>("Restaurant");

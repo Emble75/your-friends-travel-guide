@@ -118,6 +118,35 @@ function MapPage() {
     },
   });
 
+  // "Meine Karte": eigene Wunschliste ("Will ich noch hin") mit dazu, damit
+  // die Karte einen vollstaendigen persoenlichen Ueberblick zeigt -- nicht
+  // nur bereits Bewertetes.
+  const { data: mySavedPlaces } = useQuery({
+    queryKey: ["my-saved-places-map"],
+    enabled: mode === "mine",
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const me = auth.user!.id;
+      const { data } = await supabase
+        .from("saved_places")
+        .select("places(id, name, lat, lng)")
+        .eq("user_id", me);
+      const result: { id: string; name: string; lat: number; lng: number }[] = [];
+      for (const r of data ?? []) {
+        const p = r.places as unknown as {
+          id: string;
+          name: string;
+          lat: number | null;
+          lng: number | null;
+        } | null;
+        if (p && p.lat != null && p.lng != null) {
+          result.push({ id: p.id, name: p.name, lat: p.lat, lng: p.lng });
+        }
+      }
+      return result;
+    },
+  });
+
   const boundsKey = bounds
     ? `${bounds.swLat.toFixed(3)},${bounds.swLng.toFixed(3)},${bounds.neLat.toFixed(3)},${bounds.neLng.toFixed(3)}`
     : null;
@@ -268,7 +297,8 @@ function MapPage() {
     markersRef.current.forEach((m) => m.setMap(null));
 
     if (mode === "mine") {
-      markersRef.current = (myPlaces ?? []).map((p) => {
+      const reviewedIds = new Set((myPlaces ?? []).map((p) => p.id));
+      const reviewedMarkers = (myPlaces ?? []).map((p) => {
         const marker = new google.maps.Marker({
           map: mapRef.current!,
           position: { lat: p.lat, lng: p.lng },
@@ -281,6 +311,24 @@ function MapPage() {
         );
         return marker;
       });
+      // Eigene Wunschliste ("Will ich noch hin") zusaetzlich zeigen -- nur
+      // die, die noch nicht ohnehin schon bewertet sind (sonst doppelt).
+      const savedMarkers = (mySavedPlaces ?? [])
+        .filter((p) => !reviewedIds.has(p.id))
+        .map((p) => {
+          const marker = new google.maps.Marker({
+            map: mapRef.current!,
+            position: { lat: p.lat, lng: p.lng },
+            title: p.name,
+            zIndex: 10,
+            icon: ratingPinIcon("#3B7A8C"),
+          });
+          marker.addListener("click", () =>
+            navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+          );
+          return marker;
+        });
+      markersRef.current = [...reviewedMarkers, ...savedMarkers];
       return;
     }
 
@@ -325,15 +373,17 @@ function MapPage() {
       return marker;
     });
     markersRef.current = [...reviewedMarkers, ...savedMarkers];
-  }, [ready, mode, reviewedInView, savedInView, myPlaces, navigate]);
+  }, [ready, mode, reviewedInView, savedInView, myPlaces, mySavedPlaces, navigate]);
 
-  // "Meine Karte": beim Wechsel in den Modus auf alle eigenen Orte zoomen
+  // "Meine Karte": beim Wechsel in den Modus auf alle eigenen Orte
+  // (bewertet + Wunschliste) zoomen
   useEffect(() => {
-    if (mode !== "mine" || !myPlaces || myPlaces.length === 0 || !mapRef.current) return;
+    const all = [...(myPlaces ?? []), ...(mySavedPlaces ?? [])];
+    if (mode !== "mine" || all.length === 0 || !mapRef.current) return;
     const fitBounds = new google.maps.LatLngBounds();
-    myPlaces.forEach((p) => fitBounds.extend({ lat: p.lat, lng: p.lng }));
+    all.forEach((p) => fitBounds.extend({ lat: p.lat, lng: p.lng }));
     mapRef.current.fitBounds(fitBounds, 60);
-  }, [mode, myPlaces]);
+  }, [mode, myPlaces, mySavedPlaces]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -481,9 +531,17 @@ function MapPage() {
         ) : null}
 
         {mode === "mine" ? (
-          <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-[#2B2724]" />{" "}
-            {(myPlaces ?? []).length} places you've reviewed
+          <div className="pointer-events-auto flex flex-col gap-1.5">
+            <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
+              <span className="inline-block size-2.5 rounded-full bg-[#2B2724]" />{" "}
+              {(myPlaces ?? []).length} places you've reviewed
+            </div>
+            {mySavedPlaces && mySavedPlaces.length > 0 ? (
+              <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
+                <span className="inline-block size-2.5 rounded-full bg-[#3B7A8C]" />{" "}
+                {mySavedPlaces.length} want to go
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -510,7 +568,7 @@ function MapPage() {
           variant="secondary"
           className="absolute bottom-6 left-4 z-10 h-9 rounded-full px-3 text-xs shadow-card"
         >
-          <Link to="/new">
+          <Link to="/new" search={{ create: true }}>
             <Plus size={14} className="mr-1" /> Can't find it?
           </Link>
         </Button>

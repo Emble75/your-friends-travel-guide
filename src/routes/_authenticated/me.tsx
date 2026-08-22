@@ -422,7 +422,7 @@ function MePage() {
 
         {folders.length > 0 || sharedWithMe.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">My Trips</h2>
+            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">Folders</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {folders.map((f) => (
                 <Link
