@@ -198,7 +198,12 @@ function NewReviewPage() {
       }
 
       toast.success("Review saved");
-      navigate({ to: "/place/$placeId", params: { placeId: place.id } });
+      // "replace" statt normalem Push: die "Bewerten"-Seite soll nach dem
+      // Speichern nicht in der Zurueck-Historie stehen bleiben, sonst
+      // landet man beim Zurueckgehen wieder auf dem (jetzt leeren)
+      // Formular und denkt faelschlich, das Speichern haette nicht
+      // geklappt.
+      navigate({ to: "/place/$placeId", params: { placeId: place.id }, replace: true });
     } catch (err) {
       console.error("[new review] Save failed:", err);
       toast.error(getErrorMessage(err, "Could not save"));
