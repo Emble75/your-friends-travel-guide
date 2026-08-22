@@ -4,12 +4,14 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { navHistory } from "@/lib/nav-history";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -145,6 +147,18 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const href = useRouterState({ select: (s) => s.location.href });
+  const isFirstLoad = useRef(true);
+
+  // Merkt sich, sobald innerhalb der App tatsaechlich navigiert wurde --
+  // der allererste geladene Link zaehlt noch nicht als "Navigation".
+  useEffect(() => {
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      return;
+    }
+    navHistory.hasNavigatedInApp = true;
+  }, [href]);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {

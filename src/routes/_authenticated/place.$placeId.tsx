@@ -92,7 +92,7 @@ function PlacePage() {
 
   return (
     <>
-      <AppHeader title={place?.name ?? "Place"} showBack />
+      <AppHeader title={place?.name ?? "Place"} showBack fallbackTo="/map" />
       <div className="app-shell space-y-4 py-4">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
           <div className="flex items-start gap-3">

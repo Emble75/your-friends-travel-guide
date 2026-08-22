@@ -1,25 +1,41 @@
 import type { ReactNode } from "react";
-import { useRouter } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 import { TuriWordmark } from "./Logo";
+import { navHistory } from "@/lib/nav-history";
 
 export function AppHeader({
   title,
   action,
   showBack = false,
+  fallbackTo,
 }: {
   title?: string;
   action?: ReactNode;
   showBack?: boolean;
+  // Wohin, falls es keine Browser-Historie zum Zurueckgehen gibt (z. B.
+  // bei einem frisch geoeffneten geteilten Link). Ohne Angabe wird trotzdem
+  // versucht, ganz normal zurueckzugehen.
+  fallbackTo?: string;
 }) {
   const router = useRouter();
+  const navigate = useNavigate();
+
+  function goBack() {
+    if (navHistory.hasNavigatedInApp || !fallbackTo) {
+      router.history.back();
+    } else {
+      navigate({ to: fallbackTo });
+    }
+  }
+
   return (
     <header className="sticky top-0 z-30 bg-background/90 backdrop-blur">
       <div className="app-shell flex h-14 items-center gap-2">
         {showBack ? (
           <button
             type="button"
-            onClick={() => router.history.back()}
+            onClick={goBack}
             aria-label="Back"
             className="-ml-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-secondary"
           >

@@ -74,7 +74,7 @@ function FolderPage() {
   if (isLoading) {
     return (
       <>
-        <AppHeader title="Folder" />
+        <AppHeader title="Folder" showBack fallbackTo="/me" />
         <div className="app-shell py-4">
           <Skeleton className="h-40 rounded-3xl" />
         </div>
@@ -85,7 +85,7 @@ function FolderPage() {
   if (!data?.folder) {
     return (
       <>
-        <AppHeader title="Folder" />
+        <AppHeader title="Folder" showBack fallbackTo="/me" />
         <div className="app-shell py-4">
           <EmptyState
             icon={Folder}
@@ -101,7 +101,7 @@ function FolderPage() {
 
   return (
     <>
-      <AppHeader title={folder.name} showBack />
+      <AppHeader title={folder.name} showBack fallbackTo="/me" />
       <div className="app-shell space-y-4 py-4">
         {isOwn ? (
           <div className="flex gap-2">

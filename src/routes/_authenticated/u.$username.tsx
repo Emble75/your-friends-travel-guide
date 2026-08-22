@@ -220,7 +220,7 @@ function ProfilePage() {
   if (isLoading) {
     return (
       <>
-        <AppHeader title="Profile" showBack />
+        <AppHeader title="Profile" showBack fallbackTo="/feed" />
         <div className="app-shell py-4">
           <Skeleton className="h-40 rounded-3xl" />
         </div>
@@ -231,7 +231,7 @@ function ProfilePage() {
   if (!data) {
     return (
       <>
-        <AppHeader title="Profile" showBack />
+        <AppHeader title="Profile" showBack fallbackTo="/feed" />
         <div className="app-shell py-4">
           <EmptyState
             icon={UserPlus}
@@ -247,7 +247,7 @@ function ProfilePage() {
 
   return (
     <>
-      <AppHeader title={`@${profile.username}`} showBack />
+      <AppHeader title={`@${profile.username}`} showBack fallbackTo="/feed" />
       <div className="app-shell space-y-4 py-4">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
           <div className="flex items-center gap-4">

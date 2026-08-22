@@ -36,7 +36,7 @@ export function PlacesMiniMap({ places }: { places: MiniMapPlace[] }) {
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
-        icon: ratingPinIcon("#C9A227", p.rating),
+        icon: ratingPinIcon("#2B2724", p.rating),
       });
       marker.addListener("click", () =>
         navigate({ to: "/place/$placeId", params: { placeId: p.id } }),

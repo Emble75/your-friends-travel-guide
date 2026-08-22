@@ -271,7 +271,7 @@ function MapPage() {
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: ratingPinIcon("#C9A227", p.rating),
+          icon: ratingPinIcon("#2B2724", p.rating),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -478,7 +478,7 @@ function MapPage() {
 
         {mode === "mine" ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-[#C9A227]" />{" "}
+            <span className="inline-block size-2.5 rounded-full bg-[#2B2724]" />{" "}
             {(myPlaces ?? []).length} places you've reviewed
           </div>
         ) : null}
