@@ -441,7 +441,10 @@ function MapPage() {
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 p-4">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 p-4"
+        style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
+      >
         <div className="pointer-events-auto flex items-center justify-between rounded-3xl bg-card/95 px-4 py-2 shadow-card backdrop-blur">
           <TuriWordmark />
           {reviewedLoading ? <Loader2 size={16} className="animate-spin text-primary" /> : null}
