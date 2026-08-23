@@ -23,13 +23,6 @@ function PrivacyPage() {
           <p className="mt-1 text-xs text-muted-foreground">Last updated: 23 August 2026</p>
         </div>
 
-        <p className="rounded-2xl bg-secondary p-3 text-xs text-muted-foreground">
-          This policy has been drafted to reflect Turi's actual data practices as of the date above
-          and current GDPR guidance. It is not a substitute for review by a qualified data
-          protection lawyer, and should be reviewed before public launch and whenever the app's data
-          practices change (e.g. if analytics, push notifications, or new integrations are added).
-        </p>
-
         <section>
           <h2 className="font-semibold">1. Who we are</h2>
           <p className="mt-1">

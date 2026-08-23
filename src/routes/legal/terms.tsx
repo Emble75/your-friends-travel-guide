@@ -23,11 +23,6 @@ function TermsPage() {
           <p className="mt-1 text-xs text-muted-foreground">Last updated: 23 August 2026</p>
         </div>
 
-        <p className="rounded-2xl bg-secondary p-3 text-xs text-muted-foreground">
-          These terms have been drafted to reflect how Turi currently works. They are a solid
-          starting point, not a substitute for review by a qualified lawyer before public launch.
-        </p>
-
         <section>
           <h2 className="font-semibold">1. Who these terms are with</h2>
           <p className="mt-1">
