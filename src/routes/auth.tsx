@@ -122,8 +122,11 @@ function AuthPage() {
             <h2 className="text-lg font-semibold">Forgot your password?</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Please send an email to{" "}
-              <a href="mailto:turi-app@gmail.com" className="font-medium text-primary underline">
-                turi-app@gmail.com
+              <a
+                href="mailto:info.turi.app@gmail.com"
+                className="font-medium text-primary underline"
+              >
+                info.turi.app@gmail.com
               </a>{" "}
               — we'll take care of it as soon as possible.
             </p>
