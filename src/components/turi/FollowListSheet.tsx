@@ -14,6 +14,7 @@ type Person = {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
+  is_private: boolean;
 };
 
 export function FollowListSheet({
@@ -42,7 +43,9 @@ export function FollowListSheet({
       if (type === "followers") {
         const { data: rows, error } = await supabase
           .from("follows")
-          .select("profiles!follows_follower_id_fkey(id, username, display_name, avatar_url)")
+          .select(
+            "profiles!follows_follower_id_fkey(id, username, display_name, avatar_url, is_private)",
+          )
           .eq("following_id", userId)
           .eq("status", "accepted");
         if (error) throw error;
@@ -50,7 +53,9 @@ export function FollowListSheet({
       }
       const { data: rows, error } = await supabase
         .from("follows")
-        .select("profiles!follows_following_id_fkey(id, username, display_name, avatar_url)")
+        .select(
+          "profiles!follows_following_id_fkey(id, username, display_name, avatar_url, is_private)",
+        )
         .eq("follower_id", userId)
         .eq("status", "accepted");
       if (error) throw error;
@@ -87,15 +92,47 @@ export function FollowListSheet({
     queryClient.invalidateQueries({ queryKey: ["follow-list", userId, "followers"] });
   }
 
-  async function toggleFollow(personId: string, status: "pending" | "accepted" | undefined) {
+  async function toggleFollow(
+    personId: string,
+    status: "pending" | "accepted" | undefined,
+    isPrivate: boolean,
+  ) {
     if (!me) return;
-    const { error } = status
-      ? await supabase.from("follows").delete().eq("follower_id", me).eq("following_id", personId)
-      : await supabase.from("follows").insert({ follower_id: me, following_id: personId });
-    if (error) {
-      toast.error(getErrorMessage(error, "Action failed"));
-      return;
+
+    // Optimistisches Update, damit der Button sofort reagiert.
+    const optimisticStatus: "pending" | "accepted" | undefined = status
+      ? undefined
+      : isPrivate
+        ? "pending"
+        : "accepted";
+    queryClient.setQueryData(["my-follow-status-map"], (old: Map<string, string> | undefined) => {
+      const next = new Map(old ?? []);
+      if (optimisticStatus) next.set(personId, optimisticStatus);
+      else next.delete(personId);
+      return next;
+    });
+
+    if (status) {
+      const { data: deleted, error } = await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", me)
+        .eq("following_id", personId)
+        .select();
+      if (error) {
+        toast.error(getErrorMessage(error, "Action failed"));
+      } else if (!deleted || deleted.length === 0) {
+        toast.error("Could not unfollow. Please try again.");
+      }
+    } else {
+      const { error } = await supabase
+        .from("follows")
+        .insert({ follower_id: me, following_id: personId });
+      if (error) {
+        toast.error(getErrorMessage(error, "Action failed"));
+      }
     }
+
     queryClient.invalidateQueries({ queryKey: ["my-follow-status-map"] });
     queryClient.invalidateQueries({ queryKey: ["my-network"] });
     queryClient.invalidateQueries({ queryKey: ["people"] });
@@ -155,7 +192,7 @@ export function FollowListSheet({
                       size="sm"
                       variant={status ? "secondary" : "default"}
                       className="shrink-0 rounded-full"
-                      onClick={() => toggleFollow(p.id, status)}
+                      onClick={() => toggleFollow(p.id, status, p.is_private)}
                     >
                       {status === "accepted" ? (
                         <UserCheck size={14} />

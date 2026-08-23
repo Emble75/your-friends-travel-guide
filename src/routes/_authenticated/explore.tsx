@@ -105,20 +105,58 @@ function PeopleResults({ term }: { term: string }) {
     },
   });
 
-  async function toggleFollow(id: string, followStatus: "pending" | "accepted" | undefined) {
+  async function toggleFollow(
+    id: string,
+    followStatus: "pending" | "accepted" | undefined,
+    isPrivate: boolean,
+  ) {
     const { data: auth } = await supabase.auth.getUser();
     const me = auth.user?.id;
     if (!me) return;
-    const { error } = followStatus
-      ? await supabase.from("follows").delete().eq("follower_id", me).eq("following_id", id)
-      : await supabase.from("follows").insert({ follower_id: me, following_id: id });
-    if (error) {
-      toast.error(getErrorMessage(error, "Action failed"));
-      return;
+
+    // Optimistisches Update: Button/Status sofort anpassen, nicht erst auf
+    // den Server-Rundlauf warten -- verhindert das "haengt fest"-Gefuehl,
+    // falls die Invalidierung mal einen Moment braucht.
+    const optimisticStatus: "pending" | "accepted" | undefined = followStatus
+      ? undefined
+      : isPrivate
+        ? "pending"
+        : "accepted";
+    queryClient.setQueryData(
+      ["people", term],
+      (old: { id: string; followStatus?: "pending" | "accepted" }[] | undefined) =>
+        (old ?? []).map((p) => (p.id === id ? { ...p, followStatus: optimisticStatus } : p)),
+    );
+
+    if (followStatus) {
+      const { data: deleted, error } = await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", me)
+        .eq("following_id", id)
+        .select();
+      if (error) {
+        toast.error(getErrorMessage(error, "Action failed"));
+      } else if (!deleted || deleted.length === 0) {
+        // Kein Fehler, aber auch keine Zeile geloescht -- deutet auf ein
+        // Berechtigungsproblem hin, nicht einfach als Erfolg werten.
+        toast.error("Could not unfollow. Please try again.");
+      } else {
+        toast.success(followStatus === "accepted" ? "Unfollowed" : "Request withdrawn");
+      }
+    } else {
+      const { data: inserted, error } = await supabase
+        .from("follows")
+        .insert({ follower_id: me, following_id: id })
+        .select("status");
+      if (error) {
+        toast.error(getErrorMessage(error, "Action failed"));
+      } else {
+        const actualStatus = inserted?.[0]?.status;
+        toast.success(actualStatus === "pending" ? "Requested" : "Following");
+      }
     }
-    if (followStatus === "accepted") toast.success("Unfollowed");
-    else if (followStatus === "pending") toast.success("Request withdrawn");
-    else toast.success("Requested");
+
     queryClient.invalidateQueries({ queryKey: ["my-network"] });
     queryClient.invalidateQueries({ queryKey: ["people"] });
   }
@@ -157,7 +195,7 @@ function PeopleResults({ term }: { term: string }) {
             size="sm"
             variant={p.followStatus ? "secondary" : "default"}
             className="rounded-full"
-            onClick={() => toggleFollow(p.id, p.followStatus)}
+            onClick={() => toggleFollow(p.id, p.followStatus, p.is_private)}
           >
             {p.followStatus === "accepted" ? (
               <UserCheck size={16} />
