@@ -86,7 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "description",
         content: "Turi shows you only your friends' reviews for every place.",
       },
-      { name: "theme-color", content: "#1D1712" },
+      { name: "theme-color", content: "#FBFBFA" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
