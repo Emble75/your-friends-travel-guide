@@ -558,6 +558,7 @@ function MapPage() {
           navigator.geolocation?.getCurrentPosition((pos) => {
             const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             mapRef.current?.panTo(c);
+            mapRef.current?.setZoom(15);
             setCenter(c);
           })
         }
