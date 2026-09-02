@@ -2,12 +2,12 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bookmark, Loader2, LocateFixed, MapPin, Plus, Search, Star, Users } from "lucide-react";
+import { Bookmark, Loader2, LocateFixed, MapPin, Plus, Search, Star, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
-import { ratingPinIcon } from "@/lib/mapIcons";
+import { ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { TuriWordmark } from "@/components/turi/Logo";
@@ -86,6 +86,11 @@ function MapPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  // Suchtreffer-Marker bewusst getrennt von markersRef: das normale
+  // Neuzeichnen der Karte (beim Verschieben, Moduswechsel, Nachladen)
+  // raeumt markersRef komplett ab -- die Suchtreffer sollen dabei stehen
+  // bleiben, bis die Suche verworfen wird.
+  const searchMarkersRef = useRef<google.maps.Marker[]>([]);
   const [center, setCenter] = useState(
     mapSession.camera ? { lat: mapSession.camera.lat, lng: mapSession.camera.lng } : DEFAULT_CENTER,
   );
@@ -339,6 +344,38 @@ function MapPage() {
     );
   }, [ready]);
 
+  // Suchtreffer als Marker zeichnen.
+  //
+  // Farbe: das neutrale Dunkel der Marke. In "Discover" -- dem einzigen
+  // Modus mit Suche -- ist es sonst nicht belegt, kollidiert also weder
+  // mit Orange (von Freunden bewertet) noch mit Teal (Wunschliste).
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    searchMarkersRef.current.forEach((m) => m.setMap(null));
+    searchMarkersRef.current = [];
+    if (!searchCandidates || searchCandidates.length === 0) return;
+
+    searchMarkersRef.current = searchCandidates.map((c) => {
+      const marker = new google.maps.Marker({
+        map: mapRef.current!,
+        position: { lat: c.lat, lng: c.lng },
+        title: c.name,
+        // Ueber allen anderen Pins -- es ist das, wonach gerade gesucht wurde.
+        zIndex: 20,
+        icon: searchPinIcon(),
+        animation: google.maps.Animation.DROP,
+      });
+      marker.addListener("click", () => setSelected(c));
+      return marker;
+    });
+  }, [ready, searchCandidates]);
+
+  // Beim Verlassen der Karte aufraeumen.
+  useEffect(() => {
+    const markers = searchMarkersRef;
+    return () => markers.current.forEach((m) => m.setMap(null));
+  }, []);
+
   // Render markers
   useEffect(() => {
     if (!ready || !mapRef.current) return;
@@ -450,33 +487,48 @@ function MapPage() {
     try {
       const results = await searchFn({ data: { query: q, lat: center.lat, lng: center.lng } });
       const top = results[0];
-      if (top && mapRef.current) {
+      if (!top || !mapRef.current) {
+        toast.info("Nothing found");
+        return;
+      }
+      setQuery("");
+
+      // Ohne erkannten Geschaefts-Typ ODER ohne genaue Adresse ist das
+      // vermutlich eine Stadt/Region (auch wenn ihr Typ nicht in unserer
+      // AREA_TYPES-Liste steht) -- dann nur hinzoomen, nicht automatisch
+      // oeffnen.
+      const looksLikeArea = !top.rawType || AREA_TYPES.has(top.rawType) || !top.address;
+
+      if (looksLikeArea || results.length === 1) {
+        // Stadt/Region oder eindeutiger Treffer: dorthin springen.
         const newCenter = { lat: top.lat, lng: top.lng };
         mapRef.current.panTo(newCenter);
         mapRef.current.setZoom(14);
         setCenter(newCenter);
-        setQuery("");
+        setSearchCandidates(null);
+        if (!looksLikeArea) setSelected(top);
+        return;
+      }
 
-        // Ohne erkannten Geschaefts-Typ ODER ohne genaue Adresse ist das
-        // vermutlich eine Stadt/Region (auch wenn ihr Typ nicht in unserer
-        // AREA_TYPES-Liste steht) -- dann nur hinzoomen, nicht automatisch
-        // oeffnen.
-        const looksLikeArea = !top.rawType || AREA_TYPES.has(top.rawType) || !top.address;
+      // Mehrere Treffer -- typisch bei Ketten ("Aldi") oder nur teilweise
+      // erinnerten Namen. Alle als Marker zeigen, statt zum ersten zu
+      // springen: sonst sieht man genau eine Filiale und die uebrigen
+      // tauchen nur in der Liste auf.
+      const candidates = results.slice(0, 8);
+      setSearchCandidates(candidates);
 
-        if (looksLikeArea) {
-          setSearchCandidates(null);
-        } else if (results.length === 1) {
-          // Eindeutiger Treffer -- direkt oeffnen, kein Rateaufwand noetig.
-          setSearchCandidates(null);
-          setSelected(top);
-        } else {
-          // Mehrere aehnliche Orte gefunden (z. B. bei nur teilweise
-          // erinnertem Namen) -- Auswahl zeigen statt blind den ersten zu
-          // oeffnen.
-          setSearchCandidates(results.slice(0, 5));
-        }
-      } else {
-        toast.info("Nothing found");
+      // Die aktuelle Ansicht bewusst beibehalten, solange ueberhaupt
+      // etwas davon im Bild ist -- man sucht meist in der Gegend, die man
+      // gerade betrachtet. Nur wenn kein einziger Treffer sichtbar waere,
+      // so weit herausgehen, dass alle hineinpassen. Sonst starrt man auf
+      // eine leere Karte.
+      const view = mapRef.current.getBounds();
+      const anyVisible =
+        !!view && candidates.some((c) => view.contains(new google.maps.LatLng(c.lat, c.lng)));
+      if (!anyVisible) {
+        const searchBounds = new google.maps.LatLngBounds();
+        candidates.forEach((c) => searchBounds.extend({ lat: c.lat, lng: c.lng }));
+        mapRef.current.fitBounds(searchBounds, 80);
       }
     } catch (e) {
       toast.error(getErrorMessage(e, "Search failed"));
@@ -550,15 +602,25 @@ function MapPage() {
 
         {searchCandidates && searchCandidates.length > 0 ? (
           <div className="pointer-events-auto max-h-72 overflow-y-auto rounded-2xl bg-card/95 shadow-card backdrop-blur">
-            <p className="px-3 pt-2.5 turi-eyebrow">Which one did you mean?</p>
+            <div className="flex items-center justify-between px-3 pt-2.5">
+              <p className="turi-eyebrow">{searchCandidates.length} results on the map</p>
+              <button
+                type="button"
+                onClick={() => setSearchCandidates(null)}
+                aria-label="Clear search results"
+                className="turi-tap -mr-1 flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+              >
+                <X size={14} />
+              </button>
+            </div>
             {searchCandidates.map((c) => (
               <button
                 key={c.googlePlaceId}
                 type="button"
-                onClick={() => {
-                  setSearchCandidates(null);
-                  setSelected(c);
-                }}
+                // Die Liste bewusst NICHT schliessen: so bleiben die Marker
+                // stehen und man kann die Filialen der Reihe nach ansehen,
+                // ohne jedes Mal neu zu suchen.
+                onClick={() => setSelected(c)}
                 className="flex w-full items-start gap-2 border-t border-border/60 px-3 py-2.5 text-left first:border-t-0"
               >
                 <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />

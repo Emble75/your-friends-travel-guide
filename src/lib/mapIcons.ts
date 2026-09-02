@@ -18,3 +18,25 @@ export function ratingPinIcon(color: string, rating?: number) {
     anchor: new google.maps.Point(17, 44),
   };
 }
+
+/**
+ * Marker fuer Suchtreffer auf der Karte -- etwa alle Aldi-Filialen in der
+ * Umgebung, wenn nach einer Kette gesucht wurde.
+ *
+ * Bewusst anders geformt als ratingPinIcon: kleiner und mit vollflaechigem
+ * Punkt statt Bewertungskreis. Ein Suchtreffer ist ein Vorschlag, keine
+ * Bewertung -- er soll die Pins von Freunden (orange, mit Zahl) und die
+ * Wunschliste (teal) nicht nachahmen, sondern klar als "das hast du
+ * gerade gesucht" lesbar sein.
+ */
+export function searchPinIcon(color = "#2B2724") {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34">
+    <path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 13 21 13 21s13-11.8 13-21C26 5.8 20.2 0 13 0z" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="13" cy="12.5" r="4.5" fill="#ffffff"/>
+  </svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new google.maps.Size(26, 34),
+    anchor: new google.maps.Point(13, 34),
+  };
+}
