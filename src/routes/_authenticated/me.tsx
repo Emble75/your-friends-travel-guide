@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { deleteOwnAccount } from "@/lib/account.functions";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
+import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
@@ -61,7 +62,7 @@ function MePage() {
   const [deleting, setDeleting] = useState(false);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
@@ -269,12 +270,26 @@ function MePage() {
     }
   }
 
-  if (isLoading || !data?.profile) {
+  // Ohne diese Verzweigung bliebe der Screen bei einem Ladefehler dauerhaft
+  // im Skeleton haengen -- data waere nie gesetzt, isLoading nie wieder true.
+  if (isError) {
     return (
       <>
         <AppHeader />
         <div className="app-shell py-4">
+          <ErrorState text="We couldn't load your profile." onRetry={() => refetch()} />
+        </div>
+      </>
+    );
+  }
+
+  if (isLoading || !data?.profile) {
+    return (
+      <>
+        <AppHeader />
+        <div className="app-shell space-y-4 py-4">
           <Skeleton className="h-40 rounded-3xl" />
+          <Skeleton className="h-24 rounded-3xl" />
         </div>
       </>
     );
@@ -414,9 +429,7 @@ function MePage() {
 
         {pendingRequests.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">
-              Follow requests ({pendingRequests.length})
-            </h2>
+            <h2 className="turi-eyebrow">Follow requests ({pendingRequests.length})</h2>
             <ul className="mt-3 space-y-3">
               {pendingRequests.map((r) => (
                 <li key={r.followerId} className="flex items-center gap-3">
@@ -456,7 +469,7 @@ function MePage() {
 
         {folders.length > 0 || sharedWithMe.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">Folders</h2>
+            <h2 className="turi-eyebrow">Folders</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {folders.map((f) => (
                 <Link
@@ -487,7 +500,7 @@ function MePage() {
 
         {savedPlaces && savedPlaces.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="text-xs uppercase tracking-wide text-muted-foreground">Want to go</h2>
+            <h2 className="turi-eyebrow">Want to go</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {savedPlaces.map((p) => (
                 <Link

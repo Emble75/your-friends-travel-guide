@@ -16,8 +16,10 @@ export function BottomNav() {
           <Link
             key={to}
             to={to}
-            className="flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-muted-foreground transition-colors"
-            activeProps={{ className: "text-primary" }}
+            className="turi-tap flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-muted-foreground"
+            // aria-current markiert die aktive Seite fuer Screenreader --
+            // Farbe allein ist dafuer keine Information.
+            activeProps={{ className: "text-primary font-semibold", "aria-current": "page" }}
           >
             <Icon size={22} strokeWidth={2} />
             <span className="text-[11px] font-medium">{label}</span>

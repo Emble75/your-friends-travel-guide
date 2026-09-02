@@ -6,9 +6,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMyNetwork } from "@/hooks/use-follow";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
+import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { FollowButton } from "@/components/turi/FollowButton";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/_authenticated/explore")({
@@ -58,26 +60,38 @@ function PeopleResults({ term }: { term: string }) {
   // aus ["my-network"] und wird erst beim Rendern zusammengefuehrt. Sonst
   // wuerde ein Refetch dieser Query den optimistisch gesetzten Status mit
   // einem veralteten my-network-Stand ueberschreiben (Button sprang zurueck).
-  const { data: people } = useQuery({
+  const {
+    data: people,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    // Ohne Suchbegriff gar nicht erst anfragen -- vorher wurden bei jedem
+    // Oeffnen der Seite 30 beliebige Profile geladen, die niemand sieht.
+    enabled: !!term,
     queryKey: ["people", term],
     queryFn: async () => {
-      let query = supabase
+      // Komma, Klammern und Punkt haben in PostgREST-Filtern eine eigene
+      // Bedeutung -- ungefiltert zerlegt eine Suche nach "a,b" die
+      // OR-Bedingung und die Abfrage schlaegt fehl.
+      const t = term
+        .replace(/^@/, "")
+        .replace(/[,().*\\"]/g, " ")
+        .trim();
+      if (!t) return [];
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url, is_private")
+        .or(`username.ilike.%${t}%,display_name.ilike.%${t}%`)
         .limit(30);
-      if (term) {
-        const t = term.replace(/^@/, "");
-        query = query.or(`username.ilike.%${t}%,display_name.ilike.%${t}%`);
-      }
-      const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  const data = network
-    ? (people ?? []).filter((p) => p.id !== network.me && !network.blockedIds.has(p.id))
-    : undefined;
+  const data = (people ?? []).filter(
+    (p) => !network || (p.id !== network.me && !network.blockedIds.has(p.id)),
+  );
 
   if (!term) {
     return (
@@ -85,7 +99,28 @@ function PeopleResults({ term }: { term: string }) {
     );
   }
 
-  if (!data || data.length === 0) {
+  if (isError) {
+    return <ErrorState text="We couldn't run that search." onRetry={() => refetch()} />;
+  }
+
+  if (isLoading) {
+    return (
+      <ul className="space-y-2" aria-busy="true">
+        {[0, 1, 2].map((i) => (
+          <li key={i} className="flex items-center gap-3 rounded-3xl border border-border p-3">
+            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-28 rounded-full" />
+              <Skeleton className="h-3 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-8 w-24 rounded-full" />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (data.length === 0) {
     return <EmptyState icon={Users} title="No one found" text="Check the spelling." />;
   }
 

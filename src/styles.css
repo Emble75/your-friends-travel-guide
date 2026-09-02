@@ -7,10 +7,22 @@
 /*
  * Turi design system — clean, bright white/near-white canvas (Instagram-
  * style: high black/white contrast, colour used sparingly and with
- * intent), vivid ember orange as the single primary accent (buttons,
- * active states, focus; rating stars stay a distinct gold). Minimal
- * shadows, crisp hairline borders for separation instead of soft card
- * elevation. All colors in oklch. Never hardcode colors in components.
+ * intent). Minimal shadows, crisp hairline borders for separation
+ * instead of soft card elevation. All colors in oklch. Never hardcode
+ * colors in components.
+ *
+ * Colour roles — this split was reached after several rounds of
+ * correction, please keep it:
+ *   --primary  neutral near-black. Drives buttons, active states, focus
+ *              rings. Deliberately NOT orange.
+ *   --brand    the ember orange. Used sparingly and on purpose only:
+ *              logo gradient, the hairline accent under the header, and
+ *              map pins for friends' reviews.
+ *   --star     a separate gold, reserved for rating stars.
+ *
+ * The app is light-only by design. There is no dark theme; a `.dark`
+ * block that merely duplicated `:root` was removed rather than left
+ * around pretending to do something.
  */
 
 @theme inline {
@@ -91,39 +103,6 @@
   --sidebar-ring: oklch(0.2 0.006 55);
 }
 
-.dark {
-  --background: oklch(0.985 0.002 90);
-  --foreground: oklch(0.145 0.004 60);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0.004 60);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0.004 60);
-  --primary: oklch(0.2 0.006 55);
-  --brand: oklch(0.68 0.19 38);
-  --primary-foreground: oklch(0.99 0.002 90);
-  --primary-soft: oklch(0.94 0.004 75);
-  --secondary: oklch(0.96 0.003 90);
-  --secondary-foreground: oklch(0.2 0.004 60);
-  --muted: oklch(0.96 0.003 90);
-  --muted-foreground: oklch(0.55 0.006 60);
-  --accent: oklch(0.94 0.004 75);
-  --accent-foreground: oklch(0.28 0.006 55);
-  --destructive: oklch(0.58 0.22 25);
-  --destructive-foreground: oklch(0.99 0.005 80);
-  --star: oklch(0.79 0.16 75);
-  --border: oklch(0.9 0.004 80);
-  --input: oklch(0.9 0.004 80);
-  --ring: oklch(0.2 0.006 55);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.145 0.004 60);
-  --sidebar-primary: oklch(0.2 0.006 55);
-  --sidebar-primary-foreground: oklch(0.99 0.002 90);
-  --sidebar-accent: oklch(0.94 0.004 75);
-  --sidebar-accent-foreground: oklch(0.28 0.006 55);
-  --sidebar-border: oklch(0.9 0.004 80);
-  --sidebar-ring: oklch(0.2 0.006 55);
-}
-
 @layer base {
   * {
     border-color: var(--color-border);
@@ -141,6 +120,74 @@
   h3 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
+    /* Verhindert einzelne Waisenwoerter in umbrechenden Ueberschriften. */
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Sichtbarer Fokus nur fuer Tastatur-/Assistenznutzung, nicht bei
+     Mausklick -- sonst blitzt bei jedem Tippen ein Ring auf. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Bewegung. Bewusst knapp gehalten: kurze Distanzen, weiche
+ * Ausklang-Kurve, nichts das den Bildaufbau verzoegert. Wer im System
+ * reduzierte Bewegung eingestellt hat, bekommt gar keine.
+ */
+@keyframes turi-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility turi-enter {
+  animation: turi-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Taktile Rueckmeldung beim Antippen -- auf dem Handy der einzige
+   Hinweis, dass ein Tap ueberhaupt angekommen ist. */
+@utility turi-tap {
+  transition:
+    transform 0.14s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease,
+    opacity 0.14s ease;
+
+  &:active {
+    transform: scale(0.975);
+  }
+}
+
+/* Kleines Abschnittslabel ueber Listen ("FOLLOW REQUESTS"). */
+@utility turi-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

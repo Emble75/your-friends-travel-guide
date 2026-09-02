@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/turi";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
+import { ErrorState } from "@/components/turi/ErrorState";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Stars } from "@/components/turi/Stars";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,7 +72,12 @@ function PlacePage() {
     queryClient.invalidateQueries({ queryKey: ["my-saved-places"] });
   }
 
-  const { data: reviews, isLoading } = useQuery({
+  const {
+    data: reviews,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["place-reviews", placeId],
     queryFn: async () => {
       // RLS returns only reviews from the current user and people they follow.
@@ -136,9 +142,11 @@ function PlacePage() {
           </div>
         </section>
 
-        <h2 className="px-1 text-sm font-semibold text-muted-foreground">From your circle</h2>
+        <h2 className="px-1 turi-eyebrow">From your circle</h2>
 
-        {isLoading ? (
+        {isError ? (
+          <ErrorState text="We couldn't load the reviews." onRetry={() => refetch()} />
+        ) : isLoading ? (
           <Skeleton className="h-48 rounded-3xl" />
         ) : reviews && reviews.length > 0 ? (
           reviews.map((r) => <ReviewCard key={r.id} review={r} showPlace={false} />)

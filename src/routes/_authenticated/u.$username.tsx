@@ -20,6 +20,7 @@ import type { FollowStatus } from "@/hooks/use-follow";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { FollowButton } from "@/components/turi/FollowButton";
 import { EmptyState } from "@/components/turi/EmptyState";
+import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { ReportDialog } from "@/components/turi/ReportDialog";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
@@ -67,7 +68,7 @@ function ProfilePage() {
   // aus der Profil-Query geladene.
   const [clickedStatus, setClickedStatus] = useState<{ value: FollowStatus } | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["profile", username],
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
@@ -214,6 +215,17 @@ function ProfilePage() {
         <AppHeader title="Profile" showBack fallbackTo="/feed" />
         <div className="app-shell py-4">
           <Skeleton className="h-40 rounded-3xl" />
+        </div>
+      </>
+    );
+  }
+
+  if (isError) {
+    return (
+      <>
+        <AppHeader title="Profile" showBack fallbackTo="/feed" />
+        <div className="app-shell py-4">
+          <ErrorState text="We couldn't load this profile." onRetry={() => refetch()} />
         </div>
       </>
     );

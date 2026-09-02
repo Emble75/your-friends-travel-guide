@@ -494,9 +494,7 @@ function MapPage() {
 
         {searchCandidates && searchCandidates.length > 0 ? (
           <div className="pointer-events-auto max-h-72 overflow-y-auto rounded-2xl bg-card/95 shadow-card backdrop-blur">
-            <p className="px-3 pt-2.5 text-[11px] uppercase tracking-wide text-muted-foreground">
-              Which one did you mean?
-            </p>
+            <p className="px-3 pt-2.5 turi-eyebrow">Which one did you mean?</p>
             {searchCandidates.map((c) => (
               <button
                 key={c.googlePlaceId}

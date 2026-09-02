@@ -219,7 +219,7 @@ function NewReviewPage() {
       <AppHeader />
       <form onSubmit={submit} className="app-shell space-y-5 py-4">
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Place</Label>
+          <Label className="turi-eyebrow">Place</Label>
           {place ? (
             <div className="mt-2 flex items-center gap-3">
               <span className="flex size-11 items-center justify-center rounded-2xl bg-primary-soft text-accent-foreground">
@@ -316,9 +316,7 @@ function NewReviewPage() {
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Your Review
-          </Label>
+          <Label className="turi-eyebrow">Your Review</Label>
           <div className="mt-2 flex justify-center">
             <StarPicker value={rating} onChange={setRating} />
           </div>
@@ -332,9 +330,7 @@ function NewReviewPage() {
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Photos (max. 3)
-          </Label>
+          <Label className="turi-eyebrow">Photos (max. 3)</Label>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {files.map((f, i) => (
               <div key={i} className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
@@ -366,9 +362,7 @@ function NewReviewPage() {
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Folder (optional)
-          </Label>
+          <Label className="turi-eyebrow">Folder (optional)</Label>
           <p className="mt-1 text-xs text-muted-foreground">
             Group places by trip (e.g. "Puglia", "Madrid") and later share the folder with specific
             people.

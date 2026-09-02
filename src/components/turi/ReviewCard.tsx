@@ -275,17 +275,39 @@ export function ReviewCard({
       ) : null}
 
       {paths.length > 0 ? (
+        /*
+         * Foto-Komposition statt gleichfoermigem Raster: ein einzelnes Bild
+         * bekommt ein Querformat (Orte sind selten quadratisch), zwei stehen
+         * nebeneinander, drei bilden ein Mosaik mit einem grossen Bild links.
+         */
         <div
-          className="mt-3 grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${Math.min(paths.length, 3)}, minmax(0,1fr))` }}
+          className={
+            paths.length === 1
+              ? "mt-3"
+              : paths.length === 2
+                ? "mt-3 grid grid-cols-2 gap-1.5"
+                : "mt-3 grid aspect-3/2 grid-cols-2 grid-rows-2 gap-1.5"
+          }
         >
-          {(urls ?? paths.map(() => null)).map((url, i) => (
-            <div key={i} className="aspect-square overflow-hidden rounded-2xl bg-muted">
+          {(urls ?? paths.map(() => null)).slice(0, 3).map((url, i) => (
+            <div
+              key={i}
+              className={`overflow-hidden bg-muted ${
+                paths.length === 1
+                  ? "aspect-4/3 rounded-2xl"
+                  : paths.length === 2
+                    ? "aspect-square rounded-2xl"
+                    : i === 0
+                      ? "row-span-2 size-full rounded-l-2xl"
+                      : `size-full ${i === 1 ? "rounded-tr-2xl" : "rounded-br-2xl"}`
+              }`}
+            >
               {url ? (
                 <img
                   src={url}
                   alt={`Photo ${i + 1} of ${review.places?.name ?? "place"}`}
                   loading="lazy"
+                  decoding="async"
                   className="size-full object-cover"
                 />
               ) : null}

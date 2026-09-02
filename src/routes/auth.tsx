@@ -160,8 +160,19 @@ function AuthPage() {
                   placeholder="travelbug"
                   required
                   minLength={3}
+                  maxLength={30}
+                  // Der Nutzername landet in der Profil-URL (/u/name).
+                  // Leer- und Sonderzeichen wuerden diese Links zerbrechen.
+                  pattern="[A-Za-z0-9._]{3,30}"
+                  title="3–30 characters: letters, numbers, dots and underscores."
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   className="h-12 rounded-2xl"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Letters, numbers, dots and underscores.
+                </p>
               </div>
             ) : null}
             <div className="space-y-1.5">
@@ -173,6 +184,9 @@ function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 className="h-12 rounded-2xl"
               />
             </div>
@@ -185,6 +199,7 @@ function AuthPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
                 className="h-12 rounded-2xl"
               />
               {mode === "signup" ? (

@@ -13,7 +13,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center rounded-3xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
+    <div className="turi-enter flex flex-col items-center rounded-3xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
       <span className="flex size-14 items-center justify-center rounded-2xl bg-primary-soft text-accent-foreground">
         <Icon size={26} />
       </span>
