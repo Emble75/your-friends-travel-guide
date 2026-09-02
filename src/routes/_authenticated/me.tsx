@@ -324,7 +324,7 @@ function MePage() {
                 name={profile.display_name ?? profile.username}
                 className="size-16"
               />
-              <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <span className="turi-hit absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Camera size={14} />
               </span>
               <input

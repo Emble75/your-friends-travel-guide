@@ -89,7 +89,7 @@ export function ReportDialog({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+              className="flex turi-hit size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
               aria-label="Report"
             >
               <Flag size={16} />

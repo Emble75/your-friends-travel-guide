@@ -40,7 +40,9 @@ export function AppHeader({
             type="button"
             onClick={goBack}
             aria-label="Back"
-            className="-ml-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-secondary"
+            // 44px statt 36px: Apples Mindestmass fuer Trefferflaechen, und
+            // dies ist der am haeufigsten benutzte Schalter der App.
+            className="turi-tap -ml-2.5 flex size-11 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-secondary"
           >
             <ChevronLeft size={22} />
           </button>

@@ -206,7 +206,7 @@ export function ReviewCard({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+                className="turi-tap turi-hit flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
                 aria-label="More options"
               >
                 <MoreVertical size={16} />
@@ -355,7 +355,7 @@ export function ReviewCard({
                       setEditExistingImages((prev) => prev.filter((p) => p.id !== img.id))
                     }
                     aria-label="Remove photo"
-                    className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+                    className="turi-hit absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
                   >
                     <X size={14} />
                   </button>
@@ -371,7 +371,7 @@ export function ReviewCard({
                     type="button"
                     onClick={() => setEditNewFiles((prev) => prev.filter((_, idx) => idx !== i))}
                     aria-label="Remove photo"
-                    className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+                    className="turi-hit absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
                   >
                     <X size={14} />
                   </button>

@@ -270,7 +270,7 @@ function ProfilePage() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+                    className="turi-tap flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
                     aria-label="More options"
                   >
                     <MoreVertical size={18} />

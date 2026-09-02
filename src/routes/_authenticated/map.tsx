@@ -608,7 +608,7 @@ function MapPage() {
                 type="button"
                 onClick={() => setSearchCandidates(null)}
                 aria-label="Clear search results"
-                className="turi-tap -mr-1 flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+                className="turi-tap turi-hit -mr-1 flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
               >
                 <X size={14} />
               </button>
