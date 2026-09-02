@@ -19,8 +19,10 @@
  * ueber vier Dateien verstreut. Der Rueckfallwert greift beim
  * serverseitigen Rendern, wo es kein document gibt.
  */
-export function mapColor(role: "reviewed" | "saved" | "search"): string {
-  const fallback = { reviewed: "#1634c2", saved: "#a72b00", search: "#2b2724" }[role];
+export function mapColor(role: "reviewed" | "saved" | "search" | "me"): string {
+  const fallback = { reviewed: "#1634c2", saved: "#a72b00", search: "#2b2724", me: "#325ef5" }[
+    role
+  ];
   if (typeof document === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(`--map-${role}`).trim();
   return value || fallback;
@@ -171,5 +173,31 @@ export function searchPinIcon(color = mapColor("search")) {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
     scaledSize: new google.maps.Size(32, 40),
     anchor: new google.maps.Point(16, 36),
+  };
+}
+
+/**
+ * Der eigene Standort -- der bekannte Punkt mit weissem Ring.
+ *
+ * Bewusst ein KREIS und keine Tropfenform. Die Bewertungspins sind
+ * ebenfalls blau; unterschieden wird hier ueber die Gestalt, nicht die
+ * Farbe: ein Pin zeigt auf einen Ort, dieser Punkt IST ein Ort. So
+ * machen es alle Kartenanwendungen, und es liest sich ohne Erklaerung.
+ *
+ * Verwendet das helle Markenblau, waehrend die Pins das abgedunkelte
+ * tragen -- damit steht der eigene Standort auch farblich fuer sich.
+ */
+export function currentLocationIcon() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26">
+    <defs><filter id="p" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.6" flood-color="#000000" flood-opacity="0.35"/>
+    </filter></defs>
+    <circle cx="13" cy="13" r="7.5" fill="#ffffff" filter="url(#p)"/>
+    <circle cx="13" cy="13" r="5.2" fill="${mapColor("me")}"/>
+  </svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new google.maps.Size(26, 26),
+    anchor: new google.maps.Point(13, 13),
   };
 }

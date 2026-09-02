@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
-import { mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
+import { currentLocationIcon, mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { Stars } from "@/components/turi/Stars";
@@ -90,6 +90,9 @@ function MapPage() {
   // raeumt markersRef komplett ab -- die Suchtreffer sollen dabei stehen
   // bleiben, bis die Suche verworfen wird.
   const searchMarkersRef = useRef<google.maps.Marker[]>([]);
+  // Eigener Standort: Punkt und Genauigkeitskreis.
+  const meMarkerRef = useRef<google.maps.Marker | null>(null);
+  const meAccuracyRef = useRef<google.maps.Circle | null>(null);
   const [center, setCenter] = useState(
     mapSession.camera ? { lat: mapSession.camera.lat, lng: mapSession.camera.lng } : DEFAULT_CENTER,
   );
@@ -321,26 +324,70 @@ function MapPage() {
     });
   }, [ready, placeByIdFn]);
 
-  // Einmal pro App-Start auf den eigenen Standort zentrieren.
-  //
-  // Frueher lief das bei JEDEM Aufbau der Karte. Da die Karte beim
-  // Zurueckkehren von einer Ortsseite neu aufgebaut wird, wurde man
-  // dabei aus der gerade betrachteten Stadt zurueck an den eigenen
-  // Standort geworfen.
+  /*
+   * Eigener Standort: laufender Punkt auf der Karte, dazu ein Kreis fuer
+   * die Ortungsgenauigkeit -- wie in gaengigen Kartenanwendungen.
+   *
+   * Die frueher getrennte, einmalige Abfrage fuer die Erstzentrierung ist
+   * hier aufgegangen: die erste Position aus der Verfolgung erledigt das
+   * mit. Das spart eine zweite Ortungsanfrage samt Wartezeit.
+   *
+   * Zentriert wird weiterhin nur EINMAL pro App-Start. Da die Karte beim
+   * Zurueckkehren von einer Ortsseite neu aufgebaut wird, wuerde man sonst
+   * jedes Mal aus der betrachteten Stadt zurueckgeworfen.
+   *
+   * Die Verfolgung endet beim Verlassen der Karte -- sonst liefe die
+   * Ortung im Hintergrund weiter und zoege unnoetig Akku.
+   */
   useEffect(() => {
-    if (!ready || mapSession.centeredOnUser || !navigator.geolocation) return;
-    // Sofort merken, nicht erst im Erfolgsfall -- sonst startet ein
-    // schneller zweiter Aufbau die Abfrage ein weiteres Mal.
-    mapSession.centeredOnUser = true;
-    navigator.geolocation.getCurrentPosition(
+    if (!ready || !navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        mapRef.current?.setCenter(c);
-        setCenter(c);
+        const map = mapRef.current;
+        if (!map) return;
+
+        if (!meMarkerRef.current) {
+          meMarkerRef.current = new google.maps.Marker({
+            map,
+            // Unter allen Ortspins: der eigene Standort soll sie nicht
+            // verdecken, wenn man genau davorsteht.
+            zIndex: 1,
+            clickable: false,
+            icon: currentLocationIcon(),
+          });
+          meAccuracyRef.current = new google.maps.Circle({
+            map,
+            strokeOpacity: 0,
+            fillColor: mapColor("me"),
+            fillOpacity: 0.12,
+            clickable: false,
+          });
+        }
+        meMarkerRef.current.setPosition(c);
+        meAccuracyRef.current?.setCenter(c);
+        // Bei guter Ortung waere der Kreis winzig und nur Unruhe.
+        const accuracy = pos.coords.accuracy;
+        meAccuracyRef.current?.setRadius(accuracy > 25 ? accuracy : 0);
+
+        if (!mapSession.centeredOnUser) {
+          mapSession.centeredOnUser = true;
+          map.setCenter(c);
+          setCenter(c);
+        }
       },
       () => undefined,
-      { timeout: 8000 },
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 },
     );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      meMarkerRef.current?.setMap(null);
+      meAccuracyRef.current?.setMap(null);
+      meMarkerRef.current = null;
+      meAccuracyRef.current = null;
+    };
   }, [ready]);
 
   // Suchtreffer als Marker zeichnen.
@@ -673,14 +720,31 @@ function MapPage() {
         variant="secondary"
         aria-label="Show my location"
         className="absolute bottom-6 right-4 z-10 size-12 rounded-2xl shadow-card"
-        onClick={() =>
-          navigator.geolocation?.getCurrentPosition((pos) => {
-            const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            mapRef.current?.panTo(c);
-            mapRef.current?.setZoom(15);
-            setCenter(c);
-          })
-        }
+        onClick={() => {
+          // Die laufende Ortung kennt die Position bereits -- direkt
+          // hinspringen statt erneut zu messen. Das war vorher eine
+          // zweite Anfrage mit spuerbarer Wartezeit, obwohl der Punkt
+          // schon auf der Karte lag.
+          const known = meMarkerRef.current?.getPosition();
+          if (known) {
+            mapRef.current?.panTo(known);
+            mapRef.current?.setZoom(16);
+            setCenter({ lat: known.lat(), lng: known.lng() });
+            return;
+          }
+          // Noch keine Ortung erhalten (Berechtigung offen oder kein
+          // Empfang) -- dann doch einmal aktiv fragen.
+          navigator.geolocation?.getCurrentPosition(
+            (pos) => {
+              const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              mapRef.current?.panTo(c);
+              mapRef.current?.setZoom(16);
+              setCenter(c);
+            },
+            () => toast.error("Couldn't get your location"),
+            { timeout: 10_000 },
+          );
+        }}
       >
         <LocateFixed size={20} />
       </Button>

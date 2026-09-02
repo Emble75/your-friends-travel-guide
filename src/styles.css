@@ -79,6 +79,7 @@
   --color-map-reviewed: var(--map-reviewed);
   --color-map-saved: var(--map-saved);
   --color-map-search: var(--map-search);
+  --color-map-me: var(--map-me);
   --color-star-outline: var(--star-outline);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -188,6 +189,13 @@
    *   --map-saved     Wunschliste, auf beiden Karten.
    *   --map-search    Suchtreffer. Neutral, damit sie sich in "Discover"
    *                   von den blauen Bewertungspins abheben.
+   *   --map-me        Eigener Standort. Das HELLE Markenblau, waehrend
+   *                   die Pins das abgedunkelte tragen. Unterschieden
+   *                   wird ohnehin ueber die Form -- ein Kreis, kein
+   *                   Tropfen: ein Pin zeigt auf einen Ort, dieser Punkt
+   *                   ist einer. Hier ist die Naehe zu Googles Blau
+   *                   unschaedlich, weil der Punkt nie mit POI-Symbolen
+   *                   verwechselt wird.
    *
    * Beide Farbwerte sind bewusst TIEFER als ihre Entsprechung in der
    * Marke. Googles POI-Symbole sind durchweg hell: Gastronomie #FF9E67,
@@ -207,6 +215,7 @@
   --map-reviewed: #1634c2;
   --map-saved: #a72b00;
   --map-search: #2b2724;
+  --map-me: #325ef5;
 
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0.004 60);
