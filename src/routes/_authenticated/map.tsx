@@ -618,40 +618,24 @@ function MapPage() {
           </div>
         ) : null}
 
+        {/*
+          Nur noch ein schmaler Hinweis statt der frueheren Trefferliste.
+          Die Liste sass im oberen Ueberlagerungsbereich und verdeckte
+          genau die Pins, die sie erklaeren sollte -- man konnte die
+          Treffer lesen ODER sehen, nicht beides. Angetippt wird jetzt
+          direkt der Pin auf der Karte.
+        */}
         {searchCandidates && searchCandidates.length > 0 ? (
-          <div className="pointer-events-auto max-h-72 overflow-y-auto rounded-2xl bg-card/95 shadow-card backdrop-blur">
-            <div className="flex items-center justify-between px-3 pt-2.5">
-              <p className="turi-eyebrow">{searchCandidates.length} results on the map</p>
-              <button
-                type="button"
-                onClick={() => setSearchCandidates(null)}
-                aria-label="Clear search results"
-                className="turi-tap turi-hit -mr-1 flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            {searchCandidates.map((c) => (
-              <button
-                key={c.googlePlaceId}
-                type="button"
-                // Die Liste bewusst NICHT schliessen: so bleiben die Marker
-                // stehen und man kann die Filialen der Reihe nach ansehen,
-                // ohne jedes Mal neu zu suchen.
-                onClick={() => setSelected(c)}
-                className="flex w-full items-start gap-2 border-t border-border/60 px-3 py-2.5 text-left first:border-t-0"
-              >
-                <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{c.name}</span>
-                  {c.address ? (
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {c.address}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-            ))}
+          <div className="pointer-events-auto flex w-fit items-center gap-2 rounded-full bg-card/95 py-1.5 pl-3 pr-1.5 shadow-card backdrop-blur">
+            <span className="turi-eyebrow">{searchCandidates.length} on the map — tap a pin</span>
+            <button
+              type="button"
+              onClick={() => setSearchCandidates(null)}
+              aria-label="Clear search results"
+              className="turi-tap turi-hit flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+            >
+              <X size={14} />
+            </button>
           </div>
         ) : null}
 

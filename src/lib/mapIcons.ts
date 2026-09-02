@@ -41,6 +41,49 @@ const SHADOW = `<filter id="s" x="-50%" y="-50%" width="200%" height="200%">
       <feDropShadow dx="0" dy="1.5" stdDeviation="1.4" flood-color="#000000" flood-opacity="0.32"/>
     </filter>`;
 
+/**
+ * Hellt eine Hex-Farbe auf oder dunkelt sie ab (-1 bis 1).
+ * Wird fuer die Plastizitaet der Pins gebraucht: oben heller, unten
+ * dunkler, so bekommt die Form Volumen statt flach zu wirken.
+ */
+function shade(hex: string, amount: number): string {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return hex;
+  const channels = [0, 2, 4].map((i) => {
+    const v = parseInt(h.slice(i, i + 2), 16);
+    const target = amount >= 0 ? 255 : 0;
+    return Math.round(v + (target - v) * Math.abs(amount));
+  });
+  return "#" + channels.map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Koerper, Verlauf und Glanzlicht eines Pins.
+ *
+ * Der Verlauf laeuft von einer aufgehellten Variante oben zu einer
+ * abgedunkelten unten; darueber liegt ein weiches, elliptisches
+ * Glanzlicht links oben. Beides zusammen laesst die Form gewoelbt
+ * erscheinen, statt wie eine ausgeschnittene Flaeche. Ein zusaetzlicher
+ * dunkler Rand innen setzt sie gegen helle Karten ab.
+ */
+function body(path: string, color: string, id: string) {
+  return `
+    <defs>
+      <linearGradient id="g${id}" x1="0" y1="0" x2="0.25" y2="1">
+        <stop offset="0" stop-color="${shade(color, 0.28)}"/>
+        <stop offset="0.55" stop-color="${color}"/>
+        <stop offset="1" stop-color="${shade(color, -0.22)}"/>
+      </linearGradient>
+      <radialGradient id="h${id}" cx="0.34" cy="0.24" r="0.52">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/>
+        <stop offset="0.65" stop-color="#ffffff" stop-opacity="0.08"/>
+        <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <path d="${path}" fill="url(#g${id})" stroke="${shade(color, -0.35)}" stroke-width="0.9" filter="url(#s)"/>
+    <path d="${path}" fill="url(#h${id})"/>`;
+}
+
 /*
  * Tropfenform: Kreis oben, spitz zulaufend nach unten.
  *
@@ -92,11 +135,14 @@ function labelColor(pin: string): string {
  */
 export function ratingPinIcon(color: string, rating?: number) {
   const label = typeof rating === "number" ? rating.toFixed(1) : "";
-  // Ohne Zahl ein kleinerer Punkt: ein grosser leerer Kreis sieht aus wie
-  // ein Pin, dem die Beschriftung fehlt.
-  const radius = label ? 10.5 : 5;
+  // Ohne Zahl bleibt das Loch gross -- so liest es sich als bewusste
+  // Ringform (wie bei klassischen Kartennadeln) und nicht als Pin, dem
+  // die Beschriftung fehlt. Mit der plastischen Woelbung traegt das;
+  // flach gezeichnet wirkte derselbe grosse Kreis frueher leer.
+  const radius = label ? 10.5 : 8.5;
   return wrap(`
-    <path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="2" filter="url(#s)"/>
+    ${body(PIN_PATH, color, "r")}
+    <circle cx="17" cy="16.5" r="${radius + 0.6}" fill="${shade(color, -0.3)}" opacity="0.45"/>
     <circle cx="17" cy="16.5" r="${radius}" fill="#ffffff"/>
     ${
       label
@@ -117,8 +163,8 @@ export function ratingPinIcon(color: string, rating?: number) {
 export function searchPinIcon(color = mapColor("mine")) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="-3 -2 32 40">
     <defs>${SHADOW}</defs>
-    <path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 13 21 13 21s13-11.8 13-21C26 5.8 20.2 0 13 0z"
-      fill="${color}" stroke="#ffffff" stroke-width="2" filter="url(#s)"/>
+    ${body("M13 0C5.8 0 0 5.8 0 13c0 9.2 13 21 13 21s13-11.8 13-21C26 5.8 20.2 0 13 0z", color, "s")}
+    <circle cx="13" cy="12.5" r="5.1" fill="${shade(color, -0.3)}" opacity="0.45"/>
     <circle cx="13" cy="12.5" r="4.5" fill="#ffffff"/>
   </svg>`;
   return {
