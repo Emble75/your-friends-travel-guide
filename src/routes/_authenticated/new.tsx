@@ -216,7 +216,9 @@ function NewReviewPage() {
 
   return (
     <>
-      <AppHeader />
+      {/* Aufgabenseite: Titel und Ausweg sind hier nuetzlicher als der
+          Markenschriftzug -- man kommt her, um genau eine Sache zu tun. */}
+      <AppHeader title="New review" showBack fallbackTo="/map" />
       <form onSubmit={submit} className="app-shell space-y-5 py-4">
         <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
           <Label className="turi-eyebrow">Place</Label>

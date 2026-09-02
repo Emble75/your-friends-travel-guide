@@ -254,6 +254,17 @@
   background-image: linear-gradient(90deg, transparent, var(--brand) 50%, transparent);
 }
 
+/*
+ * Oberer Abstand auf Screens OHNE Kopfleiste (Suche, Karte).
+ *
+ * Sonst uebernimmt AppHeader das Freihalten der Statusleiste bzw. des
+ * Notch. Faellt die Leiste weg, muss der Inhalt selbst dafuer sorgen --
+ * andernfalls rutscht die erste Zeile unter die Uhr.
+ */
+@utility app-top {
+  padding-top: calc(env(safe-area-inset-top) + 1rem);
+}
+
 @utility app-shell {
   margin-inline: auto;
   width: 100%;

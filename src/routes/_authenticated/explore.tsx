@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Search, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyNetwork } from "@/hooks/use-follow";
-import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -31,25 +30,25 @@ function ExplorePage() {
   const term = debouncedQ.trim();
 
   return (
-    <>
-      <AppHeader />
-      <div className="app-shell space-y-4 py-4">
-        <div className="relative">
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search @username"
-            className="h-12 rounded-2xl pl-11"
-          />
-        </div>
-
-        <PeopleResults term={term} />
+    // Keine Kopfleiste: ein Markenschriftzug direkt ueber einem Suchfeld
+    // traegt nichts bei und kostet 56px. Das Suchfeld selbst sagt, wo man
+    // ist -- so macht es Instagram im Suche-Tab ebenfalls.
+    <div className="app-shell app-top space-y-4 pb-4">
+      <div className="relative">
+        <Search
+          size={18}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search @username"
+          className="h-12 rounded-2xl pl-11"
+        />
       </div>
-    </>
+
+      <PeopleResults term={term} />
+    </div>
   );
 }
 

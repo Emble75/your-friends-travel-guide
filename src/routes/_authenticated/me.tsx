@@ -278,7 +278,7 @@ function MePage() {
   if (isError) {
     return (
       <>
-        <AppHeader />
+        <AppHeader title="Profile" />
         <div className="app-shell py-4">
           <ErrorState text="We couldn't load your profile." onRetry={() => refetch()} />
         </div>
@@ -289,7 +289,7 @@ function MePage() {
   if (isLoading || !data?.profile) {
     return (
       <>
-        <AppHeader />
+        <AppHeader title="Profile" />
         <div className="app-shell space-y-4 py-4">
           <Skeleton className="h-40 rounded-3xl" />
           <Skeleton className="h-24 rounded-3xl" />
@@ -303,6 +303,7 @@ function MePage() {
   return (
     <>
       <AppHeader
+        title={`@${profile.username}`}
         action={
           <Button
             variant="ghost"

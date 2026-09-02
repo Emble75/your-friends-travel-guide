@@ -10,7 +10,6 @@ import { ensureLocalPlace } from "@/lib/place-sync";
 import { ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
-import { TuriWordmark } from "@/components/turi/Logo";
 import { Stars } from "@/components/turi/Stars";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { getErrorMessage } from "@/lib/turi";
@@ -553,11 +552,15 @@ function MapPage() {
         className="pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 p-4"
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
       >
-        <div className="pointer-events-auto flex items-center justify-between rounded-3xl bg-card/95 px-4 py-2 shadow-card backdrop-blur">
-          <TuriWordmark />
-          {reviewedLoading ? <Loader2 size={16} className="animate-spin text-primary" /> : null}
-        </div>
-
+        {/*
+          Die schwebende Logo-Karte ist hier entfallen. Auf der Karte
+          stapelten sich vier Reihen uebereinander -- Logo, Umschalter,
+          Suchfeld, Legende -- und die oberste trug nichts als den
+          Markennamen. Google Maps setzt aus demselben Grund die Suche
+          ganz nach oben. Der Ladeindikator sitzt jetzt im Suchfeld, wo er
+          auch inhaltlich hingehoert (er zeigt an, dass die Orte fuer den
+          sichtbaren Ausschnitt geladen werden).
+        */}
         <div className="pointer-events-auto flex gap-1 rounded-2xl bg-card/95 p-1 shadow-card backdrop-blur">
           <button
             type="button"
@@ -595,8 +598,17 @@ function MapPage() {
               }}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
               placeholder="Search city or place"
-              className="h-12 rounded-2xl border-0 bg-card pl-11 shadow-card"
+              className="h-12 rounded-2xl border-0 bg-card pl-11 pr-11 shadow-card"
             />
+            {/* Zeigt an, dass die Orte fuer den sichtbaren Ausschnitt noch
+                geladen werden -- vorher sass das im entfallenen Logo-Balken. */}
+            {reviewedLoading ? (
+              <Loader2
+                size={16}
+                aria-label="Loading places"
+                className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
+              />
+            ) : null}
           </div>
         ) : null}
 
