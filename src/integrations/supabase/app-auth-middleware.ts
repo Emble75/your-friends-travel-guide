@@ -19,7 +19,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     if (init?.headers) {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get("Authorization") === `Bearer ${supabaseKey}`) {
+    if (
+      isNewSupabaseApiKey(supabaseKey) &&
+      headers.get("Authorization") === `Bearer ${supabaseKey}`
+    ) {
       headers.delete("Authorization");
     }
     headers.set("apikey", supabaseKey);

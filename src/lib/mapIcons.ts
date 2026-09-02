@@ -11,6 +11,21 @@
  * hier also wirkungslos und fiele ohnehin auf die Systemschrift zurueck.
  */
 
+/**
+ * Die drei Kartenfarben, gelesen aus dem Design-System.
+ *
+ * Sie stehen in styles.css und werden hier zur Laufzeit ausgelesen, damit
+ * es nur EINE Quelle gibt -- vorher lagen dieselben Hex-Werte zwoelfmal
+ * ueber vier Dateien verstreut. Der Rueckfallwert greift beim
+ * serverseitigen Rendern, wo es kein document gibt.
+ */
+export function mapColor(role: "friends" | "saved" | "mine"): string {
+  const fallback = { friends: "#c20077", saved: "#3b7a8c", mine: "#2b2724" }[role];
+  if (typeof document === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(`--map-${role}`).trim();
+  return value || fallback;
+}
+
 const PAD_X = 3;
 const PAD_Y = 2;
 const PIN_W = 34;
@@ -77,10 +92,10 @@ export function ratingPinIcon(color: string, rating?: number) {
  *
  * Bewusst schlanker als ratingPinIcon und mit vollflaechigem Punkt statt
  * Bewertungskreis. Ein Suchtreffer ist ein Vorschlag, keine Bewertung --
- * er soll die Pins von Freunden (orange, mit Note) und die Wunschliste
+ * er soll die Pins von Freunden (magenta, mit Note) und die Wunschliste
  * (teal) nicht nachahmen.
  */
-export function searchPinIcon(color = "#2B2724") {
+export function searchPinIcon(color = mapColor("mine")) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="-3 -2 32 40">
     <defs>${SHADOW}</defs>
     <path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 13 21 13 21s13-11.8 13-21C26 5.8 20.2 0 13 0z"

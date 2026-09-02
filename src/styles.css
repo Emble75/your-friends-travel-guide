@@ -20,11 +20,11 @@
  *              map pins for friends' reviews.
  *   --star     a separate gold, reserved for rating stars.
  *
- * Gemessen (WCAG 2.2 AA, September 2026): Fliesstext 18.96:1, Sekundaer-
- * text 4.65:1, Button-Beschriftung 17.61:1 -- alle bestanden. Wichtig:
- * --brand erreicht als Text auf dem Hintergrund nur 2.98:1 und ist
- * deshalb NUR fuer Flaechen, Logo und Kartenpins zu verwenden, niemals
- * fuer Schrift.
+ * Gemessen (WCAG 2.2 AA, September 2026): Fliesstext 17.37:1, Sekundaer-
+ * text 4.94:1 auf dem Hintergrund und 4.59:1 auf Chips und Eingabe-
+ * feldern, Button-Beschriftung 17.96:1 -- alle bestanden. Wichtig:
+ * --brand erreicht als Text nur 2.98:1 und ist deshalb ausschliesslich
+ * fuer Flaechen und das Logo zu verwenden, niemals fuer Schrift.
  *
  * The app is light-only by design. There is no dark theme; a `.dark`
  * block that merely duplicated `:root` was removed rather than left
@@ -59,11 +59,13 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-star: var(--star);
+  --color-map-friends: var(--map-friends);
+  --color-map-saved: var(--map-saved);
+  --color-map-mine: var(--map-mine);
   --color-star-outline: var(--star-outline);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-field: var(--field);
-  --color-field-placeholder: var(--field-placeholder);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
   --color-sidebar: var(--sidebar);
@@ -94,21 +96,37 @@
      sonst ist der Wert am Schreibtisch (ohne sicheren Bereich) 8px zu
      klein und die Karte schoebe sich unter die Leiste. */
   --bottom-nav-h: calc(3.75rem + max(0.5rem, env(safe-area-inset-bottom)));
-  --background: oklch(0.985 0.002 90);
+  /*
+   * Der Hintergrund ist bewusst tiefer als frueher (0.985 -> 0.955).
+   *
+   * Vorher lagen weisse Karten auf nahezu weissem Grund: der wahrnehmbare
+   * Helligkeitsabstand betrug 0.015 -- die Oberflaeche wirkte flach, man
+   * sah die Kartenkanten kaum. Jetzt 0.045, in etwa der Abstand, den iOS
+   * hinter weissen Gruppen verwendet (#F2F2F7).
+   *
+   * Hinweis zur Messung: WCAG-Kontrastverhaeltnisse taugen fuer zwei
+   * helle Flaechen nicht -- der Wert bewegt sich hier nur von 1.04 auf
+   * 1.14, obwohl der Unterschied deutlich sichtbar ist. Massgeblich ist
+   * der oklch-L-Abstand, der ist wahrnehmungsbezogen.
+   */
+  --background: oklch(0.955 0.004 85);
   --foreground: oklch(0.145 0.004 60);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0.004 60);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0.004 60);
-  --primary: oklch(0.2 0.006 55);
+  --primary: oklch(0.19 0.007 55);
   --brand: oklch(0.68 0.19 38);
   --primary-foreground: oklch(0.99 0.002 90);
-  --primary-soft: oklch(0.94 0.004 75);
-  --secondary: oklch(0.96 0.003 90);
+  --primary-soft: oklch(0.915 0.006 85);
+  --secondary: oklch(0.93 0.005 88);
   --secondary-foreground: oklch(0.2 0.004 60);
-  --muted: oklch(0.96 0.003 90);
-  --muted-foreground: oklch(0.55 0.006 60);
-  --accent: oklch(0.94 0.004 75);
+  --muted: oklch(0.93 0.005 88);
+  /* Ein einziger Sekundaerton, der auf ALLEN Flaechen die 4.5:1 haelt:
+     Karte 5.64, Hintergrund 4.94, Chip und Eingabefeld 4.59. Dadurch ist
+     das frueher noetige, separate --field-placeholder ueberfluessig. */
+  --muted-foreground: oklch(0.515 0.007 60);
+  --accent: oklch(0.915 0.006 85);
   --accent-foreground: oklch(0.28 0.006 55);
   --destructive: oklch(0.58 0.22 25);
   --destructive-foreground: oklch(0.99 0.005 80);
@@ -119,27 +137,48 @@
      Teil des Markenbilds) bekommt der Stern eine dunklere Kontur: 4.06:1
      gegen Weiss, Flaeche unveraendert. */
   --star-outline: oklch(0.6 0.15 70);
-  --border: oklch(0.9 0.004 80);
-  --input: oklch(0.9 0.004 80);
+  --border: oklch(0.885 0.005 80);
+  --input: oklch(0.885 0.005 80);
   /* Eingabefelder: gefuellte Flaeche statt Rahmen (wie in Apples eigenen
      Apps). Der frueher alleinstehende Rahmen erreichte nur 1.35:1 und war
      als Feldbegrenzung kaum wahrnehmbar. Eine Flaeche ist bei gleichem
      Messwert deutlich besser erkennbar als eine 1px-Linie -- ein formales
      3:1 erreicht aber auch sie nicht, dafuer muesste das Feld mittelgrau
      werden. */
-  --field: oklch(0.945 0.003 90);
-  /* Etwas dunkler als --muted-foreground: auf der Feldfuellung erreicht
-     der normale Sekundaerton nur noch 4.14:1, dieser genau 4.50:1. */
-  --field-placeholder: oklch(0.53 0.006 60);
-  --ring: oklch(0.2 0.006 55);
+  --field: oklch(0.93 0.005 88);
+  --ring: oklch(0.19 0.007 55);
+
+  /*
+   * Kartenfarben -- die einzige Stelle, an der sie definiert sind.
+   * Vorher lagen dieselben Hex-Werte zwoelfmal ueber vier Dateien
+   * verstreut.
+   *
+   * Warum hier ausnahmsweise Hex und nicht oklch: diese Werte werden zur
+   * Laufzeit ausgelesen und in SVG-Grafiken (data-URL) fuer die Pins
+   * eingesetzt. Hex funktioniert dort in jeder Webview zuverlaessig; ein
+   * Fehlschlag waere ausgerechnet hier besonders teuer, weil die Pins das
+   * Kernstueck der App sind.
+   *
+   * --map-friends ist bewusst NICHT das Marken-Orange. Google Maps
+   * verwendet fuer Gastronomie #FF9E67; das frueher hier eingesetzte
+   * #FF6B35 lag nur 10 Grad daneben (Kontrast zueinander 1.40:1) -- der
+   * wichtigste Hinweis der App verschwamm also mit genau dem Rauschen,
+   * das sie ersetzen soll. Magenta kommt in Googles POI-Palette nicht vor
+   * und bildet mit dem Teal der Wunschliste ein Gegensatzpaar. Nebenbei
+   * wird die Bewertungszahl im Pin lesbar: 5.88:1 statt 2.84:1.
+   */
+  --map-friends: #c20077;
+  --map-saved: #3b7a8c;
+  --map-mine: #2b2724;
+
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0.004 60);
-  --sidebar-primary: oklch(0.2 0.006 55);
+  --sidebar-primary: oklch(0.19 0.007 55);
   --sidebar-primary-foreground: oklch(0.99 0.002 90);
-  --sidebar-accent: oklch(0.94 0.004 75);
+  --sidebar-accent: oklch(0.915 0.006 85);
   --sidebar-accent-foreground: oklch(0.28 0.006 55);
-  --sidebar-border: oklch(0.9 0.004 80);
-  --sidebar-ring: oklch(0.2 0.006 55);
+  --sidebar-border: oklch(0.885 0.005 80);
+  --sidebar-ring: oklch(0.19 0.007 55);
 }
 
 @layer base {

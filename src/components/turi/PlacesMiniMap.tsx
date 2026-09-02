@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
-import { ratingPinIcon } from "@/lib/mapIcons";
+import { mapColor, ratingPinIcon } from "@/lib/mapIcons";
 
 export type MiniMapPlace = { id: string; name: string; lat: number; lng: number; rating: number };
 
@@ -36,7 +36,7 @@ export function PlacesMiniMap({ places }: { places: MiniMapPlace[] }) {
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
-        icon: ratingPinIcon("#2B2724", p.rating),
+        icon: ratingPinIcon(mapColor("mine"), p.rating),
       });
       marker.addListener("click", () =>
         navigate({ to: "/place/$placeId", params: { placeId: p.id } }),

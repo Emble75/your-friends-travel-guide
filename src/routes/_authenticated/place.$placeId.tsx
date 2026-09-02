@@ -119,7 +119,7 @@ function PlacePage() {
             onClick={toggleSave}
             className={`mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-semibold transition-colors ${
               isSaved
-                ? "border-[#3B7A8C] bg-[#3B7A8C]/10 text-[#3B7A8C]"
+                ? "border-map-saved bg-map-saved/10 text-map-saved"
                 : "border-border text-muted-foreground"
             }`}
           >

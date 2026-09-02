@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
-import { ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
+import { mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { Stars } from "@/components/turi/Stars";
@@ -388,7 +388,7 @@ function MapPage() {
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: ratingPinIcon("#2B2724", p.rating),
+          icon: ratingPinIcon(mapColor("mine"), p.rating),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -405,7 +405,7 @@ function MapPage() {
             position: { lat: p.lat, lng: p.lng },
             title: p.name,
             zIndex: 10,
-            icon: ratingPinIcon("#3B7A8C"),
+            icon: ratingPinIcon(mapColor("saved")),
           });
           marker.addListener("click", () =>
             navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -434,7 +434,7 @@ function MapPage() {
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: ratingPinIcon("#FF6B35", p.rating),
+          icon: ratingPinIcon(mapColor("friends"), p.rating),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -449,7 +449,7 @@ function MapPage() {
         zIndex: 11,
         // Pin statt Punkt -- mit Bewertung drin, falls ein Freund den Ort
         // schon bewertet hat, sonst ein leerer Pin.
-        icon: ratingPinIcon("#3B7A8C", ratingById.get(p.id)),
+        icon: ratingPinIcon(mapColor("saved"), ratingById.get(p.id)),
       });
       marker.addListener("click", () =>
         navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -657,25 +657,26 @@ function MapPage() {
 
         {mode === "discover" && reviewedInView && reviewedInView.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-[#FF6B35]" /> reviewed by friends
+            <span className="inline-block size-2.5 rounded-full bg-map-friends" /> reviewed by
+            friends
           </div>
         ) : null}
 
         {mode === "discover" && savedInView && savedInView.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-[#3B7A8C]" /> want to go
+            <span className="inline-block size-2.5 rounded-full bg-map-saved" /> want to go
           </div>
         ) : null}
 
         {mode === "mine" ? (
           <div className="pointer-events-auto flex flex-col gap-1.5">
             <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-              <span className="inline-block size-2.5 rounded-full bg-[#2B2724]" />{" "}
+              <span className="inline-block size-2.5 rounded-full bg-map-mine" />{" "}
               {(myPlaces ?? []).length} places you've reviewed
             </div>
             {mySavedPlaces && mySavedPlaces.length > 0 ? (
               <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-                <span className="inline-block size-2.5 rounded-full bg-[#3B7A8C]" />{" "}
+                <span className="inline-block size-2.5 rounded-full bg-map-saved" />{" "}
                 {mySavedPlaces.length} want to go
               </div>
             ) : null}
@@ -820,7 +821,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
             disabled={busy}
             className={`flex w-full items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-semibold transition-colors ${
               data?.isSaved
-                ? "border-[#3B7A8C] bg-[#3B7A8C]/10 text-[#3B7A8C]"
+                ? "border-map-saved bg-map-saved/10 text-map-saved"
                 : "border-border text-muted-foreground"
             }`}
           >
