@@ -66,6 +66,25 @@ function wrap(inner: string) {
 }
 
 /**
+ * Waehlt die Schriftfarbe fuer die Bewertungszahl im weissen Kreis.
+ *
+ * Die Zahl stand frueher immer in der Pinfarbe. Auf einem dunklen Pin
+ * ist das gut lesbar, auf einem hellen aber nicht -- ein helles Orange
+ * erreicht auf Weiss nur 2.87:1. Deshalb wird ab einer gewissen
+ * Helligkeit auf ein dunkles Grau gewechselt. So stimmt es in beiden
+ * Themes, ohne dass irgendwo eine Fallunterscheidung gepflegt werden muss.
+ */
+function labelColor(pin: string): string {
+  const hex = pin.replace("#", "");
+  if (hex.length !== 6) return pin;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const lin = (v: number) => (v > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92);
+  const luminance = 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+  // Ab hier waere die Pinfarbe auf Weiss unter 4.5:1.
+  return luminance > 0.24 ? "#151412" : pin;
+}
+
+/**
  * Pin mit der Durchschnittsbewertung im Kreis -- oder ohne Zahl, falls
  * (noch) keine Bewertung vorliegt (z. B. rein gemerkte "Will ich noch
  * hin"-Orte). Wird auf der Hauptkarte und der Mini-Karte im Profil
@@ -81,7 +100,7 @@ export function ratingPinIcon(color: string, rating?: number) {
     <circle cx="17" cy="16.5" r="${radius}" fill="#ffffff"/>
     ${
       label
-        ? `<text x="17" y="20.6" font-family="${FONT_STACK}" font-size="11.5" font-weight="700" letter-spacing="-0.3" fill="${color}" text-anchor="middle">${label}</text>`
+        ? `<text x="17" y="20.6" font-family="${FONT_STACK}" font-size="11.5" font-weight="700" letter-spacing="-0.3" fill="${labelColor(color)}" text-anchor="middle">${label}</text>`
         : ""
     }
   `);

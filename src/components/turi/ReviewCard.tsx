@@ -196,7 +196,7 @@ export function ReviewCard({
           >
             {profile?.display_name || profile?.username}
           </Link>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="turi-meta truncate text-xs text-muted-foreground">
             @{profile?.username} · {timeAgo(review.created_at)}
           </p>
         </div>

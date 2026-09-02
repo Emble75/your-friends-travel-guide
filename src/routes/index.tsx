@@ -37,7 +37,7 @@ function Landing() {
     <main className="min-h-screen bg-background">
       <div className="app-shell flex min-h-screen flex-col justify-between py-10">
         <div>
-          <TuriMark className="size-16 text-[4rem]" />
+          <TuriMark className="size-16" />
           <h1 className="mt-8 text-4xl font-bold leading-tight">
             The map only
             <br />

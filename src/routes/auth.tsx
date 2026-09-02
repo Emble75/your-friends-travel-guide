@@ -39,8 +39,40 @@ function AuthPage() {
 
   const captchaRequired = Boolean(import.meta.env["VITE_TURNSTILE_SITE_KEY"]);
 
+  /*
+   * Eigene Pruefung statt der eingebauten Browser-Meldung.
+   *
+   * Das Formular traegt weiterhin required/minLength/pattern -- die
+   * braucht es fuer Screenreader und die automatische Ausfuellhilfe. Nur
+   * die Sprechblase des Browsers ist abgeschaltet (noValidate): sie folgt
+   * dem Systemstil samt orangem Warnsymbol und laesst sich nicht
+   * umfaerben, faellt in der dunklen Oberflaeche also aus dem Rahmen.
+   *
+   * Nebenbei ist die eigene Meldung praeziser: der Browser nennt nur
+   * "Feld ausfuellen", hier steht, welches und warum.
+   */
+  function firstProblem(): string | null {
+    if (mode === "signup") {
+      const name = username.trim();
+      if (!name) return "Please choose a username";
+      if (!/^[A-Za-z0-9._]{3,30}$/.test(name))
+        return "Username: 3–30 characters, letters, numbers, dots and underscores";
+    }
+    if (!email.trim()) return "Please enter your email address";
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return "That email address doesn't look right";
+    if (!password) return "Please enter your password";
+    if (mode === "signup" && password.length < 8)
+      return "Your password needs at least 8 characters";
+    return null;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const problem = firstProblem();
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
     if (mode === "signup" && !acceptedTerms) {
       toast.error("Please agree to the Terms of Service and Privacy Policy");
       return;
@@ -110,7 +142,7 @@ function AuthPage() {
     <main className="flex min-h-screen flex-col justify-center bg-background">
       <div className="app-shell py-10">
         <div className="flex flex-col items-center text-center">
-          <TuriMark className="size-20 text-[5rem]" />
+          <TuriMark className="size-20" />
           <h1 className="mt-5 text-3xl font-bold">Turi</h1>
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
             Review places and only see what your friends think.
@@ -148,6 +180,10 @@ function AuthPage() {
         ) : (
           <form
             onSubmit={onSubmit}
+            // Die Attribute an den Feldern bleiben (Screenreader,
+            // Ausfuellhilfe) -- nur die Browser-Sprechblase ist aus,
+            // siehe firstProblem() oben.
+            noValidate
             className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 shadow-card"
           >
             {mode === "signup" ? (

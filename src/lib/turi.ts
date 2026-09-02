@@ -22,16 +22,26 @@ export function initials(name: string | null | undefined) {
   return name.trim().slice(0, 2).toUpperCase();
 }
 
+/**
+ * Kurze Zeitangabe fuer Bewertungskarten ("2m", "3h", "5d").
+ *
+ * Stand frueher komplett auf Deutsch ("vor 2 Std.") und formatierte
+ * Datumsangaben mit de-DE -- in einer durchgehend englischen Oberflaeche.
+ * Jede Karte im Feed zeigte das.
+ *
+ * Die kompakte Form ist zusaetzlich schmal genug fuer die Zeile neben den
+ * Sternen: die ausgeschriebene Variante wurde dort abgeschnitten.
+ */
 export function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.round(diff / 60000);
-  if (m < 1) return "gerade eben";
-  if (m < 60) return `vor ${m} Min.`;
+  if (m < 1) return "now";
+  if (m < 60) return `${m}m`;
   const h = Math.round(m / 60);
-  if (h < 24) return `vor ${h} Std.`;
+  if (h < 24) return `${h}h`;
   const d = Math.round(h / 24);
-  if (d < 30) return `vor ${d} T.`;
-  return new Date(iso).toLocaleDateString("de-DE", {
+  if (d < 30) return `${d}d`;
+  return new Date(iso).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
