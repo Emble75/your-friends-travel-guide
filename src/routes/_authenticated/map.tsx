@@ -535,7 +535,11 @@ function MapPage() {
   }, [query, center, searchFn]);
 
   return (
-    <div className="relative h-[calc(100vh-5.5rem)] w-full overflow-hidden">
+    // 100dvh statt 100vh: auf dem Handy zaehlt 100vh die ein- und
+    // ausfahrende Browserleiste nicht mit, wodurch der untere Rand der
+    // Karte -- und mit ihm die schwebenden Knoepfe -- aus dem sichtbaren
+    // Bereich rutscht. dvh folgt der tatsaechlich sichtbaren Hoehe.
+    <div className="relative h-[calc(100dvh-var(--bottom-nav-h))] w-full overflow-hidden">
       <div ref={containerRef} className="absolute inset-0 bg-muted" />
 
       {!ready ? (

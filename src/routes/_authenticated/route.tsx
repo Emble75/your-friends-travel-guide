@@ -14,7 +14,23 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   return (
-    <div className="min-h-screen bg-background pb-24">
+    /*
+     * Unterer Abstand exakt auf die echte Hoehe der Navigationsleiste --
+     * nicht mehr, nicht weniger. Vorher ein fester Schaetzwert (pb-24),
+     * der den Home-Indikator nicht kannte.
+     *
+     * Bewusst ohne Zugabe: die Karte ist genau so hoch wie der Platz
+     * darueber, jede Zugabe wuerde sie ueber den sichtbaren Bereich
+     * hinausschieben und den Kartenscreen scrollen lassen. Die
+     * scrollenden Seiten bringen ihren Luftabstand selbst mit (py-4).
+     *
+     * 100dvh statt min-h-screen: 100vh rechnet auf dem Handy die
+     * ein- und ausfahrende Browserleiste nicht mit.
+     */
+    <div
+      className="min-h-[100dvh] bg-background"
+      style={{ paddingBottom: "var(--bottom-nav-h)" }}
+    >
       <Outlet />
       <BottomNav />
     </div>

@@ -80,6 +80,20 @@
 
 :root {
   --radius: 1.1rem;
+  /*
+   * Tatsaechliche Hoehe der unteren Navigationsleiste, inklusive des
+   * Home-Indikator-Bereichs. Vorher war an mehreren Stellen ein fester
+   * Schaetzwert (5.5rem) verbaut, der den sicheren Bereich nicht kannte --
+   * auf Geraeten mit Home-Indikator rutschten dadurch die schwebenden
+   * Knoepfe auf der Karte (Standort, "Can't find it?") unter die Leiste.
+   */
+  /* Setzt sich zusammen aus: 1px Trennlinie + 0.5rem Innenabstand oben +
+     ca. 3.19rem Inhalt (Symbol, Abstand, Beschriftung) = 3.75rem, dazu
+     der untere Innenabstand der Leiste. Der ist dort als
+     max(0.5rem, safe-area) definiert -- die Formel muss das nachbilden,
+     sonst ist der Wert am Schreibtisch (ohne sicheren Bereich) 8px zu
+     klein und die Karte schoebe sich unter die Leiste. */
+  --bottom-nav-h: calc(3.75rem + max(0.5rem, env(safe-area-inset-bottom)));
   --background: oklch(0.985 0.002 90);
   --foreground: oklch(0.145 0.004 60);
   --card: oklch(1 0 0);
@@ -252,17 +266,6 @@
 
 @utility brand-accent-line {
   background-image: linear-gradient(90deg, transparent, var(--brand) 50%, transparent);
-}
-
-/*
- * Oberer Abstand auf Screens OHNE Kopfleiste (Suche, Karte).
- *
- * Sonst uebernimmt AppHeader das Freihalten der Statusleiste bzw. des
- * Notch. Faellt die Leiste weg, muss der Inhalt selbst dafuer sorgen --
- * andernfalls rutscht die erste Zeile unter die Uhr.
- */
-@utility app-top {
-  padding-top: calc(env(safe-area-inset-top) + 1rem);
 }
 
 @utility app-shell {
