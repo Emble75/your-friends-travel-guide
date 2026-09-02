@@ -11,12 +11,22 @@ import { Button } from "@/components/ui/button";
 export function ErrorState({
   title = "Something went wrong",
   text = "We couldn't load this. Check your connection and try again.",
+  error,
   onRetry,
 }: {
   title?: string;
   text?: string;
+  /** Der technische Fehler -- aufklappbar, damit man ihn im Zweifel
+   *  vorlesen kann, statt die Browser-Konsole oeffnen zu muessen. */
+  error?: unknown;
   onRetry?: () => void;
 }) {
+  const detail =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message)
+        : null;
   return (
     <div
       role="alert"
@@ -32,6 +42,14 @@ export function ErrorState({
           <RotateCw size={16} />
           <span className="ml-1.5">Try again</span>
         </Button>
+      ) : null}
+      {detail ? (
+        <details className="mt-4 w-full max-w-xs text-left">
+          <summary className="cursor-pointer text-xs text-muted-foreground">Details</summary>
+          <p className="mt-1.5 break-words rounded-xl bg-secondary px-3 py-2 font-mono text-[11px] text-muted-foreground">
+            {detail}
+          </p>
+        </details>
       ) : null}
     </div>
   );

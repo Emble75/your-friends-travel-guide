@@ -39,6 +39,26 @@ export const Route = createFileRoute("/_authenticated/map")({
 
 const DEFAULT_CENTER = { lat: 41.9028, lng: 12.4964 };
 
+/*
+ * Kartenzustand ueber einen Seitenwechsel hinweg merken.
+ *
+ * Oeffnet man von der Karte aus eine Ortsseite, wird die Karte komplett
+ * abgebaut und beim Zurueckkehren neu erzeugt. Ohne dieses Gedaechtnis
+ * landet man wieder im Ausgangszustand: Modus zurueck auf "Discover",
+ * Kamera zurueck auf den eigenen Standort -- man wird also aus der gerade
+ * betrachteten Stadt geworfen, obwohl man nur kurz einen Ort angesehen hat.
+ *
+ * Bewusst modulweit und nicht im React-State: genau der geht beim Abbauen
+ * der Komponente ja verloren. Ein vollstaendiger Neustart der App setzt
+ * alles zurueck -- das ist gewollt, dann soll die Karte wieder beim
+ * eigenen Standort beginnen.
+ */
+const mapSession: {
+  camera: { lat: number; lng: number; zoom: number } | null;
+  mode: "discover" | "mine" | null;
+  centeredOnUser: boolean;
+} = { camera: null, mode: null, centeredOnUser: false };
+
 const AREA_TYPES = new Set([
   "locality",
   "sublocality",
@@ -66,7 +86,9 @@ function MapPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
-  const [center, setCenter] = useState(DEFAULT_CENTER);
+  const [center, setCenter] = useState(
+    mapSession.camera ? { lat: mapSession.camera.lat, lng: mapSession.camera.lng } : DEFAULT_CENTER,
+  );
   const [bounds, setBounds] = useState<{
     swLat: number;
     swLng: number;
@@ -76,7 +98,16 @@ function MapPage() {
   const [selected, setSelected] = useState<MapPlace | null>(null);
   const [query, setQuery] = useState("");
   const [searchCandidates, setSearchCandidates] = useState<MapPlace[] | null>(null);
-  const [mode, setMode] = useState<"discover" | "mine">("discover");
+  const [mode, setMode] = useState<"discover" | "mine">(mapSession.mode ?? "discover");
+  // Nur ein aktiver Wechsel auf "My Map" soll die Ansicht auf alle eigenen
+  // Orte einpassen -- nicht ein blosser Neuaufbau der Karte.
+  const wantFitRef = useRef(false);
+
+  function switchMode(next: "discover" | "mine") {
+    if (next === "mine" && mode !== "mine") wantFitRef.current = true;
+    mapSession.mode = next;
+    setMode(next);
+  }
 
   const placeByIdFn = useServerFn(getPlaceById);
   const searchFn = useServerFn(searchMapPlaces);
@@ -240,8 +271,12 @@ function MapPage() {
   useEffect(() => {
     if (!ready || !containerRef.current || mapRef.current) return;
     mapRef.current = new google.maps.Map(containerRef.current, {
-      center: DEFAULT_CENTER,
-      zoom: 14,
+      // Kehrt man von einer Ortsseite zurueck, genau dort weitermachen,
+      // wo die Karte vorher stand.
+      center: mapSession.camera
+        ? { lat: mapSession.camera.lat, lng: mapSession.camera.lng }
+        : DEFAULT_CENTER,
+      zoom: mapSession.camera?.zoom ?? 14,
       disableDefaultUI: true,
       gestureHandling: "greedy",
       // Googles eingebaute, kostenlose Orts-Symbole (Restaurants, Cafes
@@ -255,6 +290,11 @@ function MapPage() {
       const c = mapRef.current!.getCenter();
       if (!c) return;
       setCenter({ lat: c.lat(), lng: c.lng() });
+      mapSession.camera = {
+        lat: c.lat(),
+        lng: c.lng(),
+        zoom: mapRef.current!.getZoom() ?? 14,
+      };
       const b = mapRef.current!.getBounds();
       if (b) {
         const ne = b.getNorthEast();
@@ -277,9 +317,17 @@ function MapPage() {
     });
   }, [ready, placeByIdFn]);
 
-  // Center on the user once
+  // Einmal pro App-Start auf den eigenen Standort zentrieren.
+  //
+  // Frueher lief das bei JEDEM Aufbau der Karte. Da die Karte beim
+  // Zurueckkehren von einer Ortsseite neu aufgebaut wird, wurde man
+  // dabei aus der gerade betrachteten Stadt zurueck an den eigenen
+  // Standort geworfen.
   useEffect(() => {
-    if (!ready || !navigator.geolocation) return;
+    if (!ready || mapSession.centeredOnUser || !navigator.geolocation) return;
+    // Sofort merken, nicht erst im Erfolgsfall -- sonst startet ein
+    // schneller zweiter Aufbau die Abfrage ein weiteres Mal.
+    mapSession.centeredOnUser = true;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -375,11 +423,19 @@ function MapPage() {
     markersRef.current = [...reviewedMarkers, ...savedMarkers];
   }, [ready, mode, reviewedInView, savedInView, myPlaces, mySavedPlaces, navigate]);
 
-  // "Meine Karte": beim Wechsel in den Modus auf alle eigenen Orte
-  // (bewertet + Wunschliste) zoomen
+  // "Meine Karte": nur beim aktiven Wechsel in den Modus auf alle eigenen
+  // Orte (bewertet + Wunschliste) zoomen.
+  //
+  // wantFitRef wird ausschliesslich von switchMode gesetzt. Ohne diese
+  // Absicherung lief das Einpassen auch beim blossen Neuaufbau der Karte
+  // und beim Nachladen der Ortsdaten -- und zog die Ansicht wieder von der
+  // gerade betrachteten Stadt auf alle eigenen Orte heraus.
   useEffect(() => {
+    if (!wantFitRef.current || mode !== "mine" || !mapRef.current) return;
     const all = [...(myPlaces ?? []), ...(mySavedPlaces ?? [])];
-    if (mode !== "mine" || all.length === 0 || !mapRef.current) return;
+    // Noch keine Daten -- eingepasst wird, sobald sie eintreffen.
+    if (all.length === 0) return;
+    wantFitRef.current = false;
     const fitBounds = new google.maps.LatLngBounds();
     all.forEach((p) => fitBounds.extend({ lat: p.lat, lng: p.lng }));
     mapRef.current.fitBounds(fitBounds, 60);
@@ -453,7 +509,7 @@ function MapPage() {
         <div className="pointer-events-auto flex gap-1 rounded-2xl bg-card/95 p-1 shadow-card backdrop-blur">
           <button
             type="button"
-            onClick={() => setMode("discover")}
+            onClick={() => switchMode("discover")}
             className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-colors ${
               mode === "discover" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
             }`}
@@ -462,7 +518,7 @@ function MapPage() {
           </button>
           <button
             type="button"
-            onClick={() => setMode("mine")}
+            onClick={() => switchMode("mine")}
             className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-colors ${
               mode === "mine" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
             }`}
