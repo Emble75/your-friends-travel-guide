@@ -34,4 +34,10 @@ RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER SET search_path = public AS
     )
   );
 $$;
-REVOKE ALL ON FUNCTION public.is_visible_author(uuid) FROM PUBLIC, anon, authenticated;
+-- ACHTUNG: hier stand urspruenglich zusaetzlich `authenticated` in der
+-- REVOKE-Liste. Das hat jede RLS-Policy lahmgelegt, die diese Funktion
+-- aufruft ("permission denied for function is_visible_author"), weil
+-- Policy-Ausdruecke mit den Rechten des abfragenden Nutzers laufen.
+-- Siehe die nachfolgende Migration 20260902140500.
+REVOKE ALL ON FUNCTION public.is_visible_author(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_visible_author(uuid) TO authenticated;

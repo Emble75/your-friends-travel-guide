@@ -1,0 +1,27 @@
+-- FIX fuer die vorige Migration (20260902131923).
+--
+-- Diese endete mit
+--   REVOKE ALL ON FUNCTION public.is_visible_author(uuid)
+--     FROM PUBLIC, anon, authenticated;
+-- und hat damit der Rolle `authenticated` das EXECUTE-Recht entzogen.
+--
+-- is_visible_author() wird von praktisch jeder RLS-Policy aufgerufen
+-- (reviews, review_images, ...). Policy-Ausdruecke werden mit den Rechten
+-- des abfragenden Nutzers ausgewertet -- ohne EXECUTE scheitert deshalb
+-- jede Abfrage auf Bewertungen mit
+--   "permission denied for function is_visible_author"
+-- statt einfach weniger Zeilen zu liefern. In der App aeussert sich das
+-- als Fehler im Feed.
+--
+-- Die Zeile stammte unveraendert aus der urspruenglichen Migration von
+-- 20260818085959; zwischenzeitlich war das Recht offenbar wieder erteilt
+-- worden, sodass das erneute Entziehen den Zugriff gekappt hat.
+--
+-- Das Recht wieder zu erteilen ist unbedenklich: die Funktion ist
+-- SECURITY DEFINER und beantwortet nur die Frage "darf ich als aktuell
+-- angemeldeter Nutzer Inhalte von X sehen". Sie gibt keine fremden Daten
+-- preis, und die Antwort koennte man ohnehin durch eine normale Abfrage
+-- ermitteln. `anon` bleibt bewusst aussen vor -- die App verlangt einen
+-- Login.
+
+GRANT EXECUTE ON FUNCTION public.is_visible_author(uuid) TO authenticated;
