@@ -16,7 +16,9 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/turi";
+import type { FollowStatus } from "@/hooks/use-follow";
 import { AppHeader } from "@/components/turi/AppHeader";
+import { FollowButton } from "@/components/turi/FollowButton";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { ReportDialog } from "@/components/turi/ReportDialog";
@@ -61,6 +63,9 @@ function ProfilePage() {
   const [reportOpen, setReportOpen] = useState(false);
   const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
   const [view, setView] = useState<"feed" | "map">("feed");
+  // Nach einem Klick gilt der vom Button bestaetigte Status, sonst der
+  // aus der Profil-Query geladene.
+  const [clickedStatus, setClickedStatus] = useState<{ value: FollowStatus } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["profile", username],
@@ -123,22 +128,6 @@ function ProfilePage() {
     },
   });
 
-  async function toggleFollow() {
-    if (!data) return;
-    const { data: auth } = await supabase.auth.getUser();
-    const me = auth.user?.id;
-    if (!me) return;
-    const { error } = data.followStatus
-      ? await supabase
-          .from("follows")
-          .delete()
-          .eq("follower_id", me)
-          .eq("following_id", data.profile.id)
-      : await supabase.from("follows").insert({ follower_id: me, following_id: data.profile.id });
-    if (error) toast.error(getErrorMessage(error, "Action failed"));
-    else queryClient.invalidateQueries();
-  }
-
   async function toggleBlock() {
     if (!data) return;
     const { data: auth } = await supabase.auth.getUser();
@@ -177,8 +166,10 @@ function ProfilePage() {
     queryClient.invalidateQueries();
   }
 
+  const followStatus = clickedStatus ? clickedStatus.value : data?.followStatus;
+
   const canSeeReviews = data
-    ? !data.profile.is_private || data.followStatus === "accepted" || data.isMe
+    ? !data.profile.is_private || followStatus === "accepted" || data.isMe
     : false;
 
   const { data: mapPlaces } = useQuery({
@@ -350,37 +341,24 @@ function ProfilePage() {
             </button>
           </div>
           {!data.isMe ? (
-            <Button
-              onClick={toggleFollow}
-              variant={data.followStatus ? "secondary" : "default"}
+            <FollowButton
+              userId={profile.id}
+              isPrivate={profile.is_private}
+              initialStatus={data.followStatus}
+              size="default"
               className="mt-4 h-11 w-full rounded-2xl"
-            >
-              {data.followStatus === "accepted" ? (
-                <UserCheck size={18} />
-              ) : data.followStatus === "pending" ? (
-                <Clock size={18} />
-              ) : (
-                <UserPlus size={18} />
-              )}
-              <span className="ml-1">
-                {data.followStatus === "accepted"
-                  ? "Following"
-                  : data.followStatus === "pending"
-                    ? "Requested"
-                    : profile.is_private
-                      ? "Send request"
-                      : "Follow"}
-              </span>
-            </Button>
+              privateLabel="Send request"
+              onChanged={(value) => setClickedStatus({ value })}
+            />
           ) : null}
         </section>
 
-        {profile.is_private && data.followStatus !== "accepted" && !data.isMe ? (
+        {profile.is_private && followStatus !== "accepted" && !data.isMe ? (
           <EmptyState
             icon={Lock}
             title="Private account"
             text={
-              data.followStatus === "pending"
+              followStatus === "pending"
                 ? "Your request is waiting for approval."
                 : `Follow @${profile.username} to see reviews.`
             }

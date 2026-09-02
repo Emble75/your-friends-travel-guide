@@ -1,15 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, UserPlus, UserCheck, Clock, Users } from "lucide-react";
-import { toast } from "sonner";
+import { Search, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getErrorMessage } from "@/lib/turi";
+import { useMyNetwork } from "@/hooks/use-follow";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
+import { FollowButton } from "@/components/turi/FollowButton";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/_authenticated/explore")({
@@ -53,39 +52,15 @@ function ExplorePage() {
 }
 
 function PeopleResults({ term }: { term: string }) {
-  const queryClient = useQueryClient();
+  const { data: network } = useMyNetwork();
 
-  // Eigener Netzwerk-Status (Follows + Blocks) -- unabhaengig vom Suchbegriff,
-  // muss also nicht bei jedem Tastendruck neu geladen werden.
-  const { data: myNetwork } = useQuery({
-    queryKey: ["my-network"],
-    queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const me = auth.user?.id ?? "";
-      const [{ data: follows }, { data: blocksMade }, { data: blocksReceived }] = await Promise.all(
-        [
-          supabase.from("follows").select("following_id, status").eq("follower_id", me),
-          supabase.from("blocks").select("blocked_id").eq("blocker_id", me),
-          supabase.from("blocks").select("blocker_id").eq("blocked_id", me),
-        ],
-      );
-      return {
-        me,
-        followStatusById: new Map((follows ?? []).map((f) => [f.following_id, f.status])),
-        blockedIds: new Set([
-          ...(blocksMade ?? []).map((b) => b.blocked_id),
-          ...(blocksReceived ?? []).map((b) => b.blocker_id),
-        ]),
-      };
-    },
-    staleTime: 30_000,
-  });
-
-  const { data } = useQuery({
+  // Reine Suchtreffer -- OHNE Follow-Status. Der Status kommt ausschliesslich
+  // aus ["my-network"] und wird erst beim Rendern zusammengefuehrt. Sonst
+  // wuerde ein Refetch dieser Query den optimistisch gesetzten Status mit
+  // einem veralteten my-network-Stand ueberschreiben (Button sprang zurueck).
+  const { data: people } = useQuery({
     queryKey: ["people", term],
-    enabled: !!myNetwork,
     queryFn: async () => {
-      const { me, followStatusById, blockedIds } = myNetwork!;
       let query = supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url, is_private")
@@ -94,72 +69,15 @@ function PeopleResults({ term }: { term: string }) {
         const t = term.replace(/^@/, "");
         query = query.or(`username.ilike.%${t}%,display_name.ilike.%${t}%`);
       }
-      const { data: people, error } = await query;
+      const { data, error } = await query;
       if (error) throw error;
-      return (people ?? [])
-        .filter((p) => p.id !== me && !blockedIds.has(p.id))
-        .map((p) => ({
-          ...p,
-          followStatus: followStatusById.get(p.id) as "pending" | "accepted" | undefined,
-        }));
+      return data ?? [];
     },
   });
 
-  async function toggleFollow(
-    id: string,
-    followStatus: "pending" | "accepted" | undefined,
-    isPrivate: boolean,
-  ) {
-    const { data: auth } = await supabase.auth.getUser();
-    const me = auth.user?.id;
-    if (!me) return;
-
-    // Optimistisches Update: Button/Status sofort anpassen, nicht erst auf
-    // den Server-Rundlauf warten -- verhindert das "haengt fest"-Gefuehl,
-    // falls die Invalidierung mal einen Moment braucht.
-    const optimisticStatus: "pending" | "accepted" | undefined = followStatus
-      ? undefined
-      : isPrivate
-        ? "pending"
-        : "accepted";
-    queryClient.setQueryData(
-      ["people", term],
-      (old: { id: string; followStatus?: "pending" | "accepted" }[] | undefined) =>
-        (old ?? []).map((p) => (p.id === id ? { ...p, followStatus: optimisticStatus } : p)),
-    );
-
-    if (followStatus) {
-      const { data: deleted, error } = await supabase
-        .from("follows")
-        .delete()
-        .eq("follower_id", me)
-        .eq("following_id", id)
-        .select();
-      if (error) {
-        toast.error(getErrorMessage(error, "Action failed"));
-      } else if (!deleted || deleted.length === 0) {
-        // Kein Fehler, aber auch keine Zeile geloescht -- deutet auf ein
-        // Berechtigungsproblem hin, nicht einfach als Erfolg werten.
-        toast.error("Could not unfollow. Please try again.");
-      } else {
-        toast.success(followStatus === "accepted" ? "Unfollowed" : "Request withdrawn");
-      }
-    } else {
-      const { data: inserted, error } = await supabase
-        .from("follows")
-        .insert({ follower_id: me, following_id: id })
-        .select("status");
-      if (error) {
-        toast.error(getErrorMessage(error, "Action failed"));
-      } else {
-        const actualStatus = inserted?.[0]?.status;
-        toast.success(actualStatus === "pending" ? "Requested" : "Following");
-      }
-    }
-
-    queryClient.invalidateQueries({ queryKey: ["my-network"] });
-    queryClient.invalidateQueries({ queryKey: ["people"] });
-  }
+  const data = network
+    ? (people ?? []).filter((p) => p.id !== network.me && !network.blockedIds.has(p.id))
+    : undefined;
 
   if (!term) {
     return (
@@ -191,29 +109,11 @@ function PeopleResults({ term }: { term: string }) {
               <span className="block truncate text-xs text-muted-foreground">@{p.username}</span>
             </span>
           </Link>
-          <Button
-            size="sm"
-            variant={p.followStatus ? "secondary" : "default"}
-            className="rounded-full"
-            onClick={() => toggleFollow(p.id, p.followStatus, p.is_private)}
-          >
-            {p.followStatus === "accepted" ? (
-              <UserCheck size={16} />
-            ) : p.followStatus === "pending" ? (
-              <Clock size={16} />
-            ) : (
-              <UserPlus size={16} />
-            )}
-            <span className="ml-1">
-              {p.followStatus === "accepted"
-                ? "Following"
-                : p.followStatus === "pending"
-                  ? "Requested"
-                  : p.is_private
-                    ? "Request"
-                    : "Follow"}
-            </span>
-          </Button>
+          <FollowButton
+            userId={p.id}
+            isPrivate={p.is_private}
+            initialStatus={network?.followStatusById.get(p.id)}
+          />
         </li>
       ))}
     </ul>

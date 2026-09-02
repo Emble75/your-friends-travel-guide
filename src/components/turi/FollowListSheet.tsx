@@ -1,9 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Clock, UserCheck, UserMinus, UserPlus } from "lucide-react";
+import { UserMinus } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/turi";
+import { useMyNetwork } from "@/hooks/use-follow";
+import { FollowButton } from "./FollowButton";
 import { UserAvatar } from "./UserAvatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -29,12 +32,9 @@ export function FollowListSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
-
-  const { data: me } = useQuery({
-    queryKey: ["current-user-id"],
-    queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
-    staleTime: 5 * 60_000,
-  });
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const { data: network } = useMyNetwork();
+  const me = network?.me;
 
   const { data, isLoading } = useQuery({
     queryKey: ["follow-list", userId, type],
@@ -63,79 +63,39 @@ export function FollowListSheet({
     },
   });
 
-  // Fuer die "Following"-Liste: mein EIGENER Folge-Status gegenueber jeder
-  // gelisteten Person -- unabhaengig davon, wessen Liste das gerade ist
-  // (genau wie in der Suche).
-  const { data: myFollowStatus } = useQuery({
-    queryKey: ["my-follow-status-map"],
-    enabled: open && type === "following" && !!me,
-    queryFn: async () => {
-      const { data: rows } = await supabase
-        .from("follows")
-        .select("following_id, status")
-        .eq("follower_id", me!);
-      return new Map((rows ?? []).map((r) => [r.following_id, r.status]));
-    },
-  });
-
   async function removeFollower(personId: string) {
-    const { error } = await supabase
+    if (busyIds.has(personId)) return;
+    setBusyIds((prev) => new Set(prev).add(personId));
+
+    const { data: deleted, error } = await supabase
       .from("follows")
       .delete()
       .eq("follower_id", personId)
-      .eq("following_id", userId);
+      .eq("following_id", userId)
+      .select();
+
+    setBusyIds((prev) => {
+      const next = new Set(prev);
+      next.delete(personId);
+      return next;
+    });
+
     if (error) {
       toast.error(getErrorMessage(error, "Action failed"));
       return;
     }
-    toast.success("Follower removed");
-    queryClient.invalidateQueries({ queryKey: ["follow-list", userId, "followers"] });
-  }
-
-  async function toggleFollow(
-    personId: string,
-    status: "pending" | "accepted" | undefined,
-    isPrivate: boolean,
-  ) {
-    if (!me) return;
-
-    // Optimistisches Update, damit der Button sofort reagiert.
-    const optimisticStatus: "pending" | "accepted" | undefined = status
-      ? undefined
-      : isPrivate
-        ? "pending"
-        : "accepted";
-    queryClient.setQueryData(["my-follow-status-map"], (old: Map<string, string> | undefined) => {
-      const next = new Map(old ?? []);
-      if (optimisticStatus) next.set(personId, optimisticStatus);
-      else next.delete(personId);
-      return next;
-    });
-
-    if (status) {
-      const { data: deleted, error } = await supabase
-        .from("follows")
-        .delete()
-        .eq("follower_id", me)
-        .eq("following_id", personId)
-        .select();
-      if (error) {
-        toast.error(getErrorMessage(error, "Action failed"));
-      } else if (!deleted || deleted.length === 0) {
-        toast.error("Could not unfollow. Please try again.");
-      }
-    } else {
-      const { error } = await supabase
-        .from("follows")
-        .insert({ follower_id: me, following_id: personId });
-      if (error) {
-        toast.error(getErrorMessage(error, "Action failed"));
-      }
+    if (!deleted || deleted.length === 0) {
+      // Kein Fehler, aber auch keine Zeile geloescht -- Berechtigungsproblem,
+      // nicht als Erfolg werten.
+      toast.error("Could not remove follower. Please try again.");
+      return;
     }
 
-    queryClient.invalidateQueries({ queryKey: ["my-follow-status-map"] });
-    queryClient.invalidateQueries({ queryKey: ["my-network"] });
-    queryClient.invalidateQueries({ queryKey: ["people"] });
+    toast.success("Follower removed");
+    queryClient.setQueryData(["follow-list", userId, "followers"], (old: Person[] | undefined) =>
+      (old ?? []).filter((p) => p.id !== personId),
+    );
+    queryClient.invalidateQueries({ queryKey: ["follow-list", userId, "followers"] });
   }
 
   return (
@@ -151,68 +111,51 @@ export function FollowListSheet({
               <Skeleton className="h-14 rounded-2xl" />
             </>
           ) : data && data.length > 0 ? (
-            data.map((p) => {
-              const status = myFollowStatus?.get(p.id) as "pending" | "accepted" | undefined;
-              return (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary"
+            data.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary"
+              >
+                <Link
+                  to="/u/$username"
+                  params={{ username: p.username }}
+                  onClick={() => onOpenChange(false)}
+                  className="flex min-w-0 flex-1 items-center gap-3"
                 >
-                  <Link
-                    to="/u/$username"
-                    params={{ username: p.username }}
-                    onClick={() => onOpenChange(false)}
-                    className="flex min-w-0 flex-1 items-center gap-3"
-                  >
-                    <UserAvatar avatarPath={p.avatar_url} name={p.display_name ?? p.username} />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">
-                        {p.display_name || p.username}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        @{p.username}
-                      </span>
+                  <UserAvatar avatarPath={p.avatar_url} name={p.display_name ?? p.username} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">
+                      {p.display_name || p.username}
                     </span>
-                  </Link>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      @{p.username}
+                    </span>
+                  </span>
+                </Link>
 
-                  {type === "followers" && userId === me ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="shrink-0 rounded-full"
-                      onClick={() => removeFollower(p.id)}
-                    >
-                      <UserMinus size={14} />
-                      <span className="ml-1">Remove</span>
-                    </Button>
-                  ) : null}
+                {type === "followers" && userId === me ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0 rounded-full"
+                    disabled={busyIds.has(p.id)}
+                    onClick={() => removeFollower(p.id)}
+                  >
+                    <UserMinus size={14} />
+                    <span className="ml-1">Remove</span>
+                  </Button>
+                ) : null}
 
-                  {type === "following" && p.id !== me ? (
-                    <Button
-                      size="sm"
-                      variant={status ? "secondary" : "default"}
-                      className="shrink-0 rounded-full"
-                      onClick={() => toggleFollow(p.id, status, p.is_private)}
-                    >
-                      {status === "accepted" ? (
-                        <UserCheck size={14} />
-                      ) : status === "pending" ? (
-                        <Clock size={14} />
-                      ) : (
-                        <UserPlus size={14} />
-                      )}
-                      <span className="ml-1">
-                        {status === "accepted"
-                          ? "Following"
-                          : status === "pending"
-                            ? "Requested"
-                            : "Follow"}
-                      </span>
-                    </Button>
-                  ) : null}
-                </div>
-              );
-            })
+                {type === "following" && p.id !== me ? (
+                  <FollowButton
+                    userId={p.id}
+                    isPrivate={p.is_private}
+                    initialStatus={network?.followStatusById.get(p.id)}
+                    className="shrink-0 rounded-full"
+                  />
+                ) : null}
+              </div>
+            ))
           ) : (
             <p className="px-2 py-6 text-center text-sm text-muted-foreground">
               {type === "followers" ? "No followers yet." : "Not following anyone yet."}

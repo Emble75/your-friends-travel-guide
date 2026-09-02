@@ -59,6 +59,7 @@ function MePage() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery({
     queryKey: ["me"],
@@ -160,24 +161,55 @@ function MePage() {
   });
 
   async function respondToRequest(followerId: string, accept: boolean) {
+    // Verhindert doppeltes Antworten bei schnellem Doppelklick, waehrend
+    // die Anfrage noch unterwegs ist.
+    if (respondingIds.has(followerId)) return;
+    setRespondingIds((prev) => new Set(prev).add(followerId));
+
     const { data: auth } = await supabase.auth.getUser();
     const me = auth.user!.id;
-    const { error } = accept
+    const { data: affected, error } = accept
       ? await supabase
           .from("follows")
           .update({ status: "accepted" })
           .eq("follower_id", followerId)
           .eq("following_id", me)
+          .select()
       : await supabase
           .from("follows")
           .delete()
           .eq("follower_id", followerId)
-          .eq("following_id", me);
+          .eq("following_id", me)
+          .select();
+
+    setRespondingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(followerId);
+      return next;
+    });
+
     if (error) {
       toast.error(getErrorMessage(error, "Action failed"));
       return;
     }
+    if (!affected || affected.length === 0) {
+      // Kein Fehler, aber auch keine Zeile betroffen -- Berechtigungsproblem,
+      // nicht als Erfolg werten.
+      toast.error("Could not update the request. Please try again.");
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      return;
+    }
+
     toast.success(accept ? "Request accepted" : "Request declined");
+    // Optimistisch aus der Liste entfernen, statt auf den vollen Refetch zu warten.
+    queryClient.setQueryData(
+      ["me"],
+      (old: { pendingRequests: PendingRequest[] } | undefined) =>
+        old && {
+          ...old,
+          pendingRequests: old.pendingRequests.filter((r) => r.followerId !== followerId),
+        },
+    );
     queryClient.invalidateQueries();
   }
 
@@ -401,6 +433,7 @@ function MePage() {
                     size="icon"
                     className="rounded-full"
                     aria-label="Accept"
+                    disabled={respondingIds.has(r.followerId)}
                     onClick={() => respondToRequest(r.followerId, true)}
                   >
                     <UserCheck size={16} />
@@ -410,6 +443,7 @@ function MePage() {
                     variant="secondary"
                     className="rounded-full"
                     aria-label="Decline"
+                    disabled={respondingIds.has(r.followerId)}
                     onClick={() => respondToRequest(r.followerId, false)}
                   >
                     <UserX size={16} />
