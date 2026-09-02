@@ -388,7 +388,7 @@ function MapPage() {
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: ratingPinIcon(mapColor("mine"), p.rating),
+          icon: ratingPinIcon(mapColor("reviewed"), p.rating),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -434,7 +434,7 @@ function MapPage() {
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: ratingPinIcon(mapColor("friends"), p.rating),
+          icon: ratingPinIcon(mapColor("reviewed"), p.rating),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -641,7 +641,7 @@ function MapPage() {
 
         {mode === "discover" && reviewedInView && reviewedInView.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-map-friends" /> reviewed by
+            <span className="inline-block size-2.5 rounded-full bg-map-reviewed" /> reviewed by
             friends
           </div>
         ) : null}
@@ -655,7 +655,7 @@ function MapPage() {
         {mode === "mine" ? (
           <div className="pointer-events-auto flex flex-col gap-1.5">
             <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-              <span className="inline-block size-2.5 rounded-full bg-map-mine" />{" "}
+              <span className="inline-block size-2.5 rounded-full bg-map-reviewed" />{" "}
               {(myPlaces ?? []).length} places you've reviewed
             </div>
             {mySavedPlaces && mySavedPlaces.length > 0 ? (

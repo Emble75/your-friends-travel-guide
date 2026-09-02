@@ -76,9 +76,9 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-star: var(--star);
-  --color-map-friends: var(--map-friends);
+  --color-map-reviewed: var(--map-reviewed);
   --color-map-saved: var(--map-saved);
-  --color-map-mine: var(--map-mine);
+  --color-map-search: var(--map-search);
   --color-star-outline: var(--star-outline);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -172,36 +172,41 @@
 
   /*
    * Kartenfarben -- die einzige Stelle, an der sie definiert sind.
-   * Vorher lagen dieselben Hex-Werte zwoelfmal ueber vier Dateien
-   * verstreut.
    *
-   * Warum hier ausnahmsweise Hex und nicht oklch: diese Werte werden zur
-   * Laufzeit ausgelesen und in SVG-Grafiken (data-URL) fuer die Pins
-   * eingesetzt. Hex funktioniert dort in jeder Webview zuverlaessig; ein
-   * Fehlschlag waere ausgerechnet hier besonders teuer, weil die Pins das
-   * Kernstueck der App sind.
+   * ACHTUNG: Die Karte bleibt hell, unabhaengig von der App-Palette.
+   * Diese Werte sind fuer HELLEN Untergrund gewaehlt und duerfen bei
+   * einer Themenumstellung nicht mitgezogen werden.
    *
-   * --map-friends ist ein TIEFES Orange, nicht das helle Marken-Orange.
+   * Warum Hex statt oklch: sie werden zur Laufzeit ausgelesen und in
+   * SVG-Grafiken (data-URL) fuer die Pins eingesetzt; Hex funktioniert
+   * dort in jeder Webview zuverlaessig.
    *
-   * Google Maps verwendet fuer Gastronomie #FF9E67. Das frueher hier
-   * eingesetzte #FF6B35 lag nur 10 Grad daneben, Kontrast zueinander
-   * 1.40:1 -- der wichtigste Hinweis der App verschwamm also mit genau
-   * dem Rauschen, das sie ersetzen soll.
+   * DREI ROLLEN:
+   *   --map-reviewed  Bewertet -- in "Discover" von Freunden, in
+   *                   "My Map" von mir. Beide Faelle treten nie
+   *                   gleichzeitig auf, eine Farbe genuegt.
+   *   --map-saved     Wunschliste, auf beiden Karten.
+   *   --map-search    Suchtreffer. Neutral, damit sie sich in "Discover"
+   *                   von den blauen Bewertungspins abheben.
    *
-   * Die Loesung liegt in der HELLIGKEIT, nicht im Farbton: Googles
-   * POI-Farben sind durchweg hell (#FF9E67, #4B96F3, #909CE1). Ein tiefes
-   * Orange derselben Familie trennt sich dadurch sauber (3.47:1) und
-   * bleibt trotzdem Teil der warmen Palette. Ein zwischenzeitlich
-   * erprobtes Magenta trennte schlechter (2.89:1) und war zudem ein
-   * Fremdkoerper zwischen den warmen Neutralen.
+   * Beide Farbwerte sind bewusst TIEFER als ihre Entsprechung in der
+   * Marke. Googles POI-Symbole sind durchweg hell: Gastronomie #FF9E67,
+   * Einkaufen #4B96F3, Dienstleistungen #909CE1. Das Markenblau #325EF5
+   * liegt nur 11 Grad neben Googles Einkaufs-Blau (Kontrast 1.72:1) und
+   * wuerde darin verschwimmen; abgedunkelt sind es 3.03:1. Dasselbe
+   * Argument gilt fuer das Orange gegenueber der Gastronomie (3.46:1).
+   * Die Trennung laeuft also ueber die Helligkeit, nicht den Farbton --
+   * so bleiben es erkennbar die Farben der App.
    *
-   * Nebeneffekt: die Bewertungszahl steht in der Pinfarbe auf weissem
-   * Grund und erreicht jetzt 7.05:1 statt 2.84:1 -- vorher lag sie unter
-   * der Grenze fuer kleine Schrift.
+   * Blau und Orange stehen auf beiden Karten nebeneinander. Ihr
+   * Helligkeitsunterschied ist gering, der Farbtonabstand mit 130 Grad
+   * aber sehr gross. Zusaetzlich unterscheiden sie sich in der FORM:
+   * bewertete Pins tragen eine Zahl, Wunschlisten-Pins einen offenen
+   * Ring. Die Unterscheidung haengt damit nicht allein an der Farbe.
    */
-  --map-friends: #a72b00;
-  --map-saved: #3b7a8c;
-  --map-mine: #2b2724;
+  --map-reviewed: #1634c2;
+  --map-saved: #a72b00;
+  --map-search: #2b2724;
 
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0.004 60);

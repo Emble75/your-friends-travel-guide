@@ -19,8 +19,8 @@
  * ueber vier Dateien verstreut. Der Rueckfallwert greift beim
  * serverseitigen Rendern, wo es kein document gibt.
  */
-export function mapColor(role: "friends" | "saved" | "mine"): string {
-  const fallback = { friends: "#a72b00", saved: "#3b7a8c", mine: "#2b2724" }[role];
+export function mapColor(role: "reviewed" | "saved" | "search"): string {
+  const fallback = { reviewed: "#1634c2", saved: "#a72b00", search: "#2b2724" }[role];
   if (typeof document === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(`--map-${role}`).trim();
   return value || fallback;
@@ -157,10 +157,10 @@ export function ratingPinIcon(color: string, rating?: number) {
  *
  * Bewusst schlanker als ratingPinIcon und mit vollflaechigem Punkt statt
  * Bewertungskreis. Ein Suchtreffer ist ein Vorschlag, keine Bewertung --
- * er soll die Pins von Freunden (tiefes Orange, mit Note) und die Wunschliste
- * (teal) nicht nachahmen.
+ * er soll die Bewertungspins (blau, mit Note) und die Wunschliste
+ * (orange, offener Ring) nicht nachahmen.
  */
-export function searchPinIcon(color = mapColor("mine")) {
+export function searchPinIcon(color = mapColor("search")) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="-3 -2 32 40">
     <defs>${SHADOW}</defs>
     ${body("M13 0C5.8 0 0 5.8 0 13c0 9.2 13 21 13 21s13-11.8 13-21C26 5.8 20.2 0 13 0z", color, "s")}
