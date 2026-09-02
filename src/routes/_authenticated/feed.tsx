@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Compass } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { AppHeader } from "@/components/turi/AppHeader";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";
@@ -70,8 +69,7 @@ function FeedPage() {
 
   return (
     <>
-      <AppHeader />
-      <div className="app-shell space-y-4 py-4">
+      <div className="app-shell app-top space-y-4 pb-4">
         {isError ? (
           <ErrorState text="We couldn't load your feed." error={error} onRetry={() => refetch()} />
         ) : isLoading ? (

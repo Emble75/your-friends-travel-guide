@@ -268,6 +268,26 @@
   background-image: linear-gradient(90deg, transparent, var(--brand) 50%, transparent);
 }
 
+/*
+ * Oberer Abstand der vier Wurzel-Reiter (Karte, Feed, Suche, Profil).
+ *
+ * Diese Screens tragen bewusst KEINE Kopfleiste: sie werden ueber die
+ * untere Navigation erreicht, brauchen also weder Zurueck-Knopf noch
+ * Titel -- wo man ist, sagt die Navigation selbst. Eine Leiste, die nur
+ * ein Logo oder ein generisches Label traegt, kostet Hoehe ohne Nutzen.
+ *
+ * Alle vier verwenden denselben Wert, damit beim Reiterwechsel nichts
+ * springt. Die schwebenden Bedienelemente der Karte sind bewusst auf
+ * denselben Abstand gesetzt, damit sie auf einer Linie mit dem ersten
+ * Element der anderen Reiter beginnen.
+ *
+ * Aufgerufene Seiten (Ort, fremdes Profil, Ordner, Bewertung erstellen)
+ * behalten ihre Kopfleiste -- dort traegt sie Zurueck-Knopf und Kontext.
+ */
+@utility app-top {
+  padding-top: calc(env(safe-area-inset-top) + 1rem);
+}
+
 @utility app-shell {
   margin-inline: auto;
   width: 100%;

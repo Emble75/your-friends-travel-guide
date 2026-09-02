@@ -22,15 +22,13 @@ function AuthenticatedLayout() {
      * Bewusst ohne Zugabe: die Karte ist genau so hoch wie der Platz
      * darueber, jede Zugabe wuerde sie ueber den sichtbaren Bereich
      * hinausschieben und den Kartenscreen scrollen lassen. Die
-     * scrollenden Seiten bringen ihren Luftabstand selbst mit (py-4).
+     * scrollenden Seiten bringen ihren Luftabstand selbst mit
+     * (app-top oben, pb-4 unten).
      *
      * 100dvh statt min-h-screen: 100vh rechnet auf dem Handy die
      * ein- und ausfahrende Browserleiste nicht mit.
      */
-    <div
-      className="min-h-[100dvh] bg-background"
-      style={{ paddingBottom: "var(--bottom-nav-h)" }}
-    >
+    <div className="min-h-[100dvh] bg-background" style={{ paddingBottom: "var(--bottom-nav-h)" }}>
       <Outlet />
       <BottomNav />
     </div>

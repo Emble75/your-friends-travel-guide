@@ -6,7 +6,6 @@ import { Bookmark, Camera, Folder, LogOut, Star, Trash2, UserCheck, UserX } from
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteOwnAccount } from "@/lib/account.functions";
-import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -278,8 +277,7 @@ function MePage() {
   if (isError) {
     return (
       <>
-        <AppHeader title="Profile" />
-        <div className="app-shell py-4">
+        <div className="app-shell app-top pb-4">
           <ErrorState text="We couldn't load your profile." onRetry={() => refetch()} />
         </div>
       </>
@@ -289,8 +287,7 @@ function MePage() {
   if (isLoading || !data?.profile) {
     return (
       <>
-        <AppHeader title="Profile" />
-        <div className="app-shell space-y-4 py-4">
+        <div className="app-shell app-top space-y-4 pb-4">
           <Skeleton className="h-40 rounded-3xl" />
           <Skeleton className="h-24 rounded-3xl" />
         </div>
@@ -302,24 +299,7 @@ function MePage() {
 
   return (
     <>
-      <AppHeader
-        title={`@${profile.username}`}
-        action={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Sign out"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              queryClient.clear();
-              navigate({ to: "/auth" });
-            }}
-          >
-            <LogOut size={18} />
-          </Button>
-        }
-      />
-      <div className="app-shell space-y-4 py-4">
+      <div className="app-shell app-top space-y-4 pb-4">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
           <div className="flex items-center gap-4">
             <label className="relative cursor-pointer">

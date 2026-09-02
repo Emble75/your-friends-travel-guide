@@ -552,10 +552,12 @@ function MapPage() {
         </div>
       ) : null}
 
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 p-4"
-        style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
-      >
+      {/* Dieselbe app-top-Klasse wie die uebrigen Wurzel-Reiter: die
+          schwebenden Bedienelemente beginnen damit auf einer Linie mit
+          dem ersten Element von Feed, Suche und Profil. Vorher stand hier
+          derselbe Wert noch einmal von Hand -- zwei Stellen, die
+          auseinanderdriften koennen. */}
+      <div className="app-top pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 px-4 pb-4">
         {/*
           Die schwebende Logo-Karte ist hier entfallen. Auf der Karte
           stapelten sich vier Reihen uebereinander -- Logo, Umschalter,
