@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bookmark, Camera, Folder, LogOut, Star, Trash2, UserCheck, UserX } from "lucide-react";
+import { Bookmark, Camera, LogOut, Star, Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteOwnAccount } from "@/lib/account.functions";
@@ -75,8 +75,6 @@ function MePage() {
         { count: following },
         { data: reviews },
         { data: pending },
-        { data: folders },
-        { data: sharedFolders },
       ] = await Promise.all([
         supabase
           .from("profiles")
@@ -105,13 +103,6 @@ function MePage() {
           )
           .eq("following_id", me)
           .eq("status", "pending"),
-        supabase.from("trip_folders").select("id, name").eq("owner_id", me).order("name"),
-        supabase
-          .from("trip_folder_shares")
-          .select(
-            "trip_folders(id, name, owner_id, profiles:profiles!trip_folders_owner_id_fkey(username))",
-          )
-          .eq("shared_with_id", me),
       ]);
       const pendingRequests: PendingRequest[] = (pending ?? []).map((p) => {
         const requester = p.profiles as unknown as {
@@ -126,23 +117,12 @@ function MePage() {
           avatarUrl: requester.avatar_url,
         };
       });
-      type SharedFolder = {
-        id: string;
-        name: string;
-        owner_id: string;
-        profiles: { username: string } | null;
-      };
-      const sharedWithMe: SharedFolder[] = (sharedFolders ?? [])
-        .map((s) => s.trip_folders as unknown as SharedFolder)
-        .filter(Boolean);
       return {
         profile,
         followers: followers ?? 0,
         following: following ?? 0,
         reviews: (reviews ?? []) as unknown as ReviewWithRelations[],
         pendingRequests,
-        folders: folders ?? [],
-        sharedWithMe,
       };
     },
   });
@@ -295,7 +275,7 @@ function MePage() {
     );
   }
 
-  const { profile, reviews, pendingRequests, folders, sharedWithMe } = data;
+  const { profile, reviews, pendingRequests } = data;
 
   return (
     <>
@@ -458,37 +438,6 @@ function MePage() {
                 </li>
               ))}
             </ul>
-          </section>
-        ) : null}
-
-        {folders.length > 0 || sharedWithMe.length > 0 ? (
-          <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="turi-eyebrow">Folders ({folders.length + sharedWithMe.length})</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {folders.map((f) => (
-                <Link
-                  key={f.id}
-                  to="/folder/$folderId"
-                  params={{ folderId: f.id }}
-                  className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-2 text-sm font-medium"
-                >
-                  <Folder size={14} /> {f.name}
-                </Link>
-              ))}
-              {sharedWithMe.map((f) => (
-                <Link
-                  key={f.id}
-                  to="/folder/$folderId"
-                  params={{ folderId: f.id }}
-                  className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-2 text-sm font-medium text-primary"
-                >
-                  <Folder size={14} /> {f.name}
-                  <span className="text-xs text-muted-foreground">
-                    from @{f.profiles?.username}
-                  </span>
-                </Link>
-              ))}
-            </div>
           </section>
         ) : null}
 
