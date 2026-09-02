@@ -20,7 +20,7 @@
  * serverseitigen Rendern, wo es kein document gibt.
  */
 export function mapColor(role: "friends" | "saved" | "mine"): string {
-  const fallback = { friends: "#c20077", saved: "#3b7a8c", mine: "#2b2724" }[role];
+  const fallback = { friends: "#a72b00", saved: "#3b7a8c", mine: "#2b2724" }[role];
   if (typeof document === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(`--map-${role}`).trim();
   return value || fallback;
@@ -92,7 +92,7 @@ export function ratingPinIcon(color: string, rating?: number) {
  *
  * Bewusst schlanker als ratingPinIcon und mit vollflaechigem Punkt statt
  * Bewertungskreis. Ein Suchtreffer ist ein Vorschlag, keine Bewertung --
- * er soll die Pins von Freunden (magenta, mit Note) und die Wunschliste
+ * er soll die Pins von Freunden (tiefes Orange, mit Note) und die Wunschliste
  * (teal) nicht nachahmen.
  */
 export function searchPinIcon(color = mapColor("mine")) {

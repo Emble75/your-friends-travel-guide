@@ -159,15 +159,25 @@
    * Fehlschlag waere ausgerechnet hier besonders teuer, weil die Pins das
    * Kernstueck der App sind.
    *
-   * --map-friends ist bewusst NICHT das Marken-Orange. Google Maps
-   * verwendet fuer Gastronomie #FF9E67; das frueher hier eingesetzte
-   * #FF6B35 lag nur 10 Grad daneben (Kontrast zueinander 1.40:1) -- der
-   * wichtigste Hinweis der App verschwamm also mit genau dem Rauschen,
-   * das sie ersetzen soll. Magenta kommt in Googles POI-Palette nicht vor
-   * und bildet mit dem Teal der Wunschliste ein Gegensatzpaar. Nebenbei
-   * wird die Bewertungszahl im Pin lesbar: 5.88:1 statt 2.84:1.
+   * --map-friends ist ein TIEFES Orange, nicht das helle Marken-Orange.
+   *
+   * Google Maps verwendet fuer Gastronomie #FF9E67. Das frueher hier
+   * eingesetzte #FF6B35 lag nur 10 Grad daneben, Kontrast zueinander
+   * 1.40:1 -- der wichtigste Hinweis der App verschwamm also mit genau
+   * dem Rauschen, das sie ersetzen soll.
+   *
+   * Die Loesung liegt in der HELLIGKEIT, nicht im Farbton: Googles
+   * POI-Farben sind durchweg hell (#FF9E67, #4B96F3, #909CE1). Ein tiefes
+   * Orange derselben Familie trennt sich dadurch sauber (3.47:1) und
+   * bleibt trotzdem Teil der warmen Palette. Ein zwischenzeitlich
+   * erprobtes Magenta trennte schlechter (2.89:1) und war zudem ein
+   * Fremdkoerper zwischen den warmen Neutralen.
+   *
+   * Nebeneffekt: die Bewertungszahl steht in der Pinfarbe auf weissem
+   * Grund und erreicht jetzt 7.05:1 statt 2.84:1 -- vorher lag sie unter
+   * der Grenze fuer kleine Schrift.
    */
-  --map-friends: #c20077;
+  --map-friends: #a72b00;
   --map-saved: #3b7a8c;
   --map-mine: #2b2724;
 
