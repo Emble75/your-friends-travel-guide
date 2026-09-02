@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Bookmark, Camera, Folder, LogOut, Star, Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
@@ -61,6 +61,9 @@ function MePage() {
   const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
+  // Sprungziel fuer die Zahl "Reviews" -- auf einem vollen Profil liegt die
+  // Bewertungsliste sonst weit unterhalb aller Sammlungen.
+  const reviewsRef = useRef<HTMLDivElement | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["me"],
@@ -349,26 +352,36 @@ function MePage() {
             <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p>
           ) : null}
 
-          <div className="mt-4 flex gap-5 text-sm">
-            <span>
-              <strong>{reviews.length}</strong>{" "}
-              <span className="text-muted-foreground">Reviews</span>
-            </span>
+          {/*
+            Vorher drei inline stehende Zahlen, von denen zwei anklickbar
+            waren und eine nicht -- optisch nicht zu unterscheiden. Jetzt ein
+            klar abgegrenzter Block mit Trennlinien, in dem alle drei
+            gleich funktionieren.
+          */}
+          <div className="mt-4 grid grid-cols-3 divide-x divide-border overflow-hidden rounded-2xl bg-secondary/70">
+            <button
+              type="button"
+              onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth" })}
+              className="turi-tap flex flex-col items-center py-2.5"
+            >
+              <strong className="font-display text-base leading-tight">{reviews.length}</strong>
+              <span className="text-xs text-muted-foreground">Reviews</span>
+            </button>
             <button
               type="button"
               onClick={() => setFollowListOpen("followers")}
-              className="text-left"
+              className="turi-tap flex flex-col items-center py-2.5"
             >
-              <strong>{data.followers}</strong>{" "}
-              <span className="text-muted-foreground">Followers</span>
+              <strong className="font-display text-base leading-tight">{data.followers}</strong>
+              <span className="text-xs text-muted-foreground">Followers</span>
             </button>
             <button
               type="button"
               onClick={() => setFollowListOpen("following")}
-              className="text-left"
+              className="turi-tap flex flex-col items-center py-2.5"
             >
-              <strong>{data.following}</strong>{" "}
-              <span className="text-muted-foreground">Following</span>
+              <strong className="font-display text-base leading-tight">{data.following}</strong>
+              <span className="text-xs text-muted-foreground">Following</span>
             </button>
           </div>
 
@@ -469,7 +482,7 @@ function MePage() {
 
         {folders.length > 0 || sharedWithMe.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="turi-eyebrow">Folders</h2>
+            <h2 className="turi-eyebrow">Folders ({folders.length + sharedWithMe.length})</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {folders.map((f) => (
                 <Link
@@ -500,7 +513,7 @@ function MePage() {
 
         {savedPlaces && savedPlaces.length > 0 ? (
           <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="turi-eyebrow">Want to go</h2>
+            <h2 className="turi-eyebrow">Want to go ({savedPlaces?.length ?? 0})</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {savedPlaces.map((p) => (
                 <Link
@@ -516,31 +529,61 @@ function MePage() {
           </section>
         ) : null}
 
-        {reviews.length > 0 ? (
-          reviews.map((r) => <ReviewCard key={r.id} review={r} />)
-        ) : (
-          <EmptyState
-            icon={Star}
-            title="No reviews yet"
-            text="Review your first place — your friends will see it right away."
-            action={
-              <Button asChild className="rounded-2xl">
-                <Link to="/new">Review a place</Link>
-              </Button>
-            }
-          />
-        )}
+        <div ref={reviewsRef} className="scroll-mt-20 space-y-4">
+          {/* Bisher standen die Bewertungen voellig unbeschriftet unter den
+              Sammlungen -- man sah nicht, wo die Listen enden und die
+              eigenen Bewertungen anfangen. */}
+          {reviews.length > 0 ? (
+            <h2 className="turi-eyebrow">Your reviews ({reviews.length})</h2>
+          ) : null}
+          {reviews.length > 0 ? (
+            reviews.map((r) => <ReviewCard key={r.id} review={r} />)
+          ) : (
+            <EmptyState
+              icon={Star}
+              title="No reviews yet"
+              text="Review your first place — your friends will see it right away."
+              action={
+                <Button asChild className="rounded-2xl">
+                  <Link to="/new">Review a place</Link>
+                </Button>
+              }
+            />
+          )}
+        </div>
 
-        <section className="rounded-3xl border border-destructive/30 bg-card p-4 shadow-card">
-          <h2 className="text-sm font-semibold text-destructive">Delete account</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Permanently deletes your account and all your reviews, photos, and follows. This can't
-            be undone.
+        {/*
+          Kontoverwaltung ans Ende, optisch ruhig. Vorher war das Loeschen
+          eine dauerhaft sichtbare, rot umrandete Karte auf gleicher Stufe
+          wie "Ordner" -- eine unwiderrufliche Aktion sollte auffindbar
+          sein, aber nicht staendig um Aufmerksamkeit buhlen. Der Abmelden-
+          Knopf steht hier zusaetzlich, weil er im Kopfbereich nur als
+          Symbol ohne Beschriftung existiert.
+        */}
+        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+          <h2 className="turi-eyebrow">Account</h2>
+          <Button
+            variant="secondary"
+            className="mt-3 h-11 w-full justify-start rounded-2xl"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              queryClient.clear();
+              navigate({ to: "/auth" });
+            }}
+          >
+            <LogOut size={16} className="mr-2" /> Sign out
+          </Button>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Deleting your account permanently removes all your reviews, photos, and follows. This
+            can't be undone.
           </p>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="mt-3 rounded-2xl">
-                <Trash2 size={16} className="mr-2" /> Permanently delete account
+              <Button
+                variant="ghost"
+                className="mt-2 h-11 w-full justify-start rounded-2xl text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 size={16} className="mr-2" /> Delete account
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="rounded-3xl">
