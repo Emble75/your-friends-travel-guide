@@ -2,7 +2,17 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bookmark, Camera, LogOut, Share2, Star, Trash2, UserCheck, UserX } from "lucide-react";
+import {
+  Bookmark,
+  Camera,
+  Folder,
+  LogOut,
+  Share2,
+  Star,
+  Trash2,
+  UserCheck,
+  UserX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteOwnAccount } from "@/lib/account.functions";
@@ -15,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -60,6 +71,8 @@ function MePage() {
   const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
+  // Welche Sammlung gerade aufgeklappt ist (Ordner oder Wunschliste).
+  const [collection, setCollection] = useState<"folders" | "saved" | null>(null);
   // Sprungziel fuer die Zahl "Reviews" -- auf einem vollen Profil liegt die
   // Bewertungsliste sonst weit unterhalb aller Sammlungen.
   const reviewsRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +88,8 @@ function MePage() {
         { count: following },
         { data: reviews },
         { data: pending },
+        { data: folders },
+        { data: sharedFolders },
       ] = await Promise.all([
         supabase
           .from("profiles")
@@ -103,6 +118,13 @@ function MePage() {
           )
           .eq("following_id", me)
           .eq("status", "pending"),
+        supabase.from("trip_folders").select("id, name").eq("owner_id", me).order("name"),
+        supabase
+          .from("trip_folder_shares")
+          .select(
+            "trip_folders(id, name, owner_id, profiles:profiles!trip_folders_owner_id_fkey(username))",
+          )
+          .eq("shared_with_id", me),
       ]);
       const pendingRequests: PendingRequest[] = (pending ?? []).map((p) => {
         const requester = p.profiles as unknown as {
@@ -117,8 +139,14 @@ function MePage() {
           avatarUrl: requester.avatar_url,
         };
       });
+      type SharedFolder = { id: string; name: string; profiles: { username: string } | null };
+      const sharedWithMe: SharedFolder[] = (sharedFolders ?? [])
+        .map((f) => f.trip_folders as unknown as SharedFolder)
+        .filter(Boolean);
       return {
         profile,
+        folders: folders ?? [],
+        sharedWithMe,
         followers: followers ?? 0,
         following: following ?? 0,
         reviews: (reviews ?? []) as unknown as ReviewWithRelations[],
@@ -275,7 +303,7 @@ function MePage() {
     );
   }
 
-  const { profile, reviews, pendingRequests } = data;
+  const { profile, reviews, pendingRequests, folders, sharedWithMe } = data;
 
   return (
     <>
@@ -458,23 +486,38 @@ function MePage() {
           </section>
         ) : null}
 
-        {savedPlaces && savedPlaces.length > 0 ? (
-          <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
-            <h2 className="turi-eyebrow">Want to go ({savedPlaces?.length ?? 0})</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {savedPlaces.map((p) => (
-                <Link
-                  key={p.id}
-                  to="/place/$placeId"
-                  params={{ placeId: p.id }}
-                  className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-2 text-sm font-medium"
-                >
-                  <Bookmark size={14} /> {p.name}
-                </Link>
-              ))}
-            </div>
-          </section>
-        ) : null}
+        {/*
+          Sammlungen hinter Knoepfen statt als ausgebreitete Chip-Wolken.
+          Ausgelegt nahmen sie dem Profil die Ordnung -- zwei umbrechende
+          Bereiche uebereinander, bevor ueberhaupt eine Bewertung kam.
+          Der Inhalt bleibt einen Fingertipp entfernt.
+        */}
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            className="h-11 flex-1 justify-between rounded-2xl"
+            onClick={() => setCollection("folders")}
+          >
+            <span className="flex items-center gap-2">
+              <Folder size={16} /> Folders
+            </span>
+            <span className="turi-meta text-xs text-muted-foreground">
+              {folders.length + sharedWithMe.length}
+            </span>
+          </Button>
+          <Button
+            variant="secondary"
+            className="h-11 flex-1 justify-between rounded-2xl"
+            onClick={() => setCollection("saved")}
+          >
+            <span className="flex items-center gap-2">
+              <Bookmark size={16} /> Want to go
+            </span>
+            <span className="turi-meta text-xs text-muted-foreground">
+              {savedPlaces?.length ?? 0}
+            </span>
+          </Button>
+        </div>
 
         <div ref={reviewsRef} className="scroll-mt-20 space-y-4">
           {/* Bisher standen die Bewertungen voellig unbeschriftet unter den
@@ -555,6 +598,71 @@ function MePage() {
           </AlertDialog>
         </section>
       </div>
+
+      <Sheet open={collection !== null} onOpenChange={(open) => !open && setCollection(null)}>
+        <SheetContent side="bottom" className="max-h-[75vh] rounded-t-3xl border-0 pb-8">
+          <SheetHeader className="text-left">
+            <SheetTitle>{collection === "folders" ? "Folders" : "Want to go"}</SheetTitle>
+          </SheetHeader>
+          <div className="mt-2 max-h-[55vh] space-y-1 overflow-y-auto px-1">
+            {collection === "folders" ? (
+              folders.length + sharedWithMe.length === 0 ? (
+                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  No folders yet. You can group reviews into a folder while writing one.
+                </p>
+              ) : (
+                <>
+                  {folders.map((f) => (
+                    <Link
+                      key={f.id}
+                      to="/folder/$folderId"
+                      params={{ folderId: f.id }}
+                      onClick={() => setCollection(null)}
+                      className="turi-tap flex items-center gap-3 rounded-2xl p-3 hover:bg-secondary"
+                    >
+                      <Folder size={16} className="shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm font-medium">{f.name}</span>
+                    </Link>
+                  ))}
+                  {sharedWithMe.map((f) => (
+                    <Link
+                      key={f.id}
+                      to="/folder/$folderId"
+                      params={{ folderId: f.id }}
+                      onClick={() => setCollection(null)}
+                      className="turi-tap flex items-center gap-3 rounded-2xl p-3 hover:bg-secondary"
+                    >
+                      <Folder size={16} className="shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{f.name}</span>
+                      <span className="turi-meta shrink-0 text-xs text-muted-foreground">
+                        from @{f.profiles?.username}
+                      </span>
+                    </Link>
+                  ))}
+                </>
+              )
+            ) : (savedPlaces ?? []).length === 0 ? (
+              <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                Nothing saved yet. Tap the bookmark on a place to keep it here.
+              </p>
+            ) : (
+              (savedPlaces ?? []).map((p) => (
+                <Link
+                  key={p.id}
+                  to="/place/$placeId"
+                  params={{ placeId: p.id }}
+                  onClick={() => setCollection(null)}
+                  className="turi-tap flex items-center gap-3 rounded-2xl p-3 hover:bg-secondary"
+                >
+                  <Bookmark size={16} className="shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
+                  <span className="turi-meta shrink-0 text-xs text-muted-foreground">{p.city}</span>
+                </Link>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <FollowListSheet
         userId={profile.id}

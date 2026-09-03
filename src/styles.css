@@ -194,6 +194,12 @@
    *                   ein Kreis, kein Tropfen: ein Pin zeigt auf einen
    *                   Ort, dieser Punkt ist einer.
    *
+   * NUR FUER DIE KARTE. Diese Werte gehoeren an Pins und an die
+   * Legenden-Punkte, die sie erklaeren -- NICHT an Bedienelemente. Der
+   * Merken-Knopf trug frueher das Orange und wirkte dadurch wie ein
+   * Fremdkoerper in der Oberflaeche; er nutzt jetzt --primary wie jeder
+   * andere Schalter auch.
+   *
    * Blau und Orange sind die Farben der App, bewusst in voller
    * Leuchtkraft. Sie liegen naeher an Googles POI-Symbolen (#4B96F3
    * Einkaufen, #FF9E67 Gastronomie) als abgedunkelte Varianten -- das

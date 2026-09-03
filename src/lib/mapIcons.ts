@@ -28,152 +28,78 @@ export function mapColor(role: "reviewed" | "saved" | "search" | "me"): string {
   return value || fallback;
 }
 
-const PAD_X = 3;
-const PAD_Y = 2;
-const PIN_W = 34;
-const PIN_H = 44;
-const BOX_W = PIN_W + PAD_X * 2;
-const BOX_H = PIN_H + PAD_Y * 2;
-
 const FONT_STACK =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 /** Weicher Schlagschatten, der den Pin auf der Karte erdet. */
-const SHADOW = `<filter id="s" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="1.5" stdDeviation="1.4" flood-color="#000000" flood-opacity="0.32"/>
+const SHADOW = `<filter id="s" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="#000000" flood-opacity="0.28"/>
     </filter>`;
 
-/**
- * Hellt eine Hex-Farbe auf oder dunkelt sie ab (-1 bis 1).
- * Wird fuer die Plastizitaet der Pins gebraucht: oben heller, unten
- * dunkler, so bekommt die Form Volumen statt flach zu wirken.
- */
-function shade(hex: string, amount: number): string {
-  const h = hex.replace("#", "");
-  if (h.length !== 6) return hex;
-  const channels = [0, 2, 4].map((i) => {
-    const v = parseInt(h.slice(i, i + 2), 16);
-    const target = amount >= 0 ? 255 : 0;
-    return Math.round(v + (target - v) * Math.abs(amount));
-  });
-  return "#" + channels.map((v) => v.toString(16).padStart(2, "0")).join("");
-}
+const TAG_H = 24; // Hoehe des Etiketts
+const TAG_TAIL = 6; // Laenge der Spitze darunter
+const TAG_R = 9; // Eckenradius -- zwischen Etikett und klassischem Pin
+const PAD = 4; // Rand fuer den Schlagschatten
 
 /**
- * Koerper, Verlauf und Glanzlicht eines Pins.
+ * Das Turi-Etikett -- die gemeinsame Grundform aller Kartenmarkierungen.
  *
- * Der Verlauf laeuft von einer aufgehellten Variante oben zu einer
- * abgedunkelten unten; darueber liegt ein weiches, elliptisches
- * Glanzlicht links oben. Beides zusammen laesst die Form gewoelbt
- * erscheinen, statt wie eine ausgeschnittene Flaeche. Ein zusaetzlicher
- * dunkler Rand innen setzt sie gegen helle Karten ab.
- */
-function body(path: string, color: string, id: string) {
-  return `
-    <defs>
-      <linearGradient id="g${id}" x1="0" y1="0" x2="0.25" y2="1">
-        <stop offset="0" stop-color="${shade(color, 0.28)}"/>
-        <stop offset="0.55" stop-color="${color}"/>
-        <stop offset="1" stop-color="${shade(color, -0.22)}"/>
-      </linearGradient>
-      <radialGradient id="h${id}" cx="0.34" cy="0.24" r="0.52">
-        <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/>
-        <stop offset="0.65" stop-color="#ffffff" stop-opacity="0.08"/>
-        <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
-    <path d="${path}" fill="url(#g${id})" stroke="${shade(color, -0.35)}" stroke-width="0.9" filter="url(#s)"/>
-    <path d="${path}" fill="url(#h${id})"/>`;
-}
-
-/*
- * Tropfenform: Kreis oben, spitz zulaufend nach unten.
+ * Flach statt plastisch: kein Verlauf, kein Glanz, eine klare Farbflaeche
+ * mit weisser Kontur. Die fruehere Tropfenform mit Woelbung sah aus wie
+ * die Standardnadel jeder beliebigen Karte; diese Form ist als Turi
+ * erkennbar und bleibt trotzdem ruhig genug fuer eine volle Karte.
  *
- * Die Spitze bleibt bewusst scharf (die beiden Kurven treffen sich in
- * einem Punkt), denn genau sie markiert den Ort auf der Karte. Eine
- * abgerundete Spitze sieht weicher aus, macht aber unklar, worauf der
- * Pin eigentlich zeigt.
+ * Die Hoehe ist fest, die Breite waechst mit dem Inhalt. Dadurch bilden
+ * bewertete Orte (Note), Wunschliste (Lesezeichen) und Suchtreffer
+ * (Punkt) sichtbar eine Familie, statt drei unterschiedliche Dinge zu
+ * sein. Die kurze Spitze unten markiert weiterhin genau den Ort.
  */
-const PIN_PATH = "M17 0C7.6 0 0 7.6 0 17c0 12 17 27 17 27s17-15 17-27C34 7.6 26.4 0 17 0z";
-
-function wrap(inner: string) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${BOX_W}" height="${BOX_H}" viewBox="${-PAD_X} ${-PAD_Y} ${BOX_W} ${BOX_H}">
+function tag(color: string, opts: { text?: string; glyph?: (w: number) => string }) {
+  const { text, glyph } = opts;
+  const width = Math.max(text ? 30 : 26, (text ? text.length * 7.4 : 0) + 18);
+  const boxW = width + PAD * 2;
+  const boxH = TAG_H + TAG_TAIL + PAD + 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${boxW}" height="${boxH}" viewBox="${-PAD} ${-(PAD - 1)} ${boxW} ${boxH}">
     <defs>${SHADOW}</defs>
-    ${inner}
-  </svg>`;
-  return {
-    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new google.maps.Size(BOX_W, BOX_H),
-    // Die Spitze sitzt im lokalen Raster bei (17, 44) -- durch die
-    // Randzugabe verschiebt sie sich im Bild um den Rand nach hinten.
-    anchor: new google.maps.Point(17 + PAD_X, PIN_H + PAD_Y),
-  };
-}
-
-/**
- * Waehlt die Schriftfarbe fuer die Bewertungszahl im weissen Kreis.
- *
- * Die Zahl stand frueher immer in der Pinfarbe. Auf einem dunklen Pin
- * ist das gut lesbar, auf einem hellen aber nicht -- ein helles Orange
- * erreicht auf Weiss nur 2.87:1. Deshalb wird ab einer gewissen
- * Helligkeit auf ein dunkles Grau gewechselt. So stimmt es in beiden
- * Themes, ohne dass irgendwo eine Fallunterscheidung gepflegt werden muss.
- */
-function labelColor(pin: string): string {
-  const hex = pin.replace("#", "");
-  if (hex.length !== 6) return pin;
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lin = (v: number) => (v > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92);
-  const luminance = 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
-  // Ab hier waere die Pinfarbe auf Weiss unter 4.5:1.
-  return luminance > 0.24 ? "#151412" : pin;
-}
-
-/**
- * Pin mit der Durchschnittsbewertung im Kreis -- oder ohne Zahl, falls
- * (noch) keine Bewertung vorliegt (z. B. rein gemerkte "Will ich noch
- * hin"-Orte). Wird auf der Hauptkarte und der Mini-Karte im Profil
- * verwendet.
- */
-export function ratingPinIcon(color: string, rating?: number) {
-  const label = typeof rating === "number" ? rating.toFixed(1) : "";
-  // Ohne Zahl bleibt das Loch gross -- so liest es sich als bewusste
-  // Ringform (wie bei klassischen Kartennadeln) und nicht als Pin, dem
-  // die Beschriftung fehlt. Mit der plastischen Woelbung traegt das;
-  // flach gezeichnet wirkte derselbe grosse Kreis frueher leer.
-  const radius = label ? 10.5 : 8.5;
-  return wrap(`
-    ${body(PIN_PATH, color, "r")}
-    <circle cx="17" cy="16.5" r="${radius + 0.6}" fill="${shade(color, -0.3)}" opacity="0.45"/>
-    <circle cx="17" cy="16.5" r="${radius}" fill="#ffffff"/>
+    <g filter="url(#s)">
+      <path d="M${width / 2 - 4.5} ${TAG_H}h9l-4.5 ${TAG_TAIL}z" fill="${color}"/>
+      <rect x="0" y="0" width="${width}" height="${TAG_H}" rx="${TAG_R}" fill="${color}"
+        stroke="#ffffff" stroke-width="1.6"/>
+    </g>
+    ${glyph ? glyph(width) : ""}
     ${
-      label
-        ? `<text x="17" y="20.6" font-family="${FONT_STACK}" font-size="11.5" font-weight="700" letter-spacing="-0.3" fill="${labelColor(color)}" text-anchor="middle">${label}</text>`
+      text
+        ? `<text x="${width / 2}" y="${TAG_H / 2 + 4.2}" font-family="${FONT_STACK}" font-size="12"
+            font-weight="700" letter-spacing="-0.2" fill="#ffffff" text-anchor="middle">${text}</text>`
         : ""
     }
-  `);
-}
-
-/**
- * Marker fuer Suchtreffer -- etwa alle Aldi-Filialen in der Umgebung.
- *
- * Bewusst schlanker als ratingPinIcon und mit vollflaechigem Punkt statt
- * Bewertungskreis. Ein Suchtreffer ist ein Vorschlag, keine Bewertung --
- * er soll die Bewertungspins (blau, mit Note) und die Wunschliste
- * (orange, offener Ring) nicht nachahmen.
- */
-export function searchPinIcon(color = mapColor("search")) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="-3 -2 32 40">
-    <defs>${SHADOW}</defs>
-    ${body("M13 0C5.8 0 0 5.8 0 13c0 9.2 13 21 13 21s13-11.8 13-21C26 5.8 20.2 0 13 0z", color, "s")}
-    <circle cx="13" cy="12.5" r="5.1" fill="${shade(color, -0.3)}" opacity="0.45"/>
-    <circle cx="13" cy="12.5" r="4.5" fill="#ffffff"/>
   </svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new google.maps.Size(32, 40),
-    anchor: new google.maps.Point(16, 36),
+    scaledSize: new google.maps.Size(boxW, boxH),
+    // Die Spitze markiert den Ort -- sie sitzt unten mittig.
+    anchor: new google.maps.Point(width / 2 + PAD, TAG_H + TAG_TAIL + (PAD - 1)),
   };
+}
+
+/**
+ * Ort mit Durchschnittsbewertung -- oder, ohne Bewertung, ein
+ * Lesezeichen: so unterscheidet sich ein rein gemerkter Ort auf einen
+ * Blick von einem bewerteten, auch bei gleicher Farbe.
+ */
+export function ratingPinIcon(color: string, rating?: number) {
+  if (typeof rating === "number") return tag(color, { text: rating.toFixed(1) });
+  return tag(color, {
+    glyph: (w) => `<path d="M${w / 2 - 4} 7h8v11l-4-3.2-4 3.2z" fill="#ffffff"/>`,
+  });
+}
+
+/**
+ * Suchtreffer. Gleiche Grundform, nur ein Punkt statt Note oder
+ * Lesezeichen -- ein Vorschlag traegt keine Wertung.
+ */
+export function searchPinIcon(color = mapColor("search")) {
+  return tag(color, { glyph: (w) => `<circle cx="${w / 2}" cy="12" r="4" fill="#ffffff"/>` });
 }
 
 /**

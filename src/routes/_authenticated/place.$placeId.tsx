@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, MapPin, Navigation, Users } from "lucide-react";
+import { Bookmark, Navigation, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { directionsUrl, getErrorMessage } from "@/lib/turi";
@@ -121,42 +121,48 @@ function PlacePage() {
       <AppHeader title={place?.name ?? "Place"} showBack fallbackTo="/map" />
       <div className="app-shell space-y-4 py-4">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
-          <div className="flex items-start gap-3">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-accent-foreground">
-              <MapPin size={22} />
-            </span>
+          {/*
+            Dieselbe Ordnung wie im Karten-Panel: Name traegt die Zeile,
+            Merken und Route sitzen als runde Symbolknoepfe daneben. Als
+            breite Balken bekamen sie das Gewicht der Hauptsache -- der
+            Routen-Knopf fuehrt aber aus der App HERAUS und gehoert nicht
+            in die erste Reihe.
+          */}
+          <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-xl font-bold">{place?.name ?? "…"}</h1>
-              <p className="truncate text-sm text-muted-foreground">
+              <p className="turi-meta truncate text-sm text-muted-foreground">
                 {place?.city}
                 {place?.category ? ` · ${place.category}` : ""}
               </p>
             </div>
-          </div>
 
-          {/* Fuehrt in Google Maps -- Koordinaten plus Orts-Kennung, damit
-              dort der richtige Name steht. Oeffnet auf dem Geraet direkt
-              die Maps-App, im Browser die Web-Karte. */}
-          {place ? (
-            <Button asChild variant="secondary" className="mt-3 h-11 w-full rounded-2xl">
-              <a href={directionsUrl(place)} target="_blank" rel="noopener noreferrer">
-                <Navigation size={16} className="mr-2" /> Take me there
+            <button
+              type="button"
+              onClick={toggleSave}
+              aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
+              aria-pressed={!!isSaved}
+              className={`turi-tap flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                isSaved
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground"
+              }`}
+            >
+              <Bookmark size={18} fill={isSaved ? "currentColor" : "none"} />
+            </button>
+
+            {place ? (
+              <a
+                href={directionsUrl(place)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Directions in Google Maps"
+                className="turi-tap flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+              >
+                <Navigation size={18} />
               </a>
-            </Button>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={toggleSave}
-            className={`mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-semibold transition-colors ${
-              isSaved
-                ? "border-map-saved bg-map-saved/10 text-map-saved"
-                : "border-border text-muted-foreground"
-            }`}
-          >
-            <Bookmark size={16} fill={isSaved ? "currentColor" : "none"} />
-            {isSaved ? "Saved to want to go" : "Add to want to go"}
-          </button>
+            ) : null}
+          </div>
 
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
             {avg !== null ? (
