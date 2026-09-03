@@ -201,8 +201,12 @@ function PlacePage() {
             text="Follow more friends, or be the first to review it yourself."
             action={
               <div className="flex gap-2">
+                {/* Den Ort mitgeben -- ohne ihn landet man in der
+                    Ortsauswahl, obwohl man ihn gerade offen hat. */}
                 <Button asChild className="rounded-2xl">
-                  <Link to="/new">Review now</Link>
+                  <Link to="/new" search={{ placeId }}>
+                    Review now
+                  </Link>
                 </Button>
                 <Button asChild variant="secondary" className="rounded-2xl">
                   <Link to="/explore">Find friends</Link>
