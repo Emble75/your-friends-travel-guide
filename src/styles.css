@@ -65,6 +65,8 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
@@ -145,6 +147,10 @@
    * (Bildmarke, App-Icon) lesbar -- weisse Marke darin 5.16:1.
    */
   --brand: oklch(0.55 0.23 266);
+  /* Sehr leichte Markentoenung: Hintergrund-Pille fuer aktive Zustaende
+     (z. B. untere Navigation). Traegt die Marke sichtbarer, ohne Flaechen
+     voll einzufaerben. */
+  --brand-soft: oklch(0.94 0.025 266);
   --primary-foreground: oklch(0.99 0.002 90);
   --primary-soft: oklch(0.915 0.006 85);
   --secondary: oklch(0.93 0.005 88);

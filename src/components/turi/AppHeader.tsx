@@ -49,7 +49,7 @@ export function AppHeader({
         ) : null}
         <div className="flex min-w-0 flex-1 items-center justify-between">
           {title ? (
-            <h1 className="min-w-0 truncate font-display text-lg font-bold tracking-tight">
+            <h1 className="min-w-0 truncate font-display text-xl font-extrabold tracking-tight">
               {title}
             </h1>
           ) : (
@@ -58,7 +58,7 @@ export function AppHeader({
           {action}
         </div>
       </div>
-      <div className="brand-accent-line h-px w-full opacity-40" />
+      <div className="brand-accent-line h-[2px] w-full opacity-70" />
     </header>
   );
 }

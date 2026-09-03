@@ -17,9 +17,12 @@ export function BottomNav() {
             key={to}
             to={to}
             className="turi-tap flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-muted-foreground"
+            // Aktiver Reiter: die einzige Stelle in der Kern-Navigation,
+            // die Markenfarbe traegt. Die weiche Pille dahinter macht den
+            // Zustand auch ohne Farbsehen als Flaeche erkennbar.
             // aria-current markiert die aktive Seite fuer Screenreader --
             // Farbe allein ist dafuer keine Information.
-            activeProps={{ className: "text-primary font-semibold", "aria-current": "page" }}
+            activeProps={{ className: "bg-brand-soft text-brand font-bold", "aria-current": "page" }}
           >
             <Icon size={22} strokeWidth={2} />
             <span className="text-2xs font-medium">{label}</span>
