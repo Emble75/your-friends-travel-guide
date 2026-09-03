@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { ImagePlus, MapPin, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { CATEGORIES, compressImage, getErrorMessage } from "@/lib/turi";
 import { isNative, takePhoto } from "@/lib/native";
+import { searchMapPlaces } from "@/lib/maps.functions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/_authenticated/new")({
@@ -44,6 +46,7 @@ type Place = { id: string; name: string; city: string; category: string };
 
 function NewReviewPage() {
   const navigate = useNavigate();
+  const searchFn = useServerFn(searchMapPlaces);
   const { placeId, create } = Route.useSearch();
   const [place, setPlace] = useState<Place | null>(null);
   const [search, setSearch] = useState("");
@@ -126,12 +129,44 @@ function NewReviewPage() {
     enabled: debouncedSearch.trim().length > 0 && !place,
   });
 
+  /*
+   * Position fuer einen von Hand angelegten Ort ermitteln.
+   *
+   * Ohne Koordinaten taucht ein Ort auf KEINER Karte auf -- weder auf der
+   * eigenen noch auf der im Profil -- und verschwindet damit lautlos aus
+   * dem Kern der App. Genau das ist passiert: Orte aus "Can't find it?"
+   * wurden ohne lat/lng gespeichert.
+   *
+   * Erst nach Name + Stadt suchen, sonst nur nach der Stadt. Der zweite
+   * Versuch ist grob, aber der Pin landet wenigstens in der richtigen
+   * Stadt statt nirgends. Findet Google gar nichts, wird trotzdem
+   * gespeichert -- eine Bewertung darf daran nicht scheitern.
+   *
+   * Die Google-Kennung wird bewusst NICHT uebernommen: Der Nutzer hat
+   * gerade gesagt, dass er den Ort nicht gefunden hat. Ein Treffer der
+   * Textsuche kann ein anderer Ort sein, und eine falsche Kennung wuerde
+   * zwei verschiedene Orte zu einem verschmelzen.
+   */
+  async function lookupCoords(name: string, city: string) {
+    for (const query of [`${name}, ${city}`, city]) {
+      try {
+        const hits = await searchFn({ data: { query } });
+        const hit = hits[0];
+        if (hit) return { lat: hit.lat, lng: hit.lng };
+      } catch {
+        // Suche nicht erreichbar -- ohne Position weitermachen.
+      }
+    }
+    return null;
+  }
+
   async function createPlace() {
     const { data: auth } = await supabase.auth.getUser();
     if (!newName.trim() || !newCity.trim()) {
       toast.error("Enter a name and city");
       return;
     }
+    const coords = await lookupCoords(newName.trim(), newCity.trim());
     const { data, error } = await supabase
       .from("places")
       .insert({
@@ -139,6 +174,7 @@ function NewReviewPage() {
         city: newCity.trim(),
         category: newCategory,
         created_by: auth.user!.id,
+        ...(coords ?? {}),
       })
       .select("id, name, city, category")
       .single();

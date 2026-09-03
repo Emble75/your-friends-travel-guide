@@ -173,7 +173,7 @@ function ProfilePage() {
     ? !data.profile.is_private || followStatus === "accepted" || data.isMe
     : false;
 
-  const { data: mapPlaces } = useQuery({
+  const { data: mapPlaces, isLoading: mapLoading } = useQuery({
     queryKey: ["profile-map-places", data?.profile.id],
     enabled: view === "map" && !!data?.profile && canSeeReviews,
     queryFn: async () => {
@@ -399,9 +399,30 @@ function ProfilePage() {
             </div>
 
             {view === "map" ? (
-              <div className="h-[60vh] overflow-hidden rounded-3xl border border-border shadow-card">
-                <PlacesMiniMap places={mapPlaces ?? []} />
-              </div>
+              mapLoading ? (
+                <Skeleton className="h-[60vh] rounded-3xl" />
+              ) : (mapPlaces ?? []).length === 0 ? (
+                /*
+                  Ohne diesen Zweig stand hier eine leere Weltkarte: die
+                  Karte laedt, zoomt aber auf nichts, und man raet, ob die
+                  Person keine Orte hat oder etwas kaputt ist. Beide Faelle
+                  werden jetzt benannt -- der zweite tritt auf, wenn ein Ort
+                  von Hand angelegt wurde und keine Position hat.
+                */
+                <EmptyState
+                  icon={MapIcon}
+                  title={reviews.length > 0 ? "Nothing to show on the map" : "No places yet"}
+                  text={
+                    reviews.length > 0
+                      ? "These reviews are for places without a saved location, so they can't be placed on the map."
+                      : "Reviewed places will appear here."
+                  }
+                />
+              ) : (
+                <div className="h-[60vh] overflow-hidden rounded-3xl border border-border shadow-card">
+                  <PlacesMiniMap places={mapPlaces!} />
+                </div>
+              )
             ) : reviews.length > 0 ? (
               reviews.map((r) => <ReviewCard key={r.id} review={r} />)
             ) : (
