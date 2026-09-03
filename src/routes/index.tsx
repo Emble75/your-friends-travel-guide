@@ -68,7 +68,7 @@ function Landing() {
             ].map(({ icon: Icon, title, text }) => (
               <li
                 key={title}
-                className="flex items-center gap-3 rounded-3xl border border-border bg-card p-4 shadow-card"
+                className="flex items-center gap-3 turi-card p-4 "
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-accent-foreground">
                   <Icon size={20} />

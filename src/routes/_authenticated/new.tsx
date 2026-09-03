@@ -226,7 +226,7 @@ function NewReviewPage() {
           Markenschriftzug -- man kommt her, um genau eine Sache zu tun. */}
       <AppHeader title="New review" showBack fallbackTo="/map" />
       <form onSubmit={submit} className="app-shell space-y-5 py-4">
-        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+        <section className="turi-card p-4 ">
           <Label className="turi-eyebrow">Place</Label>
           {place ? (
             <div className="mt-2 flex items-center gap-3">
@@ -323,7 +323,7 @@ function NewReviewPage() {
           )}
         </section>
 
-        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+        <section className="turi-card p-4 ">
           <Label className="turi-eyebrow">Your Review</Label>
           <div className="mt-2 flex justify-center">
             <StarPicker value={rating} onChange={setRating} />
@@ -337,7 +337,7 @@ function NewReviewPage() {
           />
         </section>
 
-        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+        <section className="turi-card p-4 ">
           <Label className="turi-eyebrow">Photos (max. 3)</Label>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {files.map((f, i) => (
@@ -361,12 +361,12 @@ function NewReviewPage() {
                   className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-muted-foreground"
                 >
                   <ImagePlus size={22} />
-                  <span className="text-[11px]">Add</span>
+                  <span className="text-2xs">Add</span>
                 </button>
               ) : (
                 <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-muted-foreground">
                   <ImagePlus size={22} />
-                  <span className="text-[11px]">Add</span>
+                  <span className="text-2xs">Add</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -380,7 +380,7 @@ function NewReviewPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+        <section className="turi-card p-4 ">
           <Label className="turi-eyebrow">Folder (optional)</Label>
           <p className="mt-1 text-xs text-muted-foreground">
             Group places by trip (e.g. "Puglia", "Madrid") and later share the folder with specific

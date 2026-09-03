@@ -188,7 +188,7 @@ export function ReviewCard({
   }
 
   return (
-    <article className="rounded-3xl border border-border bg-card p-4 shadow-card">
+    <article className="turi-card p-4 ">
       <div className="flex items-center gap-3">
         <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
           <UserAvatar
@@ -393,12 +393,12 @@ export function ReviewCard({
                     className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border text-muted-foreground"
                   >
                     <ImagePlus size={22} />
-                    <span className="text-[11px]">Add</span>
+                    <span className="text-2xs">Add</span>
                   </button>
                 ) : (
                   <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border text-muted-foreground">
                     <ImagePlus size={22} />
-                    <span className="text-[11px]">Add</span>
+                    <span className="text-2xs">Add</span>
                     <input
                       type="file"
                       accept="image/*"

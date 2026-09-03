@@ -91,7 +91,7 @@ function ResetPasswordPage() {
 
         <form
           onSubmit={onSubmit}
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 shadow-card"
+          className="mt-8 space-y-4 turi-card p-5 "
         >
           <div className="space-y-1.5">
             <Label htmlFor="password">New password</Label>

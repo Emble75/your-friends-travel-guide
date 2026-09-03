@@ -309,7 +309,7 @@ function MePage() {
   return (
     <>
       <div className="app-shell app-top space-y-4 pb-4">
-        <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
+        <section className="turi-card p-5 ">
           <div className="flex items-center gap-4">
             <label
               className="relative cursor-pointer"
@@ -456,7 +456,7 @@ function MePage() {
         </section>
 
         {pendingRequests.length > 0 ? (
-          <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+          <section className="turi-card p-4 ">
             <h2 className="turi-eyebrow">Follow requests ({pendingRequests.length})</h2>
             <ul className="mt-3 space-y-3">
               {pendingRequests.map((r) => (
@@ -559,7 +559,7 @@ function MePage() {
           Knopf steht hier zusaetzlich, weil er im Kopfbereich nur als
           Symbol ohne Beschriftung existiert.
         */}
-        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+        <section className="turi-card p-4 ">
           <h2 className="turi-eyebrow">Account</h2>
           <Button
             variant="secondary"
