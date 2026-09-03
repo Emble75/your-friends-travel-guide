@@ -77,9 +77,11 @@ function TermsPage() {
         <section>
           <h2 className="font-semibold">5. Reporting, blocking, and moderation</h2>
           <p className="mt-1">
-            Users can report reviews and profiles, and can block other users. We review reports and
-            may act on them, including removing content or restricting accounts, at our reasonable
-            discretion.
+            Users can report reviews and profiles, and can block other users. We review every report
+            within 24 hours and act on it where needed — removing content, restricting or removing
+            accounts. Blocking takes effect immediately and hides content in both directions. Turi
+            only shows you reviews from people you have chosen to follow, so you are never exposed
+            to content from strangers.
           </p>
         </section>
 

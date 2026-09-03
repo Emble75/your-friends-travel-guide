@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,23 @@ function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /*
+   * Diese Seite ist die zweite Haelfte der Passwort-Wiederherstellung:
+   * Supabase schickt einen Link, der eine Sitzung herstellt, und hier
+   * wird das neue Passwort gesetzt. Der Mailversand ist derzeit nicht
+   * aktiviert (bewusste Entscheidung wegen der Grenzen des
+   * Standardmailers) -- die Seite ist also erreichbar, aber ohne
+   * gueltigen Link nicht benutzbar.
+   *
+   * Ohne Sitzung wuerde updateUser fehlschlagen und der Nutzer stuende
+   * vor einem Formular, das nicht funktionieren kann. Deshalb wird der
+   * Zustand vorher geprueft und benannt.
+   */
+  const { data: session, isLoading: checkingSession } = useQuery({
+    queryKey: ["recovery-session"],
+    queryFn: async () => (await supabase.auth.getSession()).data.session,
+  });
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -33,6 +51,31 @@ function ResetPasswordPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!checkingSession && !session) {
+    return (
+      <main className="flex min-h-screen flex-col justify-center bg-background">
+        <div className="app-shell py-10 text-center">
+          <TuriMark className="mx-auto size-16" />
+          <h1 className="mt-5 text-xl font-bold">This link is no longer valid</h1>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+            Password reset links expire after a short time. Write to{" "}
+            <a href="mailto:info.turi.app@gmail.com" className="font-medium text-primary underline">
+              info.turi.app@gmail.com
+            </a>{" "}
+            and we'll help you back in.
+          </p>
+          <Button
+            variant="secondary"
+            className="mt-5 rounded-2xl"
+            onClick={() => navigate({ to: "/auth" })}
+          >
+            Back to sign in
+          </Button>
+        </div>
+      </main>
+    );
   }
 
   return (

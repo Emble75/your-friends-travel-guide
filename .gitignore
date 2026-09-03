@@ -17,7 +17,9 @@ dist-ssr
 *.local
 
 # Lokale, nicht versionierte Secrets (z. B. APP_SUPABASE_SERVICE_ROLE_KEY)
-.env.local
+.env
+.env.*
+!.env.example
 
 # Wrangler / Cloudflare
 .wrangler/

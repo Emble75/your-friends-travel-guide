@@ -1,6 +1,28 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+/*
+ * Zwei Wege zu Googles Places-API -- der direkte gewinnt, wenn er
+ * konfiguriert ist.
+ *
+ * Bisher lief alles ueber Lovables Connector-Gateway. Das ist ein duenner
+ * Weiterleiter: Anfragekoerper und Feldmasken sind bereits exakt Googles
+ * eigenes Format, nur die Authentifizierung unterscheidet sich. Damit war
+ * die Karte -- das Herzstueck der App -- an Lovable gebunden, ohne dass je
+ * geprueft war, ob das ausserhalb deren Infrastruktur funktioniert.
+ *
+ * Ist GOOGLE_PLACES_API_KEY gesetzt, geht es direkt an Google. Sonst
+ * weiter ueber den Gateway. Der Umzug auf eine eigene Domain haengt damit
+ * nicht mehr an dieser Frage: einen Schluessel hinterlegen genuegt.
+ *
+ * (Nachgemessen: der Gateway antwortet auch von ausserhalb Lovables mit
+ * 401 statt einer Sperre -- ein Netzwerk-Riegel besteht also nicht.)
+ */
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+const GOOGLE_URL = "https://places.googleapis.com";
+
+function directKey() {
+  return process.env["GOOGLE_PLACES_API_KEY"];
+}
 
 // Orte ändern sich selten – 30 Tage Cache spart die meisten Google-Places-Kosten.
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -72,15 +94,33 @@ type GooglePlace = {
 };
 
 function headers(fieldMask: string = FIELD_MASK) {
+  const common = { "Content-Type": "application/json", "X-Goog-FieldMask": fieldMask };
+
+  const direct = directKey();
+  if (direct) return { ...common, "X-Goog-Api-Key": direct };
+
   const lovableKey = process.env["LOVABLE_API_KEY"];
   const connectionKey = process.env["GOOGLE_MAPS_API_KEY"];
-  if (!lovableKey || !connectionKey) throw new Error("Google Maps ist nicht verbunden.");
+  if (!lovableKey || !connectionKey) {
+    throw new Error(
+      "Places API is not configured. Set GOOGLE_PLACES_API_KEY, or LOVABLE_API_KEY together with GOOGLE_MAPS_API_KEY.",
+    );
+  }
   return {
+    ...common,
     Authorization: `Bearer ${lovableKey}`,
     "X-Connection-Api-Key": connectionKey,
-    "Content-Type": "application/json",
-    "X-Goog-FieldMask": fieldMask,
   };
+}
+
+/**
+ * Baut die Adresse fuer einen Pfad. Google erwartet ihn ohne das
+ * "places/"-Praefix, das der Gateway voranstellt -- deshalb faellt es
+ * beim direkten Weg weg.
+ */
+function endpoint(path: string) {
+  if (directKey()) return GOOGLE_URL + "/" + path.replace(/^places\//, "");
+  return GATEWAY_URL + "/" + path;
 }
 
 function map(places: GooglePlace[] | undefined): MapPlace[] {
@@ -88,7 +128,7 @@ function map(places: GooglePlace[] | undefined): MapPlace[] {
     .filter((p) => p.location)
     .map((p) => ({
       googlePlaceId: p.id,
-      name: p.displayName?.text ?? "Unbenannter Ort",
+      name: p.displayName?.text ?? "Unnamed place",
       address: p.formattedAddress ?? null,
       category: p.primaryTypeDisplayName?.text ?? p.primaryType ?? null,
       rawType: p.primaryType ?? null,
@@ -98,7 +138,7 @@ function map(places: GooglePlace[] | undefined): MapPlace[] {
 }
 
 async function call(path: string, body: unknown): Promise<MapPlace[]> {
-  const response = await fetch(`${GATEWAY_URL}/${path}`, {
+  const response = await fetch(endpoint(path), {
     method: "POST",
     headers: headers(),
     body: JSON.stringify(body),
@@ -106,21 +146,21 @@ async function call(path: string, body: unknown): Promise<MapPlace[]> {
   if (!response.ok) {
     const text = await response.text();
     console.error(`Google Maps request failed [${response.status}]: ${text}`);
-    throw new Error(`Kartendaten konnten nicht geladen werden (${response.status}).`);
+    throw new Error(`Could not load map data (${response.status}).`);
   }
   const json = (await response.json()) as { places?: GooglePlace[] };
   return map(json.places);
 }
 
 async function callGet(path: string): Promise<GooglePlace | null> {
-  const response = await fetch(`${GATEWAY_URL}/${path}`, {
+  const response = await fetch(endpoint(path), {
     method: "GET",
     headers: headers(SINGLE_FIELD_MASK),
   });
   if (!response.ok) {
     const text = await response.text();
     console.error(`Google Maps request failed [${response.status}]: ${text}`);
-    throw new Error(`Ortsdetails konnten nicht geladen werden (${response.status}).`);
+    throw new Error(`Could not load place details (${response.status}).`);
   }
   return (await response.json()) as GooglePlace;
 }
@@ -142,7 +182,7 @@ export async function nearbyPlaces(lat: number, lng: number, radius: number) {
         "night_club",
       ],
       maxResultCount: 20,
-      languageCode: "de",
+      languageCode: "en",
       locationRestriction: {
         circle: { center: { latitude: lat, longitude: lng }, radius: roundedRadius },
       },
@@ -162,7 +202,7 @@ export async function searchPlacesText(query: string, lat?: number, lng?: number
     const body: Record<string, unknown> = {
       textQuery: query,
       maxResultCount: 15,
-      languageCode: "de",
+      languageCode: "en",
     };
     if (typeof lat === "number" && typeof lng === "number") {
       body["locationBias"] = {
