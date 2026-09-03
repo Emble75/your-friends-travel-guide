@@ -21,7 +21,12 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
   ios: {
-    contentInset: "automatic",
+    // "never": die eigene CSS (app-top / env(safe-area-inset-*) in
+    // styles.css) rechnet den Sicherheitsabstand bereits ein. Mit
+    // "automatic" fuegte die native Webview ZUSAETZLICH einen eigenen
+    // Abstand ein -- das ergab doppelten Leerraum oben, sichtbar nur in
+    // der nativen App, nicht in der Web-Vorschau.
+    contentInset: "never",
   },
 };
 
