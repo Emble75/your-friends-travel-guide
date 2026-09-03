@@ -393,3 +393,16 @@
   max-width: 30rem;
   padding-inline: 1rem;
 }
+
+/*
+ * Eine Karte. Vorher stand die Kombination aus Radius, Hairline und
+ * Schatten an 16 Stellen ausgeschrieben -- jede Abweichung davon war
+ * unsichtbar, bis man zwei Screens nebeneinander legte. Der Innenabstand
+ * bleibt bewusst draussen: Abschnittskarten tragen p-5, Listenzeilen p-3.
+ */
+@utility turi-card {
+  border-radius: var(--radius-3xl);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: var(--shadow-card);
+}
