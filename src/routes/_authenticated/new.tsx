@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CATEGORIES, compressImage, getErrorMessage } from "@/lib/turi";
+import { isNative, takePhoto } from "@/lib/native";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/_authenticated/new")({
@@ -154,6 +155,11 @@ function NewReviewPage() {
   function onPickFiles(list: FileList | null) {
     if (!list) return;
     setFiles((prev) => [...prev, ...Array.from(list)].slice(0, 3));
+  }
+
+  async function onAddPhotoNative() {
+    const file = await takePhoto("prompt");
+    if (file) setFiles((prev) => [...prev, file].slice(0, 3));
   }
 
   async function submit(e: React.FormEvent) {
@@ -348,17 +354,28 @@ function NewReviewPage() {
               </div>
             ))}
             {files.length < 3 ? (
-              <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-muted-foreground">
-                <ImagePlus size={22} />
-                <span className="text-[11px]">Add</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => onPickFiles(e.target.files)}
-                />
-              </label>
+              isNative() ? (
+                <button
+                  type="button"
+                  onClick={onAddPhotoNative}
+                  className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-muted-foreground"
+                >
+                  <ImagePlus size={22} />
+                  <span className="text-[11px]">Add</span>
+                </button>
+              ) : (
+                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-muted-foreground">
+                  <ImagePlus size={22} />
+                  <span className="text-[11px]">Add</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => onPickFiles(e.target.files)}
+                  />
+                </label>
+              )
             ) : null}
           </div>
         </section>

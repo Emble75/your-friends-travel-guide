@@ -4,6 +4,7 @@ import { Clock, UserCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage } from "@/lib/turi";
+import { tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
 import type { FollowStatus } from "@/hooks/use-follow";
 
@@ -71,6 +72,7 @@ export function FollowButton({
 
   async function handleClick() {
     if (busy) return;
+    void tap();
     setBusy(true);
     try {
       const { data: auth } = await supabase.auth.getUser();

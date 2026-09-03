@@ -4,6 +4,7 @@ import { Bookmark, Navigation, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { directionsUrl, getErrorMessage } from "@/lib/turi";
+import { tap } from "@/lib/native";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";
@@ -66,6 +67,7 @@ function PlacePage() {
   });
 
   async function toggleSave() {
+    void tap();
     const { data: auth } = await supabase.auth.getUser();
     const me = auth.user?.id;
     if (!me) return;

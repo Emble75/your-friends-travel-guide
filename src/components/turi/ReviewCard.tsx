@@ -8,6 +8,7 @@ import { UserAvatar } from "./UserAvatar";
 import { ReportDialog } from "./ReportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { compressImage, getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
+import { isNative, takePhoto } from "@/lib/native";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -92,6 +93,13 @@ export function ReviewCard({
     setEditExistingImages(sortedImages);
     setEditNewFiles([]);
     setEditOpen(true);
+  }
+
+  async function onAddEditPhotoNative() {
+    const maxNew = Math.max(0, 3 - editExistingImages.length);
+    if (maxNew <= 0) return;
+    const file = await takePhoto("prompt");
+    if (file) setEditNewFiles((prev) => [...prev, file].slice(0, maxNew));
   }
 
   function onPickEditFiles(list: FileList | null) {
@@ -378,17 +386,28 @@ export function ReviewCard({
                 </div>
               ))}
               {totalEditPhotos < 3 ? (
-                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border text-muted-foreground">
-                  <ImagePlus size={22} />
-                  <span className="text-[11px]">Add</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => onPickEditFiles(e.target.files)}
-                  />
-                </label>
+                isNative() ? (
+                  <button
+                    type="button"
+                    onClick={onAddEditPhotoNative}
+                    className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border text-muted-foreground"
+                  >
+                    <ImagePlus size={22} />
+                    <span className="text-[11px]">Add</span>
+                  </button>
+                ) : (
+                  <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border text-muted-foreground">
+                    <ImagePlus size={22} />
+                    <span className="text-[11px]">Add</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => onPickEditFiles(e.target.files)}
+                    />
+                  </label>
+                )
               ) : null}
             </div>
           </div>

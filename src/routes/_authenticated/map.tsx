@@ -23,6 +23,7 @@ import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { Stars } from "@/components/turi/Stars";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { directionsUrl, getErrorMessage } from "@/lib/turi";
+import { currentPosition, tap, watchPosition } from "@/lib/native";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -350,49 +351,43 @@ function MapPage() {
    * Ortung im Hintergrund weiter und zoege unnoetig Akku.
    */
   useEffect(() => {
-    if (!ready || !navigator.geolocation) return;
+    if (!ready) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const map = mapRef.current;
-        if (!map) return;
+    const stop = watchPosition((c) => {
+      const map = mapRef.current;
+      if (!map) return;
 
-        if (!meMarkerRef.current) {
-          meMarkerRef.current = new google.maps.Marker({
-            map,
-            // Unter allen Ortspins: der eigene Standort soll sie nicht
-            // verdecken, wenn man genau davorsteht.
-            zIndex: 1,
-            clickable: false,
-            icon: currentLocationIcon(),
-          });
-          meAccuracyRef.current = new google.maps.Circle({
-            map,
-            strokeOpacity: 0,
-            fillColor: mapColor("me"),
-            fillOpacity: 0.12,
-            clickable: false,
-          });
-        }
-        meMarkerRef.current.setPosition(c);
-        meAccuracyRef.current?.setCenter(c);
-        // Bei guter Ortung waere der Kreis winzig und nur Unruhe.
-        const accuracy = pos.coords.accuracy;
-        meAccuracyRef.current?.setRadius(accuracy > 25 ? accuracy : 0);
+      if (!meMarkerRef.current) {
+        meMarkerRef.current = new google.maps.Marker({
+          map,
+          // Unter allen Ortspins: der eigene Standort soll sie nicht
+          // verdecken, wenn man genau davorsteht.
+          zIndex: 1,
+          clickable: false,
+          icon: currentLocationIcon(),
+        });
+        meAccuracyRef.current = new google.maps.Circle({
+          map,
+          strokeOpacity: 0,
+          fillColor: mapColor("me"),
+          fillOpacity: 0.12,
+          clickable: false,
+        });
+      }
+      meMarkerRef.current.setPosition(c);
+      meAccuracyRef.current?.setCenter(c);
+      // Bei guter Ortung waere der Kreis winzig und nur Unruhe.
+      meAccuracyRef.current?.setRadius(c.accuracy > 25 ? c.accuracy : 0);
 
-        if (!mapSession.centeredOnUser) {
-          mapSession.centeredOnUser = true;
-          map.setCenter(c);
-          setCenter(c);
-        }
-      },
-      () => undefined,
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 },
-    );
+      if (!mapSession.centeredOnUser) {
+        mapSession.centeredOnUser = true;
+        map.setCenter(c);
+        setCenter(c);
+      }
+    });
 
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      stop();
       meMarkerRef.current?.setMap(null);
       meAccuracyRef.current?.setMap(null);
       meMarkerRef.current = null;
@@ -736,7 +731,7 @@ function MapPage() {
         variant="secondary"
         aria-label="Show my location"
         className="absolute bottom-6 right-4 z-10 size-12 rounded-2xl shadow-card"
-        onClick={() => {
+        onClick={async () => {
           // Die laufende Ortung kennt die Position bereits -- direkt
           // hinspringen statt erneut zu messen. Das war vorher eine
           // zweite Anfrage mit spuerbarer Wartezeit, obwohl der Punkt
@@ -750,16 +745,14 @@ function MapPage() {
           }
           // Noch keine Ortung erhalten (Berechtigung offen oder kein
           // Empfang) -- dann doch einmal aktiv fragen.
-          navigator.geolocation?.getCurrentPosition(
-            (pos) => {
-              const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-              mapRef.current?.panTo(c);
-              mapRef.current?.setZoom(16);
-              setCenter(c);
-            },
-            () => toast.error("Couldn't get your location"),
-            { timeout: 10_000 },
-          );
+          const c = await currentPosition();
+          if (!c) {
+            toast.error("Couldn't get your location");
+            return;
+          }
+          mapRef.current?.panTo(c);
+          mapRef.current?.setZoom(16);
+          setCenter(c);
         }}
       >
         <LocateFixed size={20} />
@@ -844,6 +837,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
 
   async function toggleSave() {
     if (!place) return;
+    void tap();
     setBusy(true);
     try {
       const id = await ensureLocalPlace(place);

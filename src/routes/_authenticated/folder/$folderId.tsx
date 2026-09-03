@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ExternalLink, Folder, Share2, Star, Trash2, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getAppUrl, getErrorMessage, shareLink } from "@/lib/turi";
+import { getAppUrl, getErrorMessage } from "@/lib/turi";
+import { share } from "@/lib/native";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -230,7 +231,7 @@ function ShareDialog({
   }
 
   async function sendLink() {
-    const result = await shareLink({
+    const result = await share({
       title: "Turi trip",
       url: `${getAppUrl()}/folder/${folderId}`,
     });

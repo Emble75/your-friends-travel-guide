@@ -39,7 +39,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { compressImage, getAppUrl, getErrorMessage, shareLink } from "@/lib/turi";
+import { compressImage, getAppUrl, getErrorMessage } from "@/lib/turi";
+import { isNative, share, takePhoto } from "@/lib/native";
 
 export const Route = createFileRoute("/_authenticated/me")({
   head: () => ({
@@ -310,7 +311,15 @@ function MePage() {
       <div className="app-shell app-top space-y-4 pb-4">
         <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
           <div className="flex items-center gap-4">
-            <label className="relative cursor-pointer">
+            <label
+              className="relative cursor-pointer"
+              onClick={async (e) => {
+                if (!isNative()) return;
+                e.preventDefault();
+                const file = await takePhoto("prompt");
+                if (file) void uploadAvatar(file);
+              }}
+            >
               <UserAvatar
                 avatarPath={profile.avatar_url}
                 name={profile.display_name ?? profile.username}
@@ -432,7 +441,7 @@ function MePage() {
                 aria-label="Share my map"
                 className="h-11 w-11 shrink-0 rounded-2xl"
                 onClick={async () => {
-                  const result = await shareLink({
+                  const result = await share({
                     title: `${profile.display_name || profile.username} on Turi`,
                     text: "My map — the places I'd actually send you to.",
                     url: `${getAppUrl()}/u/${profile.username}`,

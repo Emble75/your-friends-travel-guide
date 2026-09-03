@@ -12,6 +12,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { navHistory } from "@/lib/nav-history";
+import { isNative } from "@/lib/native";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -168,6 +169,16 @@ function RootComponent() {
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
+
+  // Turis Oberflaeche ist durchgehend hell -- die Statusleiste soll daher
+  // dunkle Zeichen zeigen. Ohne das steht die App bei Apples eigenem
+  // Standard (helle Zeichen), die auf hellem Grund unsichtbar waeren.
+  useEffect(() => {
+    if (!isNative()) return;
+    void import("@capacitor/status-bar")
+      .then(({ StatusBar, Style }) => StatusBar.setStyle({ style: Style.Dark }))
+      .catch(() => undefined);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
