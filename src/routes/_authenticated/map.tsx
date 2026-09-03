@@ -801,12 +801,17 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
         .maybeSingle();
       if (!local) return { localId: null, reviews: [], isSaved: false };
       const [{ data: reviews }, savedRes] = await Promise.all([
+        // Ohne die eigene Bewertung: dieses Panel ist durchgehend als
+        // "from your circle" beschriftet, die eigene Meinung gehoert
+        // nicht hinein -- weder in die Liste noch in den Durchschnitt.
+        // Die vollstaendige Ansicht ("All reviews") zeigt sie separat.
         supabase
           .from("reviews")
           .select(
             "id, rating, text, created_at, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url)",
           )
           .eq("place_id", local.id)
+          .neq("user_id", me ?? "")
           .order("created_at", { ascending: false }),
         me
           ? supabase

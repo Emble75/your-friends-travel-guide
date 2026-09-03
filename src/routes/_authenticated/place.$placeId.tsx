@@ -28,6 +28,14 @@ function PlacePage() {
   const { placeId } = Route.useParams();
   const queryClient = useQueryClient();
 
+  // Gleicher Query-Key wie in ReviewCard -- der Wert wird geteilt, nicht
+  // ein zweites Mal geholt.
+  const { data: me } = useQuery({
+    queryKey: ["current-user-id"],
+    queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
+    staleTime: 5 * 60_000,
+  });
+
   const { data: place } = useQuery({
     queryKey: ["place", placeId],
     queryFn: async () => {
@@ -91,9 +99,21 @@ function PlacePage() {
     },
   });
 
+  /*
+   * Eigene Bewertung von denen des Freundeskreises trennen.
+   *
+   * Die Abfrage liefert beides -- die Sichtbarkeitsregel schliesst die
+   * eigenen Inhalte ausdruecklich ein. Vorher landete die eigene
+   * Bewertung dadurch unter "From your circle", wurde als Freund
+   * mitgezaehlt und floss in den Durchschnitt ein. Der Kern der App ist
+   * aber, was ANDERE denken; die eigene Meinung darf ihn nicht faerben.
+   */
+  const myReview = reviews?.find((r) => r.user_id === me) ?? null;
+  const circleReviews = reviews?.filter((r) => r.user_id !== me) ?? [];
+
   const avg =
-    reviews && reviews.length > 0
-      ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+    circleReviews.length > 0
+      ? circleReviews.reduce((s, r) => s + r.rating, 0) / circleReviews.length
       : null;
 
   return (
@@ -144,7 +164,7 @@ function PlacePage() {
                 <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
                 <Stars value={avg} size={16} />
                 <span className="ml-auto text-xs text-muted-foreground">
-                  {reviews!.length} {reviews!.length === 1 ? "friend" : "friends"}
+                  {circleReviews.length} {circleReviews.length === 1 ? "friend" : "friends"}
                 </span>
               </>
             ) : (
@@ -153,14 +173,21 @@ function PlacePage() {
           </div>
         </section>
 
+        {myReview ? (
+          <>
+            <h2 className="px-1 turi-eyebrow">Your review</h2>
+            <ReviewCard review={myReview} showPlace={false} />
+          </>
+        ) : null}
+
         <h2 className="px-1 turi-eyebrow">From your circle</h2>
 
         {isError ? (
           <ErrorState text="We couldn't load the reviews." onRetry={() => refetch()} />
         ) : isLoading ? (
           <Skeleton className="h-48 rounded-3xl" />
-        ) : reviews && reviews.length > 0 ? (
-          reviews.map((r) => <ReviewCard key={r.id} review={r} showPlace={false} />)
+        ) : circleReviews.length > 0 ? (
+          circleReviews.map((r) => <ReviewCard key={r.id} review={r} showPlace={false} />)
         ) : (
           <EmptyState
             icon={Users}
