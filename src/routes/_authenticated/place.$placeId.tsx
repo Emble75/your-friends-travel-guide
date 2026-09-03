@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Navigation, Users } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { directionsUrl, getErrorMessage } from "@/lib/turi";
 import { tap } from "@/lib/native";
 import { AppHeader } from "@/components/turi/AppHeader";

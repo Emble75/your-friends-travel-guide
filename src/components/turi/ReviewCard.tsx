@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Stars, StarPicker } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
 import { ReportDialog } from "./ReportDialog";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { compressImage, getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
 import { isNative, takePhoto } from "@/lib/native";
 import { Button } from "@/components/ui/button";

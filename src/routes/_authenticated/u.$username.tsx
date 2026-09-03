@@ -14,7 +14,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { getErrorMessage } from "@/lib/turi";
 import type { FollowStatus } from "@/hooks/use-follow";
 import { AppHeader } from "@/components/turi/AppHeader";
