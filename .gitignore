@@ -17,9 +17,14 @@ dist-ssr
 *.local
 
 # Lokale, nicht versionierte Secrets (z. B. APP_SUPABASE_SERVICE_ROLE_KEY)
-.env
-.env.*
-!.env.example
+#
+# ACHTUNG: .env gehoert hier NICHT hinein. Lovables Connector-System legt
+# seine browserseitigen Schluessel (VITE_LOVABLE_CONNECTOR_*) genau dort
+# ab und liest sie beim Bauen von dort. Wird die Datei ignoriert oder aus
+# der Versionierung genommen, verliert der naechste Build den
+# Karten-Schluessel -- die Karte zeigt dann "Missing maps API key".
+# Genau das ist am 03.09.2026 passiert (Commit ce5bb28).
+.env.local
 
 # Wrangler / Cloudflare
 .wrangler/
