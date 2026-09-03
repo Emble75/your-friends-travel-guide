@@ -1,31 +1,25 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Die Bildmarke: drei verbundene Orte.
+ * Die Bildmarke: vier verbundene Orte, die ein T bilden.
  *
- * Bewusst kein Buchstabe. Die drei Punkte stehen fuer den Freundeskreis,
- * die Linie fuer die Verbindung zwischen ihnen -- also fuer das, was die
- * App ausmacht ("The map only your friends could draw"), statt nur fuer
- * den Anfangsbuchstaben.
+ * Sie traegt beides -- den Anfangsbuchstaben UND die Idee der App: Punkte
+ * sind Orte, die Linien die Verbindungen dazwischen ("The map only your
+ * friends could draw").
  *
- * Die Linie ist voll deckend und kraeftig gesetzt, die Punkte sitzen eng.
- * Eine erste Fassung mit duenner, halbtransparenter Verbindung zerfiel
- * unterhalb von 20px in drei lose Punkte -- und genau dort lebt ein Logo:
- * in der Navigationsleiste, nicht auf der Praesentationsfolie.
+ * Die Punkte sind bewusst kraeftig und die Spanne eng. Eine schlankere
+ * Fassung mit kleineren Punkten wirkte bei 16px zerbrechlich, und genau
+ * dort lebt ein Logo -- in der Navigationsleiste, nicht auf der
+ * Praesentationsfolie.
  */
 export function TuriGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M9 22 16 9l7 11.5"
-        stroke="currentColor"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="16" cy="8.5" r="4.6" fill="currentColor" />
-      <circle cx="8.6" cy="23" r="4.6" fill="currentColor" />
-      <circle cx="23.4" cy="21.4" r="4.6" fill="currentColor" />
+      <path d="M8 10h16M16 10v13" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" />
+      <circle cx="8" cy="10" r="4.5" fill="currentColor" />
+      <circle cx="16" cy="10" r="4.5" fill="currentColor" />
+      <circle cx="24" cy="10" r="4.5" fill="currentColor" />
+      <circle cx="16" cy="23.5" r="4.5" fill="currentColor" />
     </svg>
   );
 }

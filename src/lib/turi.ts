@@ -127,3 +127,32 @@ export function getAppUrl(): string {
   if (typeof window !== "undefined") return window.location.origin;
   return "";
 }
+
+/**
+ * Link, der den Ort in Google Maps zur Navigation oeffnet.
+ *
+ * Verwendet Googles offizielle universelle URL: im Browser oeffnet sie
+ * die Web-Karte, auf einem Geraet mit installierter Google-Maps-App
+ * direkt diese -- ohne dass wir zwei Varianten pflegen muessen.
+ *
+ * Die Koordinaten sind die verlaessliche Angabe; die Orts-Kennung kommt
+ * nur zusaetzlich dazu, damit Google den richtigen Namen anzeigt statt
+ * blosser Zahlen. Fehlen Koordinaten (bei von Hand angelegten Orten
+ * moeglich), wird auf Name und Stadt als Suchbegriff ausgewichen.
+ */
+export function directionsUrl(place: {
+  name: string;
+  city?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  googlePlaceId?: string | null;
+}): string {
+  const params = new URLSearchParams({ api: "1" });
+  if (place.lat != null && place.lng != null) {
+    params.set("destination", `${place.lat},${place.lng}`);
+    if (place.googlePlaceId) params.set("destination_place_id", place.googlePlaceId);
+  } else {
+    params.set("destination", [place.name, place.city].filter(Boolean).join(", "));
+  }
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}

@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, MapPin, Users } from "lucide-react";
+import { Bookmark, MapPin, Navigation, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getErrorMessage } from "@/lib/turi";
+import { directionsUrl, getErrorMessage } from "@/lib/turi";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";
@@ -33,7 +33,7 @@ function PlacePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("places")
-        .select("id, name, city, category")
+        .select("id, name, city, category, lat, lng, google_place_id")
         .eq("id", placeId)
         .maybeSingle();
       if (error) throw error;
@@ -113,6 +113,17 @@ function PlacePage() {
               </p>
             </div>
           </div>
+
+          {/* Fuehrt in Google Maps -- Koordinaten plus Orts-Kennung, damit
+              dort der richtige Name steht. Oeffnet auf dem Geraet direkt
+              die Maps-App, im Browser die Web-Karte. */}
+          {place ? (
+            <Button asChild variant="secondary" className="mt-3 h-11 w-full rounded-2xl">
+              <a href={directionsUrl(place)} target="_blank" rel="noopener noreferrer">
+                <Navigation size={16} className="mr-2" /> Take me there
+              </a>
+            </Button>
+          ) : null}
 
           <button
             type="button"

@@ -2,7 +2,18 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bookmark, Loader2, LocateFixed, MapPin, Plus, Search, Star, Users, X } from "lucide-react";
+import {
+  Bookmark,
+  Loader2,
+  LocateFixed,
+  MapPin,
+  Navigation,
+  Plus,
+  Search,
+  Star,
+  Users,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
@@ -12,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { Stars } from "@/components/turi/Stars";
 import { UserAvatar } from "@/components/turi/UserAvatar";
-import { getErrorMessage } from "@/lib/turi";
+import { directionsUrl, getErrorMessage } from "@/lib/turi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -869,6 +880,25 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
         </SheetHeader>
 
         <div className="mt-4 space-y-3 px-4">
+          {/* Fuehrt in Google Maps -- oeffnet auf dem Geraet direkt die
+              Maps-App, im Browser die Web-Karte. */}
+          {place ? (
+            <Button asChild variant="secondary" className="h-11 w-full rounded-2xl">
+              <a
+                href={directionsUrl({
+                  name: place.name,
+                  lat: place.lat,
+                  lng: place.lng,
+                  googlePlaceId: place.googlePlaceId,
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Navigation size={16} className="mr-2" /> Take me there
+              </a>
+            </Button>
+          ) : null}
+
           <button
             type="button"
             onClick={toggleSave}
