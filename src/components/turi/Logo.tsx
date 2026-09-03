@@ -7,19 +7,30 @@ import { cn } from "@/lib/utils";
  * sind Orte, die Linien die Verbindungen dazwischen ("The map only your
  * friends could draw").
  *
- * Die Punkte sind bewusst kraeftig und die Spanne eng. Eine schlankere
- * Fassung mit kleineren Punkten wirkte bei 16px zerbrechlich, und genau
- * dort lebt ein Logo -- in der Navigationsleiste, nicht auf der
- * Praesentationsfolie.
+ * Punkte klein, Linien duenner und halbtransparent. Bei gleicher Staerke
+ * und voller Deckung schluckten die Punkte die Linien und die Marke las
+ * sich als ein Klumpen. Unterhalb von 16px treten die Linien zwar
+ * zurueck, die vier Punktpositionen allein bilden aber weiterhin ein T --
+ * die Form bleibt also lesbar, wo ein Logo tatsaechlich lebt.
  */
 export function TuriGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      <path d="M8 10h16M16 10v13" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" />
-      <circle cx="8" cy="10" r="4.5" fill="currentColor" />
-      <circle cx="16" cy="10" r="4.5" fill="currentColor" />
-      <circle cx="24" cy="10" r="4.5" fill="currentColor" />
-      <circle cx="16" cy="23.5" r="4.5" fill="currentColor" />
+      {/* Die Linien bewusst duenner und halbtransparent: bei gleicher
+          Staerke und Deckung verschmolzen sie mit den Punkten zu einer
+          Flaeche. So bleiben Orte (Punkte) und Verbindungen (Linien)
+          unterscheidbar -- das ist der Inhalt der Marke. */}
+      <path
+        d="M6.5 10h19M16 10v13.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+      <circle cx="6.5" cy="10" r="3.4" fill="currentColor" />
+      <circle cx="16" cy="10" r="3.4" fill="currentColor" />
+      <circle cx="25.5" cy="10" r="3.4" fill="currentColor" />
+      <circle cx="16" cy="23.5" r="3.4" fill="currentColor" />
     </svg>
   );
 }
