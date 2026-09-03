@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Search, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { useMyNetwork } from "@/hooks/use-follow";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Clock, UserCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { getErrorMessage } from "@/lib/turi";
 import { tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";

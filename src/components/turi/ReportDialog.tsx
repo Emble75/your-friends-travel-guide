@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Flag } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { getErrorMessage } from "@/lib/turi";
 import {
   Dialog,

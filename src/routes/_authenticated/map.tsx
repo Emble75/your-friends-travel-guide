@@ -18,7 +18,7 @@ import { getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
 import { currentLocationIcon, mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { Stars } from "@/components/turi/Stars";
 import { UserAvatar } from "@/components/turi/UserAvatar";

@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { UserMinus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { getErrorMessage } from "@/lib/turi";
 import { useMyNetwork } from "@/hooks/use-follow";
 import { FollowButton } from "./FollowButton";

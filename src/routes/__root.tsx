@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/app-client";
 import { navHistory } from "@/lib/nav-history";
 import { isNative } from "@/lib/native";
 
