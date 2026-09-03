@@ -252,7 +252,7 @@ function ProfilePage() {
     <>
       <AppHeader title={`@${profile.username}`} showBack fallbackTo="/feed" />
       <div className="app-shell space-y-4 py-4">
-        <section className="turi-card p-5 ">
+        <section className="turi-card p-5">
           <div className="flex items-center gap-4">
             <UserAvatar
               avatarPath={profile.avatar_url}

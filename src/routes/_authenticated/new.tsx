@@ -226,7 +226,7 @@ function NewReviewPage() {
           Markenschriftzug -- man kommt her, um genau eine Sache zu tun. */}
       <AppHeader title="New review" showBack fallbackTo="/map" />
       <form onSubmit={submit} className="app-shell space-y-5 py-4">
-        <section className="turi-card p-4 ">
+        <section className="turi-card p-5">
           <Label className="turi-eyebrow">Place</Label>
           {place ? (
             <div className="mt-2 flex items-center gap-3">
@@ -323,7 +323,7 @@ function NewReviewPage() {
           )}
         </section>
 
-        <section className="turi-card p-4 ">
+        <section className="turi-card p-5">
           <Label className="turi-eyebrow">Your Review</Label>
           <div className="mt-2 flex justify-center">
             <StarPicker value={rating} onChange={setRating} />
@@ -337,7 +337,7 @@ function NewReviewPage() {
           />
         </section>
 
-        <section className="turi-card p-4 ">
+        <section className="turi-card p-5">
           <Label className="turi-eyebrow">Photos (max. 3)</Label>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {files.map((f, i) => (
@@ -380,7 +380,7 @@ function NewReviewPage() {
           </div>
         </section>
 
-        <section className="turi-card p-4 ">
+        <section className="turi-card p-5">
           <Label className="turi-eyebrow">Folder (optional)</Label>
           <p className="mt-1 text-xs text-muted-foreground">
             Group places by trip (e.g. "Puglia", "Madrid") and later share the folder with specific

@@ -127,7 +127,7 @@ function PeopleResults({ term }: { term: string }) {
       {data.map((p) => (
         <li
           key={p.id}
-          className="flex items-center gap-3 turi-card p-3 "
+          className="flex items-center gap-3 turi-card p-3"
         >
           <Link
             to="/u/$username"

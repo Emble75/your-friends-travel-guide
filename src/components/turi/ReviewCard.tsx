@@ -188,7 +188,7 @@ export function ReviewCard({
   }
 
   return (
-    <article className="turi-card p-4 ">
+    <article className="turi-card p-4">
       <div className="flex items-center gap-3">
         <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
           <UserAvatar

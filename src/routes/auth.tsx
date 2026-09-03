@@ -150,7 +150,7 @@ function AuthPage() {
         </div>
 
         {resetSent ? (
-          <div className="mt-8 turi-card p-6 text-center ">
+          <div className="mt-8 turi-card p-5 text-center">
             <h2 className="text-lg font-semibold">Forgot your password?</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Please send an email to{" "}
@@ -171,7 +171,7 @@ function AuthPage() {
             </Button>
           </div>
         ) : sent ? (
-          <div className="mt-8 turi-card p-6 text-center ">
+          <div className="mt-8 turi-card p-5 text-center">
             <h2 className="text-lg font-semibold">Almost there</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               We've sent you an email. Confirm your address to get started.
@@ -184,7 +184,7 @@ function AuthPage() {
             // Ausfuellhilfe) -- nur die Browser-Sprechblase ist aus,
             // siehe firstProblem() oben.
             noValidate
-            className="mt-8 space-y-4 turi-card p-5 "
+            className="mt-8 space-y-4 turi-card p-5"
           >
             {mode === "signup" ? (
               <div className="space-y-1.5">
