@@ -96,6 +96,11 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --shadow-card: 0 1px 2px oklch(0.2 0.006 55 / 4%), 0 4px 16px -10px oklch(0.2 0.006 55 / 10%);
   --shadow-glow: 0 10px 28px -10px oklch(0.55 0.23 266 / 45%);
+  /* Kleinste Stufe der Schriftskala: Navigationsbeschriftungen, kleine
+     Knopf-Labels. Ersetzt verstreute Einzelwerte wie text-[11px], damit
+     die Skala geschlossen bleibt (2xs -> xs -> sm -> base -> lg ...). */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 }
 
 :root {
@@ -387,4 +392,17 @@
   width: 100%;
   max-width: 30rem;
   padding-inline: 1rem;
+}
+
+/*
+ * Eine Karte. Vorher stand die Kombination aus Radius, Hairline und
+ * Schatten an 16 Stellen ausgeschrieben -- jede Abweichung davon war
+ * unsichtbar, bis man zwei Screens nebeneinander legte. Der Innenabstand
+ * bleibt bewusst draussen: Abschnittskarten tragen p-5, Listenzeilen p-3.
+ */
+@utility turi-card {
+  border-radius: var(--radius-3xl);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: var(--shadow-card);
 }

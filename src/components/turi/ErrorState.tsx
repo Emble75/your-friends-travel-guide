@@ -46,7 +46,7 @@ export function ErrorState({
       {detail ? (
         <details className="mt-4 w-full max-w-xs text-left">
           <summary className="cursor-pointer text-xs text-muted-foreground">Details</summary>
-          <p className="mt-1.5 break-words rounded-xl bg-secondary px-3 py-2 font-mono text-[11px] text-muted-foreground">
+          <p className="mt-1.5 break-words rounded-xl bg-secondary px-3 py-2 font-mono text-2xs text-muted-foreground">
             {detail}
           </p>
         </details>

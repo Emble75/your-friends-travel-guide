@@ -22,7 +22,7 @@ export function BottomNav() {
             activeProps={{ className: "text-primary font-semibold", "aria-current": "page" }}
           >
             <Icon size={22} strokeWidth={2} />
-            <span className="text-[11px] font-medium">{label}</span>
+            <span className="text-2xs font-medium">{label}</span>
           </Link>
         ))}
       </div>
