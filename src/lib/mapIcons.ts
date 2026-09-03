@@ -20,7 +20,7 @@
  * serverseitigen Rendern, wo es kein document gibt.
  */
 export function mapColor(role: "reviewed" | "saved" | "search" | "me"): string {
-  const fallback = { reviewed: "#1634c2", saved: "#a72b00", search: "#2b2724", me: "#325ef5" }[
+  const fallback = { reviewed: "#325ef5", saved: "#f56333", search: "#2b2724", me: "#325ef5" }[
     role
   ];
   if (typeof document === "undefined") return fallback;

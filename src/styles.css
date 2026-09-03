@@ -182,38 +182,29 @@
    * SVG-Grafiken (data-URL) fuer die Pins eingesetzt; Hex funktioniert
    * dort in jeder Webview zuverlaessig.
    *
-   * DREI ROLLEN:
+   * ROLLEN:
    *   --map-reviewed  Bewertet -- in "Discover" von Freunden, in
    *                   "My Map" von mir. Beide Faelle treten nie
    *                   gleichzeitig auf, eine Farbe genuegt.
    *   --map-saved     Wunschliste, auf beiden Karten.
-   *   --map-search    Suchtreffer. Neutral, damit sie sich in "Discover"
-   *                   von den blauen Bewertungspins abheben.
-   *   --map-me        Eigener Standort. Das HELLE Markenblau, waehrend
-   *                   die Pins das abgedunkelte tragen. Unterschieden
-   *                   wird ohnehin ueber die Form -- ein Kreis, kein
-   *                   Tropfen: ein Pin zeigt auf einen Ort, dieser Punkt
-   *                   ist einer. Hier ist die Naehe zu Googles Blau
-   *                   unschaedlich, weil der Punkt nie mit POI-Symbolen
-   *                   verwechselt wird.
+   *   --map-search    Suchtreffer. Neutral, damit sie sich von den
+   *                   blauen Bewertungspins abheben.
+   *   --map-me        Eigener Standort. Dieselbe Blaustufe wie die
+   *                   Bewertungen; unterschieden wird ueber die Form --
+   *                   ein Kreis, kein Tropfen: ein Pin zeigt auf einen
+   *                   Ort, dieser Punkt ist einer.
    *
-   * Beide Farbwerte sind bewusst TIEFER als ihre Entsprechung in der
-   * Marke. Googles POI-Symbole sind durchweg hell: Gastronomie #FF9E67,
-   * Einkaufen #4B96F3, Dienstleistungen #909CE1. Das Markenblau #325EF5
-   * liegt nur 11 Grad neben Googles Einkaufs-Blau (Kontrast 1.72:1) und
-   * wuerde darin verschwimmen; abgedunkelt sind es 3.03:1. Dasselbe
-   * Argument gilt fuer das Orange gegenueber der Gastronomie (3.46:1).
-   * Die Trennung laeuft also ueber die Helligkeit, nicht den Farbton --
-   * so bleiben es erkennbar die Farben der App.
+   * Blau und Orange sind die Farben der App, bewusst in voller
+   * Leuchtkraft. Sie liegen naeher an Googles POI-Symbolen (#4B96F3
+   * Einkaufen, #FF9E67 Gastronomie) als abgedunkelte Varianten -- das
+   * ist eine bewusste Entscheidung zugunsten der Markenfarben.
    *
-   * Blau und Orange stehen auf beiden Karten nebeneinander. Ihr
-   * Helligkeitsunterschied ist gering, der Farbtonabstand mit 130 Grad
-   * aber sehr gross. Zusaetzlich unterscheiden sie sich in der FORM:
-   * bewertete Pins tragen eine Zahl, Wunschlisten-Pins einen offenen
-   * Ring. Die Unterscheidung haengt damit nicht allein an der Farbe.
+   * Die Bewertungszahl im Pin passt ihre Schriftfarbe automatisch an die
+   * Pin-Helligkeit an (siehe labelColor in mapIcons.ts), bleibt also bei
+   * jeder Farbwahl lesbar.
    */
-  --map-reviewed: #1634c2;
-  --map-saved: #a72b00;
+  --map-reviewed: #325ef5;
+  --map-saved: #f56333;
   --map-search: #2b2724;
   --map-me: #325ef5;
 

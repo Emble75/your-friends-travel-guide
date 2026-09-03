@@ -635,35 +635,41 @@ function MapPage() {
           </button>
         </div>
 
-        {mode === "discover" ? (
-          <div className="pointer-events-auto relative">
-            <Search
-              size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+        {/*
+          Die Suche steht in BEIDEN Modi zur Verfuegung. Sie war frueher
+          auf "Discover" beschraenkt -- in "My Map" liess sich damit nicht
+          zu einer Stadt springen, obwohl die eigenen Orte ueber die halbe
+          Welt verteilt sein koennen. Die Suchtreffer liegen ohnehin in
+          einer eigenen Marker-Ablage und stoeren die Modus-Pins nicht.
+        */}
+        <div className="pointer-events-auto relative">
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (!e.target.value.trim()) {
+                setSearchCandidates(null);
+              }
+            }}
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            placeholder={mode === "mine" ? "Search a city or place" : "Search city or place"}
+            className="h-12 rounded-2xl border-0 bg-card pl-11 pr-11 shadow-card"
+          />
+          {/* Zeigt an, dass die Orte fuer den sichtbaren Ausschnitt noch
+              geladen werden. Nur in "Discover" -- dort haengt die
+              Pin-Anzeige am sichtbaren Bereich, in "My Map" nicht. */}
+          {mode === "discover" && reviewedLoading ? (
+            <Loader2
+              size={16}
+              aria-label="Loading places"
+              className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
             />
-            <Input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (!e.target.value.trim()) {
-                  setSearchCandidates(null);
-                }
-              }}
-              onKeyDown={(e) => e.key === "Enter" && runSearch()}
-              placeholder="Search city or place"
-              className="h-12 rounded-2xl border-0 bg-card pl-11 pr-11 shadow-card"
-            />
-            {/* Zeigt an, dass die Orte fuer den sichtbaren Ausschnitt noch
-                geladen werden -- vorher sass das im entfallenen Logo-Balken. */}
-            {reviewedLoading ? (
-              <Loader2
-                size={16}
-                aria-label="Loading places"
-                className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
-              />
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
         {/*
           Nur noch ein schmaler Hinweis statt der frueheren Trefferliste.
