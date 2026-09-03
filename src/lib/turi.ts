@@ -156,3 +156,33 @@ export function directionsUrl(place: {
   }
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
+
+/**
+ * Oeffnet den Teilen-Dialog des Systems (WhatsApp, Mail, Nachrichten ...)
+ * und faellt auf die Zwischenablage zurueck, wo es ihn nicht gibt --
+ * etwa auf dem Desktop.
+ *
+ * Der Abbruch durch den Nutzer ist KEIN Fehler und wird verschluckt:
+ * navigator.share wirft in dem Fall, und eine Fehlermeldung dafuer waere
+ * falsch.
+ *
+ * Gibt zurueck, ob auf die Zwischenablage ausgewichen wurde -- der
+ * Aufrufer kann dann eine Rueckmeldung zeigen, denn anders als beim
+ * Systemdialog passiert sichtbar sonst nichts.
+ */
+export async function shareLink(payload: {
+  title: string;
+  text?: string;
+  url: string;
+}): Promise<"shared" | "copied"> {
+  if (navigator.share) {
+    try {
+      await navigator.share(payload);
+    } catch {
+      // Dialog abgebrochen -- kein Fehler.
+    }
+    return "shared";
+  }
+  await navigator.clipboard.writeText(payload.url);
+  return "copied";
+}

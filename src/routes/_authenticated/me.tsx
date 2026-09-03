@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bookmark, Camera, LogOut, Star, Trash2, UserCheck, UserX } from "lucide-react";
+import { Bookmark, Camera, LogOut, Share2, Star, Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteOwnAccount } from "@/lib/account.functions";
@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { compressImage, getErrorMessage } from "@/lib/turi";
+import { compressImage, getAppUrl, getErrorMessage, shareLink } from "@/lib/turi";
 
 export const Route = createFileRoute("/_authenticated/me")({
   head: () => ({
@@ -386,18 +386,35 @@ function MePage() {
               </div>
             </div>
           ) : (
-            <Button
-              variant="secondary"
-              className="mt-4 h-11 w-full rounded-2xl"
-              onClick={() => {
-                setDisplayName(profile.display_name ?? "");
-                setBio(profile.bio ?? "");
-                setIsPrivate(profile.is_private);
-                setEditing(true);
-              }}
-            >
-              Edit profile
-            </Button>
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="secondary"
+                className="h-11 flex-1 rounded-2xl"
+                onClick={() => {
+                  setDisplayName(profile.display_name ?? "");
+                  setBio(profile.bio ?? "");
+                  setIsPrivate(profile.is_private);
+                  setEditing(true);
+                }}
+              >
+                Edit profile
+              </Button>
+              <Button
+                variant="secondary"
+                aria-label="Share my map"
+                className="h-11 w-11 shrink-0 rounded-2xl"
+                onClick={async () => {
+                  const result = await shareLink({
+                    title: `${profile.display_name || profile.username} on Turi`,
+                    text: "My map — the places I'd actually send you to.",
+                    url: `${getAppUrl()}/u/${profile.username}`,
+                  });
+                  if (result === "copied") toast.success("Link copied");
+                }}
+              >
+                <Share2 size={18} />
+              </Button>
+            </div>
           )}
         </section>
 
