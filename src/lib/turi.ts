@@ -94,6 +94,27 @@ export const CATEGORIES = [
   "Other",
 ] as const;
 
+/*
+ * Farbklassen je Kategorie (Tokens in styles.css). Gibt der Orts-Zeile
+ * in Bewertungskarten einen weichen, wiedererkennbaren Farbton. Die
+ * Klassen stehen als Literale hier im Quelltext, damit Tailwind sie
+ * findet -- bitte nicht dynamisch zusammenbauen.
+ */
+const CATEGORY_TINTS: Record<string, string> = {
+  Restaurant: "bg-cat-restaurant-soft text-cat-restaurant",
+  Cafe: "bg-cat-cafe-soft text-cat-cafe",
+  Bar: "bg-cat-bar-soft text-cat-bar",
+  Hotel: "bg-cat-hotel-soft text-cat-hotel",
+  Beach: "bg-cat-beach-soft text-cat-beach",
+  Museum: "bg-cat-museum-soft text-cat-museum",
+  Landmark: "bg-cat-landmark-soft text-cat-landmark",
+  Nature: "bg-cat-nature-soft text-cat-nature",
+};
+
+export function categoryTint(category: string | null | undefined): string {
+  return (category && CATEGORY_TINTS[category]) || "bg-secondary text-foreground";
+}
+
 /**
  * Extrahiert eine lesbare Fehlermeldung aus caught errors. Supabase-/
  * PostgREST-Fehler sind KEINE echten Error-Instanzen (kein `instanceof
