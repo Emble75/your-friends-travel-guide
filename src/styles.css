@@ -68,22 +68,6 @@
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-brand-orange: var(--brand-orange);
-  --color-cat-restaurant: var(--cat-restaurant);
-  --color-cat-restaurant-soft: var(--cat-restaurant-soft);
-  --color-cat-cafe: var(--cat-cafe);
-  --color-cat-cafe-soft: var(--cat-cafe-soft);
-  --color-cat-bar: var(--cat-bar);
-  --color-cat-bar-soft: var(--cat-bar-soft);
-  --color-cat-hotel: var(--cat-hotel);
-  --color-cat-hotel-soft: var(--cat-hotel-soft);
-  --color-cat-beach: var(--cat-beach);
-  --color-cat-beach-soft: var(--cat-beach-soft);
-  --color-cat-museum: var(--cat-museum);
-  --color-cat-museum-soft: var(--cat-museum-soft);
-  --color-cat-landmark: var(--cat-landmark);
-  --color-cat-landmark-soft: var(--cat-landmark-soft);
-  --color-cat-nature: var(--cat-nature);
-  --color-cat-nature-soft: var(--cat-nature-soft);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
@@ -265,27 +249,16 @@
   --map-me: #325ef5;
 
   /*
-   * Kategorie-Toene. Geben Feed und Profil visuelle Vielfalt, ohne die
-   * helle Grundstimmung aufzugeben: die Karten bleiben weiss, aber die
-   * Orts-Zeile traegt einen weichen Farbton je Kategorie (Restaurant,
-   * Cafe, Bar ...). Textstufen erreichen auf ihren Toenflaechen >= 4.5:1.
+   * ENTFERNT: acht Kategorie-Toene (Restaurant, Cafe, Bar, Hotel, Beach,
+   * Museum, Landmark, Nature), die die Orts-Zeile je Kategorie einfaerbten.
+   *
+   * Sie brachten acht zusaetzliche Farbtoene in eine Palette, die aus vier
+   * besteht -- darunter Magenta und Violett, also genau die Richtung, die
+   * beim Kartenpin schon einmal ausdruecklich verworfen wurde. Die
+   * Einfaerbung selbst war bereits wieder aus den Bewertungskarten
+   * genommen worden; zurueck blieben 16 ungenutzte Token. Die Orts-Zeile
+   * traegt jetzt wieder --secondary wie jede andere ruhige Flaeche.
    */
-  --cat-restaurant: oklch(0.5 0.14 45);
-  --cat-restaurant-soft: oklch(0.94 0.03 55);
-  --cat-cafe: oklch(0.47 0.1 65);
-  --cat-cafe-soft: oklch(0.94 0.025 75);
-  --cat-bar: oklch(0.48 0.15 340);
-  --cat-bar-soft: oklch(0.94 0.03 340);
-  --cat-hotel: oklch(0.48 0.13 300);
-  --cat-hotel-soft: oklch(0.94 0.025 300);
-  --cat-beach: oklch(0.5 0.1 210);
-  --cat-beach-soft: oklch(0.94 0.025 215);
-  --cat-museum: oklch(0.48 0.12 255);
-  --cat-museum-soft: oklch(0.94 0.025 260);
-  --cat-landmark: oklch(0.5 0.14 20);
-  --cat-landmark-soft: oklch(0.94 0.03 25);
-  --cat-nature: oklch(0.48 0.11 150);
-  --cat-nature-soft: oklch(0.94 0.03 150);
 
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0.004 60);
