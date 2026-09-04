@@ -25,6 +25,7 @@ import { UserAvatar } from "@/components/turi/UserAvatar";
 import { ReportDialog } from "@/components/turi/ReportDialog";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
 import { PlacesMiniMap, type MiniMapPlace } from "@/components/turi/PlacesMiniMap";
+import { ProfileCover, asProfileColor } from "@/components/turi/ProfileCover";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,7 +76,7 @@ function ProfilePage() {
       const me = auth.user?.id ?? "";
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, is_private")
+        .select("id, username, display_name, avatar_url, bio, is_private, profile_color")
         .eq("username", username)
         .maybeSingle();
       if (error) throw error;
@@ -252,12 +253,15 @@ function ProfilePage() {
     <>
       <AppHeader title={`@${profile.username}`} showBack fallbackTo="/feed" />
       <div className="app-shell space-y-4 py-4">
-        <section className="turi-card p-5">
-          <div className="flex items-center gap-4">
+        <section className="turi-card overflow-hidden">
+          {/* Dasselbe Farbband wie im eigenen Profil -- die vom Gegenueber
+              gewaehlte Farbe. */}
+          <ProfileCover color={asProfileColor(profile.profile_color)} />
+          <div className="flex items-end gap-4 px-5">
             <UserAvatar
               avatarPath={profile.avatar_url}
               name={profile.display_name ?? profile.username}
-              className="size-16"
+              className="-mt-10 size-20 shrink-0 ring-4 ring-card"
             />
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-lg font-bold">
@@ -321,48 +325,50 @@ function ProfilePage() {
               </DropdownMenu>
             ) : null}
           </div>
-          {!data.isMe ? (
-            <ReportDialog
-              reportedUserId={profile.id}
-              trigger={null}
-              open={reportOpen}
-              onOpenChange={setReportOpen}
-            />
-          ) : null}
-          {profile.bio ? <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p> : null}
-          <div className="mt-4 flex gap-5 text-sm">
-            <span>
-              <strong>{reviews.length}</strong>{" "}
-              <span className="text-muted-foreground">Reviews</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setFollowListOpen("followers")}
-              className="text-left"
-            >
-              <strong>{data.followers}</strong>{" "}
-              <span className="text-muted-foreground">Followers</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFollowListOpen("following")}
-              className="text-left"
-            >
-              <strong>{data.following}</strong>{" "}
-              <span className="text-muted-foreground">Following</span>
-            </button>
+          <div className="px-5 pb-5">
+            {!data.isMe ? (
+              <ReportDialog
+                reportedUserId={profile.id}
+                trigger={null}
+                open={reportOpen}
+                onOpenChange={setReportOpen}
+              />
+            ) : null}
+            {profile.bio ? <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p> : null}
+            <div className="mt-4 flex gap-5 text-sm">
+              <span>
+                <strong>{reviews.length}</strong>{" "}
+                <span className="text-muted-foreground">Reviews</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setFollowListOpen("followers")}
+                className="text-left"
+              >
+                <strong>{data.followers}</strong>{" "}
+                <span className="text-muted-foreground">Followers</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFollowListOpen("following")}
+                className="text-left"
+              >
+                <strong>{data.following}</strong>{" "}
+                <span className="text-muted-foreground">Following</span>
+              </button>
+            </div>
+            {!data.isMe ? (
+              <FollowButton
+                userId={profile.id}
+                isPrivate={profile.is_private}
+                initialStatus={data.followStatus}
+                size="default"
+                className="mt-4 h-11 w-full rounded-2xl"
+                privateLabel="Send request"
+                onChanged={(value) => setClickedStatus({ value })}
+              />
+            ) : null}
           </div>
-          {!data.isMe ? (
-            <FollowButton
-              userId={profile.id}
-              isPrivate={profile.is_private}
-              initialStatus={data.followStatus}
-              size="default"
-              className="mt-4 h-11 w-full rounded-2xl"
-              privateLabel="Send request"
-              onChanged={(value) => setClickedStatus({ value })}
-            />
-          ) : null}
         </section>
 
         {profile.is_private && followStatus !== "accepted" && !data.isMe ? (

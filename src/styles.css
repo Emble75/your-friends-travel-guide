@@ -67,6 +67,7 @@
   --color-primary: var(--primary);
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
+  --color-brand-orange: var(--brand-orange);
   --color-cat-restaurant: var(--cat-restaurant);
   --color-cat-restaurant-soft: var(--cat-restaurant-soft);
   --color-cat-cafe: var(--cat-cafe);
@@ -167,6 +168,23 @@
      (z. B. untere Navigation). Traegt die Marke sichtbarer, ohne Flaechen
      voll einzufaerben. */
   --brand-soft: oklch(0.94 0.025 266);
+  /*
+   * Turi-Orange -- der zweite Markenakzent.
+   *
+   * Herkunft: Es ist die urspruengliche Markenfarbe der App. Bei der
+   * Umstellung auf Blau blieb sie nur noch als Kartenfarbe uebrig
+   * (--map-saved) und war fuer die Oberflaeche ausdruecklich gesperrt.
+   * Damit war Orange faktisch aus der Palette verschwunden, obwohl es
+   * als eine der vier Turi-Farben gilt. Hier steht es wieder als
+   * regulaeres Token -- derselbe Wert wie --map-saved (#f56333), nur in
+   * oklch notiert.
+   *
+   * GRENZE: 3.13:1 auf Weiss. Das reicht fuer Flaechen und grosse
+   * Schrift, NICHT fuer Fliesstext und nicht fuer kleine Symbole, die
+   * etwas bedeuten. Wo Orange Text traegt, muss der Text weiss und
+   * gross sein.
+   */
+  --brand-orange: oklch(0.68 0.19 38);
   --primary-foreground: oklch(0.99 0.002 90);
   --primary-soft: oklch(0.915 0.006 85);
   --secondary: oklch(0.93 0.005 88);
@@ -236,6 +254,11 @@
    * Pin-Helligkeit an (siehe labelColor in mapIcons.ts), bleibt also bei
    * jeder Farbwahl lesbar.
    */
+  /* Wertgleich mit --brand (#325ef5) bzw. --brand-orange (#f56333), nur
+     als Hex notiert, weil sie zur Laufzeit in SVG-Pins eingesetzt werden.
+     Wird eine der Markenfarben geaendert, muss die Entsprechung hier
+     mitgezogen werden -- die Werte sind bewusst getrennt, damit eine
+     spaetere Themenumstellung die Karte nicht mitfaerbt. */
   --map-reviewed: #325ef5;
   --map-saved: #f56333;
   --map-search: #2b2724;

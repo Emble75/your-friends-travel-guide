@@ -47,9 +47,9 @@ export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
       >;
       profiles: WithColumns<
         GenTables["profiles"],
-        { is_private: boolean },
-        { is_private?: boolean },
-        { is_private?: boolean }
+        { is_private: boolean; profile_color: string },
+        { is_private?: boolean; profile_color?: string },
+        { is_private?: boolean; profile_color?: string }
       >;
       reviews: WithColumns<
         GenTables["reviews"],

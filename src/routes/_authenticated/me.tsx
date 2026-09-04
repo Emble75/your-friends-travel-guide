@@ -21,6 +21,13 @@ import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
+import {
+  ProfileCover,
+  ProfileColorSwatch,
+  PROFILE_COLORS,
+  asProfileColor,
+  type ProfileColor,
+} from "@/components/turi/ProfileCover";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +82,7 @@ function MePage() {
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
   // Welche Sammlung gerade aufgeklappt ist (Ordner oder Wunschliste).
   const [collection, setCollection] = useState<"folders" | "saved" | null>(null);
+  const [profileColor, setProfileColor] = useState<ProfileColor>("blue");
   // Sprungziel fuer die Zahl "Reviews" -- auf einem vollen Profil liegt die
   // Bewertungsliste sonst weit unterhalb aller Sammlungen.
   const reviewsRef = useRef<HTMLDivElement | null>(null);
@@ -95,7 +103,7 @@ function MePage() {
       ] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, username, display_name, avatar_url, bio, is_private")
+          .select("id, username, display_name, avatar_url, bio, is_private, profile_color")
           .eq("id", me)
           .maybeSingle(),
         supabase
@@ -257,6 +265,7 @@ function MePage() {
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
         is_private: isPrivate,
+        profile_color: profileColor,
       })
       .eq("id", auth.user!.id);
     if (error) {
@@ -310,18 +319,16 @@ function MePage() {
   return (
     <>
       <div className="app-shell app-top space-y-4 pb-4">
-        {/*
-          Profil-Kopf mit Marken-Banner statt weiterer weisser Karte: der
-          Verlauf gibt der Seite ein Gesicht, der Avatar bricht ueber die
-          Kante -- das lockert das sonst sehr gleichfoermige Kartenraster
-          auf, ohne neue Farben ins System zu bringen.
-        */}
-        <section className="turi-card overflow-hidden p-0">
-          <div className="brand-gradient h-20 w-full" aria-hidden="true" />
-          <div className="p-5 pt-0">
-          <div className="flex items-center gap-4">
+        <section className="turi-card overflow-hidden">
+          {/* Farbband: waehlbar in der Bearbeiten-Ansicht. Waehrend des
+              Bearbeitens zeigt es sofort die angetippte Farbe, damit man
+              die Wirkung sieht, bevor man speichert. */}
+          <ProfileCover color={editing ? profileColor : asProfileColor(profile.profile_color)} />
+          <div className="flex items-end gap-4 px-5">
             <label
-              className="relative -mt-9 cursor-pointer rounded-full ring-4 ring-card"
+              /* -mt-10 zieht das Bild in das Band hinein; der weisse Ring
+                 trennt es sauber von der Farbe dahinter. */
+              className="relative -mt-10 shrink-0 cursor-pointer"
               onClick={async (e) => {
                 if (!isNative()) return;
                 e.preventDefault();
@@ -332,9 +339,9 @@ function MePage() {
               <UserAvatar
                 avatarPath={profile.avatar_url}
                 name={profile.display_name ?? profile.username}
-                className="size-16"
+                className="size-20 ring-4 ring-card"
               />
-              <span className="turi-hit absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <span className="turi-hit absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-card">
                 <Camera size={14} />
               </span>
               <input
@@ -354,114 +361,131 @@ function MePage() {
               </p>
             </div>
           </div>
+          <div className="px-5 pb-5">
+            {profile.bio && !editing ? (
+              <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p>
+            ) : null}
 
-          {profile.bio && !editing ? (
-            <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p>
-          ) : null}
-
-          {/*
+            {/*
             Vorher drei inline stehende Zahlen, von denen zwei anklickbar
             waren und eine nicht -- optisch nicht zu unterscheiden. Jetzt ein
             klar abgegrenzter Block mit Trennlinien, in dem alle drei
             gleich funktionieren.
           */}
-          <div className="mt-4 grid grid-cols-3 divide-x divide-border overflow-hidden rounded-2xl bg-secondary/70">
-            <button
-              type="button"
-              onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth" })}
-              className="turi-tap flex flex-col items-center py-2.5"
-            >
-              <strong className="font-display text-base leading-tight">{reviews.length}</strong>
-              <span className="text-xs text-muted-foreground">Reviews</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFollowListOpen("followers")}
-              className="turi-tap flex flex-col items-center py-2.5"
-            >
-              <strong className="font-display text-base leading-tight">{data.followers}</strong>
-              <span className="text-xs text-muted-foreground">Followers</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFollowListOpen("following")}
-              className="turi-tap flex flex-col items-center py-2.5"
-            >
-              <strong className="font-display text-base leading-tight">{data.following}</strong>
-              <span className="text-xs text-muted-foreground">Following</span>
-            </button>
-          </div>
+            <div className="mt-4 grid grid-cols-3 divide-x divide-border overflow-hidden rounded-2xl bg-secondary/70">
+              <button
+                type="button"
+                onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth" })}
+                className="turi-tap flex flex-col items-center py-2.5"
+              >
+                <strong className="font-display text-base leading-tight">{reviews.length}</strong>
+                <span className="text-xs text-muted-foreground">Reviews</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFollowListOpen("followers")}
+                className="turi-tap flex flex-col items-center py-2.5"
+              >
+                <strong className="font-display text-base leading-tight">{data.followers}</strong>
+                <span className="text-xs text-muted-foreground">Followers</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFollowListOpen("following")}
+                className="turi-tap flex flex-col items-center py-2.5"
+              >
+                <strong className="font-display text-base leading-tight">{data.following}</strong>
+                <span className="text-xs text-muted-foreground">Following</span>
+              </button>
+            </div>
 
-          {editing ? (
-            <div className="mt-4 space-y-3">
-              <Input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Display name"
-                className="h-12 rounded-2xl"
-              />
-              <Textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Short bio"
-                rows={3}
-                className="rounded-2xl"
-              />
-              <div className="flex items-center justify-between rounded-2xl border border-border p-3">
-                <div>
-                  <Label htmlFor="is-private" className="text-sm font-medium">
-                    Private account
-                  </Label>
+            {editing ? (
+              <div className="mt-4 space-y-3">
+                <Input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Display name"
+                  className="h-12 rounded-2xl"
+                />
+                <Textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Short bio"
+                  rows={3}
+                  className="rounded-2xl"
+                />
+                <div className="rounded-2xl border border-border p-3">
+                  <Label className="text-sm font-medium">Profile colour</Label>
                   <p className="text-xs text-muted-foreground">
-                    New followers must be approved first.
+                    The band behind your photo. Pick what suits your picture.
                   </p>
+                  <div className="mt-3 flex gap-3">
+                    {PROFILE_COLORS.map((c) => (
+                      <ProfileColorSwatch
+                        key={c}
+                        color={c}
+                        selected={profileColor === c}
+                        onSelect={setProfileColor}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <Switch id="is-private" checked={isPrivate} onCheckedChange={setIsPrivate} />
+                <div className="flex items-center justify-between rounded-2xl border border-border p-3">
+                  <div>
+                    <Label htmlFor="is-private" className="text-sm font-medium">
+                      Private account
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      New followers must be approved first.
+                    </p>
+                  </div>
+                  <Switch id="is-private" checked={isPrivate} onCheckedChange={setIsPrivate} />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={saveProfile} className="flex-1 rounded-2xl">
+                    Save
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="rounded-2xl"
+                    onClick={() => setEditing(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={saveProfile} className="flex-1 rounded-2xl">
-                  Save
+            ) : (
+              <div className="mt-4 flex gap-2">
+                <Button
+                  variant="secondary"
+                  className="h-11 flex-1 rounded-2xl"
+                  onClick={() => {
+                    setDisplayName(profile.display_name ?? "");
+                    setBio(profile.bio ?? "");
+                    setIsPrivate(profile.is_private);
+                    setProfileColor(asProfileColor(profile.profile_color));
+                    setEditing(true);
+                  }}
+                >
+                  Edit profile
                 </Button>
                 <Button
                   variant="secondary"
-                  className="rounded-2xl"
-                  onClick={() => setEditing(false)}
+                  aria-label="Share my map"
+                  className="h-11 w-11 shrink-0 rounded-2xl"
+                  onClick={async () => {
+                    const result = await share({
+                      title: `${profile.display_name || profile.username} on Turi`,
+                      text: "My map — the places I'd actually send you to.",
+                      url: `${getAppUrl()}/u/${profile.username}`,
+                    });
+                    if (result === "copied") toast.success("Link copied");
+                  }}
                 >
-                  Cancel
+                  <Share2 size={18} />
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div className="mt-4 flex gap-2">
-              <Button
-                variant="secondary"
-                className="h-11 flex-1 rounded-2xl"
-                onClick={() => {
-                  setDisplayName(profile.display_name ?? "");
-                  setBio(profile.bio ?? "");
-                  setIsPrivate(profile.is_private);
-                  setEditing(true);
-                }}
-              >
-                Edit profile
-              </Button>
-              <Button
-                variant="secondary"
-                aria-label="Share my map"
-                className="h-11 w-11 shrink-0 rounded-2xl"
-                onClick={async () => {
-                  const result = await share({
-                    title: `${profile.display_name || profile.username} on Turi`,
-                    text: "My map — the places I'd actually send you to.",
-                    url: `${getAppUrl()}/u/${profile.username}`,
-                  });
-                  if (result === "copied") toast.success("Link copied");
-                }}
-              >
-                <Share2 size={18} />
-              </Button>
-            </div>
-          )}
+            )}
           </div>
         </section>
 
