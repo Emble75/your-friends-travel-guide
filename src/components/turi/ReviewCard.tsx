@@ -7,7 +7,7 @@ import { Stars, StarPicker } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
 import { ReportDialog } from "./ReportDialog";
 import { supabase } from "@/integrations/supabase/app-client";
-import { compressImage, getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
+import { categoryTint, compressImage, getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
 import { isNative, takePhoto } from "@/lib/native";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -188,7 +188,7 @@ export function ReviewCard({
   }
 
   return (
-    <article className="turi-card p-4">
+    <article className="turi-card turi-enter p-4">
       <div className="flex items-center gap-3">
         <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
           <UserAvatar
@@ -268,11 +268,11 @@ export function ReviewCard({
         <Link
           to="/place/$placeId"
           params={{ placeId: review.places.id }}
-          className="mt-3 flex items-center gap-2 rounded-2xl bg-secondary px-3 py-2"
+          className={`turi-tap mt-3 flex items-center gap-2 rounded-2xl px-3 py-2 ${categoryTint(review.places.category)}`}
         >
-          <MapPin size={16} className="text-primary" />
-          <span className="truncate text-sm font-medium">{review.places.name}</span>
-          <span className="truncate text-xs text-muted-foreground">{review.places.city}</span>
+          <MapPin size={16} className="shrink-0" />
+          <span className="truncate text-sm font-semibold">{review.places.name}</span>
+          <span className="turi-meta truncate text-xs opacity-70">{review.places.city}</span>
         </Link>
       ) : null}
 
