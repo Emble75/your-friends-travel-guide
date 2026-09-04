@@ -434,13 +434,16 @@ function MapPage() {
 
     if (mode === "mine") {
       const reviewedIds = new Set((myPlaces ?? []).map((p) => p.id));
+      const mySavedIds = new Set((mySavedPlaces ?? []).map((p) => p.id));
       const reviewedMarkers = (myPlaces ?? []).map((p) => {
         const marker = new google.maps.Marker({
           map: mapRef.current!,
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: ratingPinIcon(mapColor("reviewed"), p.rating),
+          // Steht der Ort zusaetzlich auf der Wunschliste, traegt der Pin
+          // beides -- sonst verschwaende die eine Angabe hinter der anderen.
+          icon: ratingPinIcon(mapColor("reviewed"), p.rating, { saved: mySavedIds.has(p.id) }),
         });
         marker.addListener("click", () =>
           navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
@@ -500,8 +503,10 @@ function MapPage() {
         title: p.name,
         zIndex: 11,
         // Pin statt Punkt -- mit Bewertung drin, falls ein Freund den Ort
-        // schon bewertet hat, sonst ein leerer Pin.
-        icon: ratingPinIcon(mapColor("saved"), ratingById.get(p.id)),
+        // schon bewertet hat, sonst nur das Lesezeichen. Das Lesezeichen
+        // steht auch neben der Note: sonst saehe ein gemerkter, bewerteter
+        // Ort aus wie ein bloss bewerteter in anderer Farbe.
+        icon: ratingPinIcon(mapColor("saved"), ratingById.get(p.id), { saved: true }),
       });
       marker.addListener("click", () =>
         navigate({ to: "/place/$placeId", params: { placeId: p.id } }),

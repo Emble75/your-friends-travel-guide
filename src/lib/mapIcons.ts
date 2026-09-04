@@ -54,9 +54,30 @@ const PAD = 4; // Rand fuer den Schlagschatten
  * (Punkt) sichtbar eine Familie, statt drei unterschiedliche Dinge zu
  * sein. Die kurze Spitze unten markiert weiterhin genau den Ort.
  */
-function tag(color: string, opts: { text?: string; glyph?: (w: number) => string }) {
-  const { text, glyph } = opts;
-  const width = Math.max(text ? 30 : 26, (text ? text.length * 7.4 : 0) + 18);
+const BOOKMARK_W = 8; // Breite des Lesezeichens
+const BOOKMARK_GAP = 3; // Abstand zwischen Lesezeichen und Note
+
+/** Das Lesezeichen, an einer frei waehlbaren linken Kante. */
+function bookmarkPath(x: number) {
+  return `<path d="M${x} 7h${BOOKMARK_W}v11l-4-3.2-4 3.2z" fill="#ffffff"/>`;
+}
+
+function tag(
+  color: string,
+  opts: { text?: string; glyph?: (w: number) => string; bookmark?: boolean },
+) {
+  const { text, glyph, bookmark } = opts;
+  /*
+   * Inhalt wird als Gruppe zentriert, damit Lesezeichen und Note
+   * nebeneinander stehen koennen, ohne dass eines aus der Mitte faellt.
+   * Ohne Lesezeichen bleiben die Masse exakt wie zuvor.
+   */
+  const textW = text ? text.length * 7.4 : 0;
+  const bookmarkPart = bookmark ? BOOKMARK_W + (text ? BOOKMARK_GAP : 0) : 0;
+  const contentW = bookmarkPart + textW;
+  const width = Math.max(text ? 30 : 26, contentW + 18);
+  const startX = (width - contentW) / 2;
+  const textCx = startX + bookmarkPart + textW / 2;
   const boxW = width + PAD * 2;
   const boxH = TAG_H + TAG_TAIL + PAD + 2;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${boxW}" height="${boxH}" viewBox="${-PAD} ${-(PAD - 1)} ${boxW} ${boxH}">
@@ -66,10 +87,11 @@ function tag(color: string, opts: { text?: string; glyph?: (w: number) => string
       <rect x="0" y="0" width="${width}" height="${TAG_H}" rx="${TAG_R}" fill="${color}"
         stroke="#ffffff" stroke-width="1.6"/>
     </g>
+    ${bookmark ? bookmarkPath(startX) : ""}
     ${glyph ? glyph(width) : ""}
     ${
       text
-        ? `<text x="${width / 2}" y="${TAG_H / 2 + 4.2}" font-family="${FONT_STACK}" font-size="12"
+        ? `<text x="${textCx}" y="${TAG_H / 2 + 4.2}" font-family="${FONT_STACK}" font-size="12"
             font-weight="700" letter-spacing="-0.2" fill="#ffffff" text-anchor="middle">${text}</text>`
         : ""
     }
@@ -86,12 +108,17 @@ function tag(color: string, opts: { text?: string; glyph?: (w: number) => string
  * Ort mit Durchschnittsbewertung -- oder, ohne Bewertung, ein
  * Lesezeichen: so unterscheidet sich ein rein gemerkter Ort auf einen
  * Blick von einem bewerteten, auch bei gleicher Farbe.
+ *
+ * Trifft beides zu (gemerkt UND bewertet), stehen Lesezeichen und Note
+ * nebeneinander. Vorher schloss sich das gegenseitig aus: ein gemerkter
+ * Ort verlor auf der eigenen Karte die Note, und ein bewerteter Ort
+ * verriet nicht mehr, dass er auf der Wunschliste steht -- man musste
+ * ihn antippen, um es herauszufinden.
  */
-export function ratingPinIcon(color: string, rating?: number) {
-  if (typeof rating === "number") return tag(color, { text: rating.toFixed(1) });
-  return tag(color, {
-    glyph: (w) => `<path d="M${w / 2 - 4} 7h8v11l-4-3.2-4 3.2z" fill="#ffffff"/>`,
-  });
+export function ratingPinIcon(color: string, rating?: number, opts?: { saved?: boolean }) {
+  if (typeof rating === "number")
+    return tag(color, { text: rating.toFixed(1), bookmark: opts?.saved === true });
+  return tag(color, { bookmark: true });
 }
 
 /**
