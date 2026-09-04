@@ -62,8 +62,22 @@ function bookmarkPath(x: number) {
   return `<path d="M${x} 7h${BOOKMARK_W}v11l-4-3.2-4 3.2z" fill="#ffffff"/>`;
 }
 
+/*
+ * Die Farbe ist entweder eine Flaeche oder zwei -- links und rechts.
+ *
+ * Zwei Farben braucht der Fall "gemerkt UND bewertet": Der Pin gehoert
+ * dann zu beiden Legendeneintraegen, behauptete als einfarbige Flaeche
+ * aber nur einen davon. Geteilt traegt jede Angabe ihre eigene
+ * Legendenfarbe -- das Lesezeichen sitzt auf Orange, die Note auf Blau --
+ * und die Legende erklaert den Pin ohne dritten Eintrag.
+ *
+ * Nebeneffekt, der die Wahl bestaetigt: die Note steht damit auf Blau
+ * (5.18:1) statt auf Orange (3.13:1) und ist erst dadurch sauber lesbar.
+ */
+type TagColor = string | { left: string; right: string };
+
 function tag(
-  color: string,
+  color: TagColor,
   opts: { text?: string; glyph?: (w: number) => string; bookmark?: boolean },
 ) {
   const { text, glyph, bookmark } = opts;
@@ -80,12 +94,32 @@ function tag(
   const textCx = startX + bookmarkPart + textW / 2;
   const boxW = width + PAD * 2;
   const boxH = TAG_H + TAG_TAIL + PAD + 2;
+
+  /*
+   * Geteilt wird in der Mitte der Luecke zwischen Lesezeichen und Note,
+   * nicht auf halber Pin-Breite: so liegt jede Angabe ganz auf ihrer
+   * Farbe, statt dass eine ueber die Kante rutscht. Die Spitze unten
+   * nimmt die Farbe der Haelfte, unter der sie sitzt.
+   */
+  const splitX = startX + BOOKMARK_W + BOOKMARK_GAP / 2;
+  const split = typeof color === "string" ? null : color;
+  const tailColor = split ? (width / 2 < splitX ? split.left : split.right) : (color as string);
+  const surface = split
+    ? `<clipPath id="t"><rect x="0" y="0" width="${width}" height="${TAG_H}" rx="${TAG_R}"/></clipPath>
+       <g clip-path="url(#t)">
+         <rect x="0" y="0" width="${splitX}" height="${TAG_H}" fill="${split.left}"/>
+         <rect x="${splitX}" y="0" width="${width - splitX}" height="${TAG_H}" fill="${split.right}"/>
+       </g>
+       <rect x="0" y="0" width="${width}" height="${TAG_H}" rx="${TAG_R}" fill="none"
+         stroke="#ffffff" stroke-width="1.6"/>`
+    : `<rect x="0" y="0" width="${width}" height="${TAG_H}" rx="${TAG_R}" fill="${color as string}"
+         stroke="#ffffff" stroke-width="1.6"/>`;
+
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${boxW}" height="${boxH}" viewBox="${-PAD} ${-(PAD - 1)} ${boxW} ${boxH}">
     <defs>${SHADOW}</defs>
     <g filter="url(#s)">
-      <path d="M${width / 2 - 4.5} ${TAG_H}h9l-4.5 ${TAG_TAIL}z" fill="${color}"/>
-      <rect x="0" y="0" width="${width}" height="${TAG_H}" rx="${TAG_R}" fill="${color}"
-        stroke="#ffffff" stroke-width="1.6"/>
+      <path d="M${width / 2 - 4.5} ${TAG_H}h9l-4.5 ${TAG_TAIL}z" fill="${tailColor}"/>
+      ${surface}
     </g>
     ${bookmark ? bookmarkPath(startX) : ""}
     ${glyph ? glyph(width) : ""}
@@ -116,8 +150,18 @@ function tag(
  * ihn antippen, um es herauszufinden.
  */
 export function ratingPinIcon(color: string, rating?: number, opts?: { saved?: boolean }) {
-  if (typeof rating === "number")
-    return tag(color, { text: rating.toFixed(1), bookmark: opts?.saved === true });
+  if (typeof rating === "number") {
+    if (opts?.saved !== true) return tag(color, { text: rating.toFixed(1) });
+    // Beides: geteilte Flaeche, damit der Pin zu beiden Legendeneintraegen
+    // gehoert und nicht nur zu dem, dessen Farbe er gerade traegt. Die
+    // uebergebene Farbe tritt hier bewusst zurueck -- welche Seite welche
+    // Bedeutung hat, darf nicht davon abhaengen, welcher Modus den Pin
+    // gerade zeichnet.
+    return tag(
+      { left: mapColor("saved"), right: mapColor("reviewed") },
+      { text: rating.toFixed(1), bookmark: true },
+    );
+  }
   return tag(color, { bookmark: true });
 }
 
