@@ -510,31 +510,44 @@ function MePage() {
           Bereiche uebereinander, bevor ueberhaupt eine Bewertung kam.
           Der Inhalt bleibt einen Fingertipp entfernt.
         */}
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            className="h-11 flex-1 justify-between rounded-2xl"
+        {/*
+          Sammlungen als weisse Karten-Knoepfe statt grauer Sekundaer-Buttons:
+          Grau auf Grau sah aus wie deaktiviert. Die Karten heben sich vom
+          Seitenhintergrund ab, der Chevron zeigt "hier geht es weiter".
+        */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
             onClick={() => setCollection("folders")}
           >
-            <span className="flex items-center gap-2">
-              <Folder size={16} /> Folders
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
+              <Folder size={16} />
             </span>
-            <span className="turi-meta text-xs text-muted-foreground">
-              {folders.length + sharedWithMe.length}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">Folders</span>
+              <span className="turi-meta block text-xs text-muted-foreground">
+                {folders.length + sharedWithMe.length}
+              </span>
             </span>
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-11 flex-1 justify-between rounded-2xl"
+            <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+          </button>
+          <button
+            type="button"
+            className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
             onClick={() => setCollection("saved")}
           >
-            <span className="flex items-center gap-2">
-              <Bookmark size={16} /> Want to go
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
+              <Bookmark size={16} />
             </span>
-            <span className="turi-meta text-xs text-muted-foreground">
-              {savedPlaces?.length ?? 0}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">Want to go</span>
+              <span className="turi-meta block text-xs text-muted-foreground">
+                {savedPlaces?.length ?? 0}
+              </span>
             </span>
-          </Button>
+            <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+          </button>
         </div>
 
         <div ref={reviewsRef} className="scroll-mt-20 space-y-4">
