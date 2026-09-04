@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Bookmark,
   Camera,
+  ChevronRight,
   Folder,
   LogOut,
   Share2,
