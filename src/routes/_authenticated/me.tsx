@@ -320,7 +320,7 @@ function MePage() {
           <div className="p-5 pt-0">
           <div className="flex items-center gap-4">
             <label
-              className="relative cursor-pointer"
+              className="relative -mt-9 cursor-pointer rounded-full ring-4 ring-card"
               onClick={async (e) => {
                 if (!isNative()) return;
                 e.preventDefault();
@@ -461,6 +461,7 @@ function MePage() {
               </Button>
             </div>
           )}
+          </div>
         </section>
 
         {pendingRequests.length > 0 ? (
