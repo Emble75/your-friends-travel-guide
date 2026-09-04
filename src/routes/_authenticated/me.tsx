@@ -309,7 +309,15 @@ function MePage() {
   return (
     <>
       <div className="app-shell app-top space-y-4 pb-4">
-        <section className="turi-card p-5">
+        {/*
+          Profil-Kopf mit Marken-Banner statt weiterer weisser Karte: der
+          Verlauf gibt der Seite ein Gesicht, der Avatar bricht ueber die
+          Kante -- das lockert das sonst sehr gleichfoermige Kartenraster
+          auf, ohne neue Farben ins System zu bringen.
+        */}
+        <section className="turi-card overflow-hidden p-0">
+          <div className="brand-gradient h-20 w-full" aria-hidden="true" />
+          <div className="p-5 pt-0">
           <div className="flex items-center gap-4">
             <label
               className="relative cursor-pointer"
