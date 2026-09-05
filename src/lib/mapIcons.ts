@@ -81,28 +81,43 @@ function tag(
   opts: { text?: string; glyph?: (w: number) => string; bookmark?: boolean },
 ) {
   const { text, glyph, bookmark } = opts;
-  /*
-   * Inhalt wird als Gruppe zentriert, damit Lesezeichen und Note
-   * nebeneinander stehen koennen, ohne dass eines aus der Mitte faellt.
-   * Ohne Lesezeichen bleiben die Masse exakt wie zuvor.
-   */
   const textW = text ? text.length * 7.4 : 0;
+  const split = typeof color === "string" ? null : color;
+  // Beide Haelften tragen Inhalt -- nur dann gilt die geteilte Aufteilung.
+  const twoFields = !!split && !!bookmark && !!text;
+
+  /*
+   * Zwei Aufteilungen, je nachdem ob die Flaeche geteilt ist:
+   *
+   * Geteilt: Jede Haelfte ist ein eigenes Feld und wird aus ihrem Inhalt
+   * plus gleichem Rand links und rechts berechnet. Dadurch sitzt das
+   * Lesezeichen mittig auf Orange und die Note mittig auf Blau. Vorher
+   * wurden beide als ein Block zentriert -- dann klebte jedes Zeichen an
+   * der Trennkante statt in seinem Feld zu stehen.
+   *
+   * Einfarbig: unveraendert -- der Inhalt wird als Gruppe zentriert.
+   */
+  // 6 statt mehr: die Aufteilung der Haelften bleibt bei jedem Randwert
+  // praktisch gleich (rund 38/62), es aendert sich nur die Gesamtbreite.
+  // Der knappste Wert haelt den Pin auf einer vollen Karte am ruhigsten.
+  const HALF_PAD = 6;
   const bookmarkPart = bookmark ? BOOKMARK_W + (text ? BOOKMARK_GAP : 0) : 0;
-  const contentW = bookmarkPart + textW;
-  const width = Math.max(text ? 30 : 26, contentW + 18);
-  const startX = (width - contentW) / 2;
-  const textCx = startX + bookmarkPart + textW / 2;
+  const groupW = bookmarkPart + textW;
+  const groupStart = (Math.max(text ? 30 : 26, groupW + 18) - groupW) / 2;
+
+  const leftW = BOOKMARK_W + HALF_PAD * 2;
+  const rightW = textW + HALF_PAD * 2;
+
+  const width = twoFields ? leftW + rightW : Math.max(text ? 30 : 26, groupW + 18);
+  const bookmarkX = twoFields ? (leftW - BOOKMARK_W) / 2 : groupStart;
+  const textCx = twoFields ? leftW + rightW / 2 : groupStart + bookmarkPart + textW / 2;
+  // Die Trennkante. Bei einfarbigen Pins ohne Bedeutung.
+  const splitX = twoFields ? leftW : groupStart + BOOKMARK_W + BOOKMARK_GAP / 2;
+
   const boxW = width + PAD * 2;
   const boxH = TAG_H + TAG_TAIL + PAD + 2;
 
-  /*
-   * Geteilt wird in der Mitte der Luecke zwischen Lesezeichen und Note,
-   * nicht auf halber Pin-Breite: so liegt jede Angabe ganz auf ihrer
-   * Farbe, statt dass eine ueber die Kante rutscht. Die Spitze unten
-   * nimmt die Farbe der Haelfte, unter der sie sitzt.
-   */
-  const splitX = startX + BOOKMARK_W + BOOKMARK_GAP / 2;
-  const split = typeof color === "string" ? null : color;
+  // Die Spitze unten nimmt die Farbe der Haelfte, unter der sie sitzt.
   const tailColor = split ? (width / 2 < splitX ? split.left : split.right) : (color as string);
   const surface = split
     ? `<clipPath id="t"><rect x="0" y="0" width="${width}" height="${TAG_H}" rx="${TAG_R}"/></clipPath>
@@ -121,7 +136,7 @@ function tag(
       <path d="M${width / 2 - 4.5} ${TAG_H}h9l-4.5 ${TAG_TAIL}z" fill="${tailColor}"/>
       ${surface}
     </g>
-    ${bookmark ? bookmarkPath(startX) : ""}
+    ${bookmark ? bookmarkPath(bookmarkX) : ""}
     ${glyph ? glyph(width) : ""}
     ${
       text
