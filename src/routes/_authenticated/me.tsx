@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Bookmark,
@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { compressImage, getAppUrl, getErrorMessage } from "@/lib/turi";
 import { isNative, share, takePhoto } from "@/lib/native";
+import { disablePush, enablePush, pushState, pushSupported, type PushState } from "@/lib/push";
 
 export const Route = createFileRoute("/_authenticated/me")({
   head: () => ({
@@ -608,6 +609,9 @@ function MePage() {
         */}
         <section className="turi-card p-5">
           <h2 className="turi-eyebrow">Account</h2>
+
+          <PushSetting />
+
           <Button
             variant="secondary"
             className="mt-3 h-11 w-full justify-start rounded-2xl"
@@ -727,5 +731,73 @@ function MePage() {
         onOpenChange={(open) => !open && setFollowListOpen(null)}
       />
     </>
+  );
+}
+
+/*
+ * Schalter fuer Push-Nachrichten.
+ *
+ * Bewusst ein sichtbarer Schalter im Profil statt einer Abfrage beim
+ * ersten Start: iOS fragt nur EIN EINZIGES Mal: wer dort aus Reflex
+ * ablehnt, kann es in der App nie wieder aktivieren, sondern nur noch
+ * ueber die Systemeinstellungen. Ein Schalter, den man bewusst umlegt,
+ * wird viel eher erlaubt -- und er bleibt auffindbar.
+ *
+ * Im Browser erscheint er gar nicht: dort gibt es kein Push, und ein
+ * Schalter, der nichts tut, ist schlimmer als keiner.
+ */
+function PushSetting() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void pushState().then((s) => active && setState(s));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!pushSupported() || state === null || state === "unsupported") return null;
+
+  async function toggle(on: boolean) {
+    setBusy(true);
+    try {
+      if (on) {
+        const next = await enablePush();
+        setState(next);
+        if (next === "denied") {
+          toast.error("Notifications are off in iOS Settings for Turi.");
+        }
+      } else {
+        await disablePush();
+        setState("prompt");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const on = state === "granted";
+
+  return (
+    <div className="mt-3 flex items-center justify-between rounded-2xl border border-border p-3">
+      <div className="min-w-0 pr-3">
+        <Label htmlFor="push" className="text-sm font-medium">
+          Notifications
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          {state === "denied"
+            ? "Turned off in iOS Settings. Turn them back on there."
+            : "New followers, accepted requests, and reviews of places you saved."}
+        </p>
+      </div>
+      <Switch
+        id="push"
+        checked={on}
+        disabled={busy || state === "denied"}
+        onCheckedChange={toggle}
+      />
+    </div>
   );
 }

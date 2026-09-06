@@ -36,6 +36,14 @@ type SavedPlaceRow = {
   created_at: string;
 };
 
+type DeviceTokenRow = {
+  token: string;
+  user_id: string;
+  platform: string;
+  created_at: string;
+  last_seen_at: string;
+};
+
 export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
   public: Omit<GenPublic, "Tables"> & {
     Tables: Omit<GenTables, "follows" | "profiles" | "reviews"> & {
@@ -73,6 +81,18 @@ export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
         Row: SavedPlaceRow;
         Insert: { user_id: string; place_id: string; created_at?: string };
         Update: Partial<SavedPlaceRow>;
+        Relationships: [];
+      };
+      device_tokens: {
+        Row: DeviceTokenRow;
+        Insert: {
+          token: string;
+          user_id: string;
+          platform?: string;
+          created_at?: string;
+          last_seen_at?: string;
+        };
+        Update: Partial<DeviceTokenRow>;
         Relationships: [];
       };
     };

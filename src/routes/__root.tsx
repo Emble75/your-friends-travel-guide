@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import { navHistory } from "@/lib/nav-history";
 import { isNative } from "@/lib/native";
+import { onPushOpened } from "@/lib/push";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -180,6 +181,21 @@ function RootComponent() {
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
+
+  /*
+   * Tippt jemand eine Push-Nachricht an, soll die App an die gemeinte
+   * Stelle springen -- zum neuen Follower, zur bewerteten Ortsseite.
+   * Der Server legt das Ziel als "path" in die Nachricht.
+   *
+   * Hier oben und nicht in einer einzelnen Seite: Die Nachricht kann
+   * eintreffen, waehrend irgendein Bildschirm offen ist oder die App
+   * gerade erst startet.
+   */
+  useEffect(() => {
+    void onPushOpened((path) => {
+      void router.navigate({ href: path });
+    });
+  }, [router]);
 
   // Turis Oberflaeche ist durchgehend hell -- die Statusleiste soll daher
   // dunkle Zeichen zeigen. Ohne das steht die App bei Apples eigenem
