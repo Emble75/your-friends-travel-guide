@@ -926,6 +926,14 @@ function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: 
     try {
       const id = await resolveLocalId();
       if (!id) return;
+      /*
+       * Erst schliessen, dann wechseln. Waehrend das Panel offen ist,
+       * sperrt es die Klicks auf der Seite dahinter und raeumt das erst
+       * beim Schliessen wieder auf. Wechselt man die Seite, ohne es zu
+       * schliessen, kann diese Sperre zurueckbleiben -- die neue Seite
+       * ist dann sichtbar, aber nicht bedienbar.
+       */
+      onClose();
       if (to === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
       else navigate({ to: "/new", search: { placeId: id } });
     } catch (e) {
@@ -1024,20 +1032,13 @@ function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: 
         </SheetHeader>
 
         <div className="mt-4 space-y-3 px-4">
-          {/* Die eigene Note zuerst, getrennt vom Freundes-Durchschnitt --
-              wie auf der vollstaendigen Ortsseite. Ohne sie meldete das
-              Panel bei einem eigenen Pin "keine Bewertungen", waehrend im
-              Pin daneben die eigene Note stand. */}
-          {data?.myRating != null ? (
-            <div className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
-              <span className="turi-eyebrow">Your review</span>
-              <Stars value={data.myRating} size={14} />
-              <span className="turi-meta ml-auto text-sm font-semibold">
-                {data.myRating.toFixed(1)}
-              </span>
-            </div>
-          ) : null}
-
+          {/*
+            Bewusst NUR der Durchschnitt, keine einzelnen Bewertungen.
+            Das Panel ist der schnelle Blick von der Karte aus -- die
+            Bewertungen selbst stehen vollstaendig hinter "All reviews".
+            Zwei angerissene Karten hier waren beides halb: zu wenig zum
+            Lesen, zu viel fuer einen Blick.
+          */}
           {avg !== null ? (
             <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
               <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
@@ -1049,32 +1050,18 @@ function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: 
           ) : (
             <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
               <Users size={18} className="text-primary" />
+              {/*
+                Die eigene Note wird hier benannt, statt sie zu verschweigen:
+                auf "My Map" zeigt der Pin genau sie, und ein Panel, das
+                daneben "keine Bewertungen" meldet, widerspraeche dem Pin.
+              */}
               <p className="text-xs text-muted-foreground">
-                No reviews from friends for this place yet.
+                {data?.myRating != null
+                  ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
+                  : "No reviews from friends for this place yet."}
               </p>
             </div>
           )}
-
-          {reviews.slice(0, 2).map((r) => (
-            <div key={r.id} className="flex gap-3 rounded-2xl border border-border p-3">
-              <UserAvatar
-                avatarPath={r.profiles?.avatar_url}
-                name={r.profiles?.display_name ?? r.profiles?.username}
-                className="size-9"
-              />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-semibold">
-                    {r.profiles?.display_name || r.profiles?.username}
-                  </span>
-                  <Stars value={r.rating} size={12} />
-                </div>
-                {r.text ? (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{r.text}</p>
-                ) : null}
-              </div>
-            </div>
-          ))}
 
           <div className="flex gap-2 pt-1">
             <Button
