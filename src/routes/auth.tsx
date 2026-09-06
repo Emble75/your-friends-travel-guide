@@ -300,11 +300,11 @@ function AuthPage() {
           </form>
         )}
 
-        <div className="mt-6 text-center">
-          <Link to="/" className="text-xs text-muted-foreground">
-            Back to home
-          </Link>
-        </div>
+        {/*
+          "Back to home" entfernt: Die Startseite ist keine Seite mehr,
+          sondern nur noch eine Weiche. Wer nicht angemeldet ist, landete
+          darueber sofort wieder genau hier -- ein Knopf, der nichts tut.
+        */}
       </div>
     </main>
   );

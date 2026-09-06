@@ -975,7 +975,13 @@ function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: 
           App HERAUS fuehrt. Das gehoert nicht in die erste Reihe.
         */}
         <SheetHeader className="text-left">
-          <SheetTitle className="flex items-center gap-3">
+          {/*
+            pr-8 haelt die Ecke fuer das Schliessen-X frei. Ohne das
+            ueberlappten beide: das X sitzt 16px vom Rand, der Inhalt
+            beginnt bei 24px -- der Merken-Knopf lag damit teilweise
+            darunter, und beide waren schwer zu treffen.
+          */}
+          <SheetTitle className="flex items-center gap-3 pr-8">
             <span className="min-w-0 flex-1">
               <span className="block truncate text-lg font-bold">{header?.name}</span>
               <span className="turi-meta block truncate text-xs font-normal text-muted-foreground">
