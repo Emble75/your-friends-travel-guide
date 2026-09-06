@@ -72,7 +72,14 @@ export function ReviewCard({
   });
   const isOwn = me === review.user_id;
 
-  const sortedImages = review.review_images.slice().sort((a, b) => a.position - b.position);
+  /*
+   * Gegen null abgesichert: Fehlt die Bildbeziehung in der Antwort --
+   * etwa weil die Abfrage sie nicht mitgeholt hat --, stuerzte hier das
+   * Rendern ab. Und da diese Karte im Feed wie auf der Ortsseite steht,
+   * riss ein einziger solcher Datensatz die ganze Seite mit sich
+   * ("This page couldn't be loaded"), statt nur ohne Fotos zu erscheinen.
+   */
+  const sortedImages = (review.review_images ?? []).slice().sort((a, b) => a.position - b.position);
   const paths = sortedImages.map((i) => i.image_url);
 
   const { data: urls } = useQuery({

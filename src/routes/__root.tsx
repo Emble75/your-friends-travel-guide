@@ -55,6 +55,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Please try again or go back to the home page.
         </p>
+        {/*
+          Die eigentliche Ursache anzeigen, statt sie nur in die Konsole
+          zu schreiben. Auf dem Telefon kommt niemand an die Konsole --
+          ohne diesen Text ist ein Fehlerbericht nicht mehr als "es geht
+          nicht", und das Suchen beginnt beim Raten.
+        */}
+        {error?.message ? (
+          <p className="turi-meta mt-4 max-h-32 overflow-auto rounded-2xl bg-secondary px-3 py-2 text-left text-xs text-muted-foreground">
+            {error.message}
+          </p>
+        ) : null}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
