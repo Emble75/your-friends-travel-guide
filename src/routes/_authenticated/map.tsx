@@ -90,6 +90,23 @@ type MyPlace = {
   rating: number;
 };
 
+/*
+ * Woher der Ort im unteren Panel stammt.
+ *
+ * "google": ein Symbol aus Googles eigener Karte oder ein Suchtreffer --
+ * der Ort existiert bei uns vielleicht noch gar nicht und wird erst beim
+ * Bewerten oder Merken angelegt (ensureLocalPlace).
+ *
+ * "local": einer unserer eigenen Pins. Der Ort steht bereits in unserer
+ * Datenbank, seine id ist bekannt. Wichtig: ueber die Google-Kennung
+ * darf hier NICHT nachgeschlagen werden -- von Hand angelegte Orte
+ * ("Can't find it?") haben keine, und genau die wuerden sonst wieder
+ * durchs Raster fallen.
+ */
+type SheetTarget =
+  | { kind: "google"; place: MapPlace }
+  | { kind: "local"; id: string; name: string; lat: number; lng: number };
+
 function MapPage() {
   const { ready, error } = useGoogleMaps();
   const navigate = useNavigate();
@@ -113,7 +130,7 @@ function MapPage() {
     neLat: number;
     neLng: number;
   } | null>(null);
-  const [selected, setSelected] = useState<MapPlace | null>(null);
+  const [selected, setSelected] = useState<SheetTarget | null>(null);
   const [query, setQuery] = useState("");
   const [searchCandidates, setSearchCandidates] = useState<MapPlace[] | null>(null);
   const [mode, setMode] = useState<"discover" | "mine">(mapSession.mode ?? "discover");
@@ -328,7 +345,7 @@ function MapPage() {
       iconEvent.stop();
       try {
         const place = await placeByIdFn({ data: { placeId: iconEvent.placeId } });
-        if (place) setSelected(place);
+        if (place) setSelected({ kind: "google", place });
       } catch (e) {
         toast.error(getErrorMessage(e, "Could not open place"));
       }
@@ -416,7 +433,7 @@ function MapPage() {
         icon: searchPinIcon(),
         animation: google.maps.Animation.DROP,
       });
-      marker.addListener("click", () => setSelected(c));
+      marker.addListener("click", () => setSelected({ kind: "google", place: c }));
       return marker;
     });
   }, [ready, searchCandidates]);
@@ -446,7 +463,7 @@ function MapPage() {
           icon: ratingPinIcon(mapColor("reviewed"), p.rating, { saved: mySavedIds.has(p.id) }),
         });
         marker.addListener("click", () =>
-          navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+          setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
         );
         return marker;
       });
@@ -463,7 +480,7 @@ function MapPage() {
             icon: ratingPinIcon(mapColor("saved")),
           });
           marker.addListener("click", () =>
-            navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+            setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
           );
           return marker;
         });
@@ -492,7 +509,7 @@ function MapPage() {
           icon: ratingPinIcon(mapColor("reviewed"), p.rating),
         });
         marker.addListener("click", () =>
-          navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+          setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
         );
         return marker;
       });
@@ -509,7 +526,7 @@ function MapPage() {
         icon: ratingPinIcon(mapColor("saved"), ratingById.get(p.id), { saved: true }),
       });
       marker.addListener("click", () =>
-        navigate({ to: "/place/$placeId", params: { placeId: p.id } }),
+        setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
       );
       return marker;
     });
@@ -562,7 +579,7 @@ function MapPage() {
         mapRef.current.setZoom(14);
         setCenter(newCenter);
         setSearchCandidates(null);
-        if (!looksLikeArea) setSelected(top);
+        if (!looksLikeArea) setSelected({ kind: "google", place: top });
         return;
       }
 
@@ -775,29 +792,46 @@ function MapPage() {
         </Button>
       ) : null}
 
-      <PlaceSheet place={selected} onClose={() => setSelected(null)} />
+      <PlaceSheet target={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
 
-function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () => void }) {
+function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
 
+  /*
+   * Ein Panel, zwei Herkuenfte. Ein eigener Pin bringt seine Datenbank-id
+   * schon mit -- dann entfaellt das Nachschlagen ueber die Google-Kennung,
+   * das fuer von Hand angelegte Orte ohnehin ins Leere liefe.
+   */
+  const cacheKey = target
+    ? target.kind === "local"
+      ? `local:${target.id}`
+      : `google:${target.place.googlePlaceId}`
+    : null;
+
   const { data } = useQuery({
-    queryKey: ["map-place-reviews", place?.googlePlaceId],
-    enabled: !!place,
+    queryKey: ["map-place-reviews", cacheKey],
+    enabled: !!target,
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id;
-      const { data: local } = await supabase
-        .from("places")
-        .select("id")
-        .eq("google_place_id", place!.googlePlaceId)
-        .maybeSingle();
-      if (!local) return { localId: null, reviews: [], isSaved: false };
-      const [{ data: reviews }, savedRes] = await Promise.all([
+      const local =
+        target!.kind === "local"
+          ? { id: target!.id }
+          : (
+              await supabase
+                .from("places")
+                .select("id")
+                .eq("google_place_id", target!.place.googlePlaceId)
+                .maybeSingle()
+            ).data;
+      if (!local)
+        return { localId: null, place: null, reviews: [], isSaved: false, myRating: null };
+      const [{ data: reviews }, savedRes, placeRes, mineRes] = await Promise.all([
         // Ohne die eigene Bewertung: dieses Panel ist durchgehend als
         // "from your circle" beschriftet, die eigene Meinung gehoert
         // nicht hinein -- weder in die Liste noch in den Durchschnitt.
@@ -818,20 +852,81 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
               .eq("place_id", local.id)
               .maybeSingle()
           : Promise.resolve({ data: null }),
+        // Nur fuer eigene Pins noetig: Kategorie, Stadt und Google-Kennung
+        // stehen dort nicht im Marker, kommen also aus der Datenbank.
+        target!.kind === "local"
+          ? supabase
+              .from("places")
+              .select("name, city, category, google_place_id")
+              .eq("id", local.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        // Die eigene Bewertung getrennt holen. Sie gehoert nicht in den
+        // Freundes-Durchschnitt, darf aber auch nicht verschwiegen werden:
+        // auf "My Map" zeigt der Pin genau diese Note, und ein Panel, das
+        // dazu "keine Bewertungen" meldet, widerspraeche dem Pin.
+        me
+          ? supabase
+              .from("reviews")
+              .select("rating")
+              .eq("place_id", local.id)
+              .eq("user_id", me)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
-      return { localId: local.id, reviews: reviews ?? [], isSaved: !!savedRes.data };
+      return {
+        localId: local.id,
+        place: placeRes.data,
+        reviews: reviews ?? [],
+        isSaved: !!savedRes.data,
+        myRating: (mineRes.data as { rating: number } | null)?.rating ?? null,
+      };
     },
   });
+
+  /*
+   * Was der Kopf des Panels anzeigt. Bei einem eigenen Pin steht der Name
+   * sofort zur Verfuegung (aus dem Marker), Kategorie und Stadt kommen
+   * nach -- so ist das Panel nie einen Moment lang leer.
+   */
+  const header = !target
+    ? null
+    : target.kind === "google"
+      ? {
+          name: target.place.name,
+          subtitle: [target.place.category, target.place.address].filter(Boolean).join(" · "),
+          lat: target.place.lat,
+          lng: target.place.lng,
+          googlePlaceId: target.place.googlePlaceId as string | null,
+        }
+      : {
+          name: data?.place?.name ?? target.name,
+          subtitle: [data?.place?.category, data?.place?.city].filter(Boolean).join(" · "),
+          lat: target.lat,
+          lng: target.lng,
+          googlePlaceId: data?.place?.google_place_id ?? null,
+        };
 
   const reviews = data?.reviews ?? [];
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
 
-  async function go(target: "place" | "review") {
-    if (!place) return;
+  /*
+   * Die Datenbank-id des Ortes. Ein eigener Pin kennt sie bereits; ein
+   * Google-Ort wird bei Bedarf angelegt -- aber erst, wenn der Nutzer
+   * wirklich etwas tut (bewerten, merken), nicht schon beim Ansehen.
+   */
+  async function resolveLocalId() {
+    if (!target) return null;
+    return target.kind === "local" ? target.id : await ensureLocalPlace(target.place);
+  }
+
+  async function go(to: "place" | "review") {
+    if (!target) return;
     setBusy(true);
     try {
-      const id = await ensureLocalPlace(place);
-      if (target === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
+      const id = await resolveLocalId();
+      if (!id) return;
+      if (to === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
       else navigate({ to: "/new", search: { placeId: id } });
     } catch (e) {
       toast.error(getErrorMessage(e, "Could not open place"));
@@ -841,11 +936,12 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
   }
 
   async function toggleSave() {
-    if (!place) return;
+    if (!target) return;
     void tap();
     setBusy(true);
     try {
-      const id = await ensureLocalPlace(place);
+      const id = await resolveLocalId();
+      if (!id) return;
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id;
       if (!me) return;
@@ -854,9 +950,13 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
       } else {
         await supabase.from("saved_places").insert({ user_id: me, place_id: id });
       }
-      queryClient.invalidateQueries({ queryKey: ["map-place-reviews", place.googlePlaceId] });
+      queryClient.invalidateQueries({ queryKey: ["map-place-reviews", cacheKey] });
       queryClient.invalidateQueries({ queryKey: ["saved-google-ids"] });
       queryClient.invalidateQueries({ queryKey: ["my-saved-places"] });
+      // Die Pins selbst muessen mitziehen: merkt man einen Ort hier, muss
+      // sein Lesezeichen sofort auf der Karte erscheinen.
+      queryClient.invalidateQueries({ queryKey: ["my-saved-places-map"] });
+      queryClient.invalidateQueries({ queryKey: ["saved-in-view"] });
     } catch (e) {
       toast.error(getErrorMessage(e, "Action failed"));
     } finally {
@@ -865,7 +965,7 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
   }
 
   return (
-    <Sheet open={!!place} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={!!target} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="bottom" className="rounded-t-3xl border-0 pb-8">
         {/*
           Kopf neu gefasst: Name und Adresse tragen die Zeile, die beiden
@@ -877,10 +977,9 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
         <SheetHeader className="text-left">
           <SheetTitle className="flex items-center gap-3">
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-lg font-bold">{place?.name}</span>
+              <span className="block truncate text-lg font-bold">{header?.name}</span>
               <span className="turi-meta block truncate text-xs font-normal text-muted-foreground">
-                {place?.category ? `${place.category} · ` : ""}
-                {place?.address}
+                {header?.subtitle}
               </span>
             </span>
 
@@ -899,13 +998,13 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
               <Bookmark size={18} fill={data?.isSaved ? "currentColor" : "none"} />
             </button>
 
-            {place ? (
+            {header ? (
               <a
                 href={directionsUrl({
-                  name: place.name,
-                  lat: place.lat,
-                  lng: place.lng,
-                  googlePlaceId: place.googlePlaceId,
+                  name: header.name,
+                  lat: header.lat,
+                  lng: header.lng,
+                  googlePlaceId: header.googlePlaceId,
                 })}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -919,6 +1018,20 @@ function PlaceSheet({ place, onClose }: { place: MapPlace | null; onClose: () =>
         </SheetHeader>
 
         <div className="mt-4 space-y-3 px-4">
+          {/* Die eigene Note zuerst, getrennt vom Freundes-Durchschnitt --
+              wie auf der vollstaendigen Ortsseite. Ohne sie meldete das
+              Panel bei einem eigenen Pin "keine Bewertungen", waehrend im
+              Pin daneben die eigene Note stand. */}
+          {data?.myRating != null ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
+              <span className="turi-eyebrow">Your review</span>
+              <Stars value={data.myRating} size={14} />
+              <span className="turi-meta ml-auto text-sm font-semibold">
+                {data.myRating.toFixed(1)}
+              </span>
+            </div>
+          ) : null}
+
           {avg !== null ? (
             <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
               <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
