@@ -460,7 +460,7 @@ function MapPage() {
           zIndex: 10,
           // Steht der Ort zusaetzlich auf der Wunschliste, traegt der Pin
           // beides -- sonst verschwaende die eine Angabe hinter der anderen.
-          icon: ratingPinIcon(mapColor("reviewed"), p.rating, { saved: mySavedIds.has(p.id) }),
+          icon: ratingPinIcon(p.rating, { saved: mySavedIds.has(p.id) }),
         });
         marker.addListener("click", () =>
           setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
@@ -477,7 +477,7 @@ function MapPage() {
             position: { lat: p.lat, lng: p.lng },
             title: p.name,
             zIndex: 10,
-            icon: ratingPinIcon(mapColor("saved")),
+            icon: ratingPinIcon(),
           });
           marker.addListener("click", () =>
             setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
@@ -506,7 +506,7 @@ function MapPage() {
           position: { lat: p.lat, lng: p.lng },
           title: p.name,
           zIndex: 10,
-          icon: ratingPinIcon(mapColor("reviewed"), p.rating),
+          icon: ratingPinIcon(p.rating),
         });
         marker.addListener("click", () =>
           setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
@@ -523,7 +523,7 @@ function MapPage() {
         // schon bewertet hat, sonst nur das Lesezeichen. Das Lesezeichen
         // steht auch neben der Note: sonst saehe ein gemerkter, bewerteter
         // Ort aus wie ein bloss bewerteter in anderer Farbe.
-        icon: ratingPinIcon(mapColor("saved"), ratingById.get(p.id), { saved: true }),
+        icon: ratingPinIcon(ratingById.get(p.id), { saved: true }),
       });
       marker.addListener("click", () =>
         setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
@@ -721,26 +721,30 @@ function MapPage() {
 
         {mode === "discover" && reviewedInView && reviewedInView.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-map-reviewed" /> reviewed by
-            friends
+            <span className="turi-meta rounded bg-map-pin px-1 py-px text-[10px] font-bold text-white">
+              4.5
+            </span>{" "}
+            reviewed by friends
           </div>
         ) : null}
 
         {mode === "discover" && savedInView && savedInView.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="inline-block size-2.5 rounded-full bg-map-saved" /> want to go
+            <Bookmark size={12} className="text-map-accent" fill="currentColor" /> want to go
           </div>
         ) : null}
 
         {mode === "mine" ? (
           <div className="pointer-events-auto flex flex-col gap-1.5">
             <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-              <span className="inline-block size-2.5 rounded-full bg-map-reviewed" />{" "}
+              <span className="turi-meta rounded bg-map-pin px-1 py-px text-[10px] font-bold text-white">
+                4.5
+              </span>{" "}
               {(myPlaces ?? []).length} places you've reviewed
             </div>
             {mySavedPlaces && mySavedPlaces.length > 0 ? (
               <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-                <span className="inline-block size-2.5 rounded-full bg-map-saved" />{" "}
+                <Bookmark size={12} className="text-map-accent" fill="currentColor" />{" "}
                 {mySavedPlaces.length} want to go
               </div>
             ) : null}

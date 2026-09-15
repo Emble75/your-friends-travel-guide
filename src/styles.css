@@ -79,9 +79,8 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-star: var(--star);
-  --color-map-reviewed: var(--map-reviewed);
-  --color-map-saved: var(--map-saved);
-  --color-map-search: var(--map-search);
+  --color-map-pin: var(--map-pin);
+  --color-map-accent: var(--map-accent);
   --color-map-me: var(--map-me);
   --color-star-outline: var(--star-outline);
   --color-border: var(--border);
@@ -155,13 +154,15 @@
   /*
    * Turi-Orange -- der zweite Markenakzent.
    *
-   * Herkunft: Es ist die urspruengliche Markenfarbe der App. Bei der
-   * Umstellung auf Blau blieb sie nur noch als Kartenfarbe uebrig
-   * (--map-saved) und war fuer die Oberflaeche ausdruecklich gesperrt.
-   * Damit war Orange faktisch aus der Palette verschwunden, obwohl es
-   * als eine der vier Turi-Farben gilt. Hier steht es wieder als
-   * regulaeres Token -- derselbe Wert wie --map-saved (#f56333), nur in
-   * oklch notiert.
+   * Herkunft: Es ist die urspruengliche Markenfarbe der App. Eine Zeit
+   * lang existierte sie nur noch als Kartenfarbe fuer die Wunschliste
+   * und war fuer die Oberflaeche ausdruecklich gesperrt -- damit war
+   * Orange faktisch aus der Palette verschwunden, obwohl es als eine der
+   * vier Turi-Farben gilt. Hier steht es wieder als regulaeres Token.
+   *
+   * Seit der Kartenumstellung auf Schwarz-Weiss kommt Orange auf der
+   * KARTE gar nicht mehr vor -- es ist jetzt reine Oberflaechenfarbe
+   * (Profil-Farbband).
    *
    * GRENZE: 3.13:1 auf Weiss. Das reicht fuer Flaechen und grosse
    * Schrift, NICHT fuer Fliesstext und nicht fuer kleine Symbole, die
@@ -203,49 +204,35 @@
   /*
    * Kartenfarben -- die einzige Stelle, an der sie definiert sind.
    *
-   * ACHTUNG: Die Karte bleibt hell, unabhaengig von der App-Palette.
-   * Diese Werte sind fuer HELLEN Untergrund gewaehlt und duerfen bei
-   * einer Themenumstellung nicht mitgezogen werden.
+   * NEUES MODELL: Die Karte ist schwarz-weiss, Blau ist nur noch das
+   * Zeichen IM Pin. Vorher trug jede Rolle eine eigene Flaeche (Blau
+   * bewertet, Orange gemerkt) -- damit lagen farbige Flecken auf einer
+   * Karte, die selbst schon bunt ist, und Turis Pins konkurrierten mit
+   * Googles eigenen Symbolen (Einkaufen blau, Gastronomie orange).
    *
-   * Warum Hex statt oklch: sie werden zur Laufzeit ausgelesen und in
-   * SVG-Grafiken (data-URL) fuer die Pins eingesetzt; Hex funktioniert
-   * dort in jeder Webview zuverlaessig.
+   * Googles Karte benutzt praktisch KEIN Schwarz. Eine tintenschwarze
+   * Pille liest sich deshalb sofort als unsere -- sie konkurriert mit
+   * nichts. Es ist dieselbe Tinte, die in der App jeden Knopf traegt.
    *
    * ROLLEN:
-   *   --map-reviewed  Bewertet -- in "Discover" von Freunden, in
-   *                   "My Map" von mir. Beide Faelle treten nie
-   *                   gleichzeitig auf, eine Farbe genuegt.
-   *   --map-saved     Wunschliste, auf beiden Karten.
-   *   --map-search    Suchtreffer. Neutral, damit sie sich von den
-   *                   blauen Bewertungspins abheben.
-   *   --map-me        Eigener Standort. Dieselbe Blaustufe wie die
-   *                   Bewertungen; unterschieden wird ueber die Form --
-   *                   ein Kreis, kein Tropfen: ein Pin zeigt auf einen
-   *                   Ort, dieser Punkt ist einer.
+   *   --map-pin     Die Pille. Immer. Bewertet, gemerkt, beides.
+   *   --map-accent  Das Lesezeichen darin: "da will ich noch hin".
+   *                 Die EINZIGE Farbe auf der Karte.
+   *   --map-me      Eigener Standort. Sattes Markenblau, deutlich tiefer
+   *                 als der Akzent -- und ein Kreis, keine Pille.
    *
-   * NUR FUER DIE KARTE. Diese Werte gehoeren an Pins und an die
-   * Legenden-Punkte, die sie erklaeren -- NICHT an Bedienelemente. Der
-   * Merken-Knopf trug frueher das Orange und wirkte dadurch wie ein
-   * Fremdkoerper in der Oberflaeche; er nutzt jetzt --primary wie jeder
-   * andere Schalter auch.
+   * Suchtreffer tragen keine eigene Farbe mehr: weisse Pille mit
+   * --map-pin als Rand. Vorher waren sie fast schwarz und waeren mit den
+   * bewerteten Pins kollidiert.
    *
-   * Blau und Orange sind die Farben der App, bewusst in voller
-   * Leuchtkraft. Sie liegen naeher an Googles POI-Symbolen (#4B96F3
-   * Einkaufen, #FF9E67 Gastronomie) als abgedunkelte Varianten -- das
-   * ist eine bewusste Entscheidung zugunsten der Markenfarben.
+   * Warum Hex statt oklch: Sie werden zur Laufzeit ausgelesen und in
+   * SVG-Grafiken (data-URL) eingesetzt; Hex funktioniert dort in jeder
+   * Webview zuverlaessig.
    *
-   * Die Bewertungszahl im Pin passt ihre Schriftfarbe automatisch an die
-   * Pin-Helligkeit an (siehe labelColor in mapIcons.ts), bleibt also bei
-   * jeder Farbwahl lesbar.
+   * NUR FUER DIE KARTE -- nicht an Bedienelemente.
    */
-  /* Wertgleich mit --brand (#325ef5) bzw. --brand-orange (#f56333), nur
-     als Hex notiert, weil sie zur Laufzeit in SVG-Pins eingesetzt werden.
-     Wird eine der Markenfarben geaendert, muss die Entsprechung hier
-     mitgezogen werden -- die Werte sind bewusst getrennt, damit eine
-     spaetere Themenumstellung die Karte nicht mitfaerbt. */
-  --map-reviewed: #325ef5;
-  --map-saved: #f56333;
-  --map-search: #2b2724;
+  --map-pin: #161311;
+  --map-accent: #4c7aff;
   --map-me: #325ef5;
 
   /*
