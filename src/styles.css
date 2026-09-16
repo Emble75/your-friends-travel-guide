@@ -114,13 +114,19 @@
    * auf Geraeten mit Home-Indikator rutschten dadurch die schwebenden
    * Knoepfe auf der Karte (Standort, "Can't find it?") unter die Leiste.
    */
-  /* Setzt sich zusammen aus: 1px Trennlinie + 0.5rem Innenabstand oben +
-     ca. 3.19rem Inhalt (Symbol, Abstand, Beschriftung) = 3.75rem, dazu
-     der untere Innenabstand der Leiste. Der ist dort als
-     max(0.5rem, safe-area) definiert -- die Formel muss das nachbilden,
-     sonst ist der Wert am Schreibtisch (ohne sicheren Bereich) 8px zu
-     klein und die Karte schoebe sich unter die Leiste. */
-  --bottom-nav-h: calc(3.75rem + max(0.5rem, env(safe-area-inset-bottom)));
+  /* Die Leiste schwebt jetzt als freistehende Pille ueber dem Inhalt
+     (BottomNav.tsx). Diese Formel MUSS ihre tatsaechlichen Masse
+     nachbilden, sonst rutschen die schwebenden Kartenknoepfe (Standort,
+     "Can't find it?") darunter oder es klafft eine Luecke:
+
+       0.75rem  Innenrand der Pille oben + unten (p-1.5)
+     + 1rem     Innenabstand der Eintraege oben + unten (py-2)
+     + 2.25rem  Inhalt (Symbol 20px, Abstand, Beschriftung)
+     = 4rem
+
+     Dazu der Abstand zum unteren Bildschirmrand, der dort als
+     max(0.75rem, safe-area) gesetzt ist. */
+  --bottom-nav-h: calc(4rem + max(0.75rem, env(safe-area-inset-bottom)));
   /*
    * Der Hintergrund ist bewusst tiefer als frueher (0.985 -> 0.955).
    *

@@ -27,6 +27,13 @@ const PAD_X = 7.5; // Rand links und rechts des Inhalts
 const GAP = 3; // Abstand zwischen Zeichen und Note
 const GLYPH_W = 8; // Breite von Lesezeichen und Lupe
 const EDGE = 4; // Luft ringsum fuer den Schatten
+/*
+ * Zeichenaufloesung. Die Grafik wird doppelt so gross erzeugt und ueber
+ * scaledSize auf die richtige Groesse gebracht: Google Maps rastert das
+ * Symbol einmal, und ohne diese Reserve geschieht das in einfacher
+ * Aufloesung -- auf Retina-Bildschirmen sichtbar unscharf.
+ */
+const SHARP = 2;
 
 /** Das Lesezeichen -- "da will ich noch hin". */
 function bookmark(x: number, fill: string) {
@@ -91,29 +98,34 @@ function pill(opts: {
       font-weight="700" letter-spacing="-0.2" fill="${fg}" text-anchor="middle">${text}</text>`;
   }
 
-  // Ein knapper, harter Schatten statt einer weichen Wolke: die alte
-  // Kombination aus Fuellfarbe, weissem Rand UND weichem Schatten waren
-  // drei Abgrenzungen fuer dieselbe Aufgabe und liessen die Pins
-  // schwerfaellig wirken.
-  const shadow = `<filter id="s" x="-40%" y="-40%" width="180%" height="190%">
-    <feDropShadow dx="0" dy="1" stdDeviation="0.9" flood-color="#000000" flood-opacity="0.3"/>
-  </filter>`;
-
   const border = outline ? `stroke="${ink}" stroke-width="1.6"` : "";
   const inset = outline ? 0.8 : 0;
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${boxW}" height="${boxH}" viewBox="${-EDGE} ${-EDGE} ${boxW} ${boxH}">
-    <defs>${shadow}</defs>
-    <g filter="url(#s)">
-      <path d="M${width / 2 - 4} ${H - 1}h8l-4 ${TAIL}z" fill="${outline ? ink : bg}"/>
-      <rect x="${inset}" y="${inset}" width="${width - inset * 2}" height="${H - inset * 2}"
-        rx="${(H - inset * 2) / 2}" fill="${bg}" ${border}/>
-    </g>
+  /*
+   * Der Schatten ist eine GEZEICHNETE Form, kein SVG-Filter.
+   *
+   * Filter werden gerastert, anders als der Rest der Vektorgrafik. Bei
+   * einem 22px hohen Pin auf einem Retina-Bildschirm sah man das: die
+   * Kanten wirkten ausgefranst, wie ein Bild in zu geringer Aufloesung.
+   * Eine leicht versetzte Kopie der Pille bleibt dagegen scharf.
+   */
+  const shadow = `<rect x="${inset}" y="${inset + 1.1}" width="${width - inset * 2}"
+      height="${H - inset * 2}" rx="${(H - inset * 2) / 2}" fill="#000000" opacity="0.28"/>`;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${boxW * SHARP}" height="${boxH * SHARP}" viewBox="${-EDGE} ${-EDGE} ${boxW} ${boxH}">
+    <path d="M${width / 2 - 4} ${H - 1}h8l-4 ${TAIL}z" fill="#000000" opacity="0.28"
+      transform="translate(0,1.1)"/>
+    ${shadow}
+    <path d="M${width / 2 - 4} ${H - 1}h8l-4 ${TAIL}z" fill="${outline ? ink : bg}"/>
+    <rect x="${inset}" y="${inset}" width="${width - inset * 2}" height="${H - inset * 2}"
+      rx="${(H - inset * 2) / 2}" fill="${bg}" ${border}/>
     ${inner}
   </svg>`;
 
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    // Gezeichnet wird doppelt so gross, angezeigt in Originalgroesse --
+    // so hat der Bildschirm auf Retina-Geraeten echte Pixel zum Arbeiten.
     scaledSize: new google.maps.Size(boxW, boxH),
     // Die Spitze markiert den Ort -- sie sitzt unten mittig.
     anchor: new google.maps.Point(width / 2 + EDGE, H + TAIL + EDGE),
@@ -158,11 +170,10 @@ export function searchPinIcon() {
  * das hellere Blau nutzt -- gleiche Familie, klar unterscheidbare Tiefe.
  */
 export function currentLocationIcon() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26">
-    <defs><filter id="p" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="1" stdDeviation="1.6" flood-color="#000000" flood-opacity="0.35"/>
-    </filter></defs>
-    <circle cx="13" cy="13" r="7.5" fill="#ffffff" filter="url(#p)"/>
+  // Auch hier gezeichneter Schatten statt Filter -- siehe pill().
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${26 * SHARP}" height="${26 * SHARP}" viewBox="0 0 26 26">
+    <circle cx="13" cy="14.1" r="7.5" fill="#000000" opacity="0.3"/>
+    <circle cx="13" cy="13" r="7.5" fill="#ffffff"/>
     <circle cx="13" cy="13" r="5.2" fill="${mapColor("me")}"/>
   </svg>`;
   return {
