@@ -35,19 +35,25 @@ export function BottomNav() {
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3"
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="pointer-events-auto flex items-center gap-0.5 rounded-[1.375rem] border border-card/80 bg-card/90 p-1 shadow-card backdrop-blur-xl">
+      {/*
+       * Tintenschwarze Pille statt weisser: Vorher verschmolz die
+       * Navigation im Feed mit den weissen Karten, die hinter ihr
+       * vorbeilaufen -- weisser Rand auf weissem Rand. Dieselbe Tinte,
+       * die auf der Karte die Orts-Pins und in der App jeden Knopf
+       * traegt, hebt die Leiste jetzt unmissverstaendlich vom Inhalt ab.
+       * Der aktive Reiter invertiert: weisse Pille auf schwarzer Leiste.
+       */}
+      <div className="pointer-events-auto flex items-center gap-0.5 rounded-[1.375rem] bg-primary p-1 shadow-card">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
-            className="turi-tap flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-[1.125rem] text-muted-foreground transition-colors"
-            // Aktiver Reiter: die einzige Stelle in der Kern-Navigation,
-            // die Markenfarbe traegt. Die Pille dahinter macht den
-            // Zustand auch ohne Farbsehen als Flaeche erkennbar.
-            // aria-current markiert die aktive Seite fuer Screenreader --
-            // Farbe allein ist dafuer keine Information.
+            className="turi-tap flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-[1.125rem] text-primary-foreground/55 transition-colors hover:text-primary-foreground/85"
+            // Aktiver Reiter: invertiert -- weisse Flaeche auf dunkler
+            // Leiste. aria-current markiert die aktive Seite fuer
+            // Screenreader -- Farbe allein ist dafuer keine Information.
             activeProps={{
-              className: "bg-primary text-primary-foreground shadow-sm font-bold",
+              className: "bg-card text-foreground shadow-sm font-bold",
               "aria-current": "page",
             }}
           >
