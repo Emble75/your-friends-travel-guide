@@ -16,16 +16,14 @@ const items = [
  * sie ueber dem Inhalt: Die Seite laeuft sichtbar darunter weiter, was
  * die Oberflaeche leichter und weniger "abgeschnitten" wirken laesst.
  *
- * WICHTIG -- GEKOPPELT AN --bottom-nav-h IN styles.css: Jede Seite haelt
- * unten genau so viel Platz frei, wie diese Leiste hoch ist, und die
- * Karte berechnet daraus ihre Hoehe. Aendert sich hier ein Abstand, muss
- * der Wert dort mitgezogen werden, sonst rutschen die schwebenden
- * Kartenknoepfe darunter oder es klafft eine Luecke.
+ * WICHTIG -- GEKOPPELT AN --bottom-nav-h IN styles.css: Scrollende Seiten
+ * halten unten genau so viel Platz frei, wie diese Leiste hoch ist. Die
+ * Karte laeuft sichtbar dahinter weiter; nur ihre schwebenden Knoepfe
+ * werden um diesen Wert angehoben.
  *
- * Aktuell: 1.5rem Innenrand der Pille (p-1.5, oben + unten)
- *        + 2rem Inhalt (Symbol 20px, Abstand, Beschriftung)
- *        + 1rem Innenabstand der Eintraege (py-2, oben + unten)
- *        = 4rem, dazu der Abstand zum unteren Rand.
+ * Aktuell: 0.5rem Innenrand der Pille (p-1, oben + unten)
+ *        + 3rem feste Hoehe der Eintraege (h-12)
+ *        = 3.5rem, dazu der Abstand zum unteren Rand.
  */
 export function BottomNav() {
   return (

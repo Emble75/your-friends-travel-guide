@@ -124,7 +124,7 @@
      = 3.5rem
 
      Dazu der Abstand zum unteren Bildschirmrand, der dort als
-     max(0.75rem, safe-area) gesetzt ist. */
+     max(0.625rem, safe-area) gesetzt ist. */
   --bottom-nav-h: calc(3.5rem + max(0.625rem, env(safe-area-inset-bottom)));
   /*
    * Der Hintergrund ist bewusst tiefer als frueher (0.985 -> 0.955).
