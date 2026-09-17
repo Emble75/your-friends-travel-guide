@@ -33,27 +33,28 @@ export function BottomNav() {
       // pointer-events-none auf dem Rahmen, damit der freie Platz links
       // und rechts der Pille nicht unsichtbar Klicks abfaengt -- dort
       // liegt die Seite, und die soll bedienbar bleiben.
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4"
-      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      aria-label="Main navigation"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3"
+      style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border/70 bg-card/85 p-1.5 shadow-card backdrop-blur-xl">
+      <div className="pointer-events-auto flex items-center gap-0.5 rounded-[1.375rem] border border-card/80 bg-card/90 p-1 shadow-card backdrop-blur-xl">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
-            className="turi-tap flex w-[4.25rem] flex-col items-center gap-0.5 rounded-full px-3 py-2 text-muted-foreground transition-colors"
+            className="turi-tap flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-[1.125rem] text-muted-foreground transition-colors"
             // Aktiver Reiter: die einzige Stelle in der Kern-Navigation,
             // die Markenfarbe traegt. Die Pille dahinter macht den
             // Zustand auch ohne Farbsehen als Flaeche erkennbar.
             // aria-current markiert die aktive Seite fuer Screenreader --
             // Farbe allein ist dafuer keine Information.
             activeProps={{
-              className: "bg-brand-soft text-brand font-bold",
+              className: "bg-primary text-primary-foreground shadow-sm font-bold",
               "aria-current": "page",
             }}
           >
-            <Icon size={20} strokeWidth={2} />
-            <span className="text-2xs font-medium">{label}</span>
+            <Icon size={19} strokeWidth={2.2} />
+            <span className="text-2xs font-semibold">{label}</span>
           </Link>
         ))}
       </div>
