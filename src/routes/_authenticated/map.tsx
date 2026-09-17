@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Bookmark,
+  Compass,
   Loader2,
   LocateFixed,
+  MapPinned,
   Navigation,
   Plus,
   Search,
@@ -613,7 +615,10 @@ function MapPage() {
     // ausfahrende Browserleiste nicht mit, wodurch der untere Rand der
     // Karte -- und mit ihm die schwebenden Knoepfe -- aus dem sichtbaren
     // Bereich rutscht. dvh folgt der tatsaechlich sichtbaren Hoehe.
-    <div className="relative h-[calc(100dvh-var(--bottom-nav-h))] w-full overflow-hidden">
+    <div
+      className="relative h-[100dvh] w-full overflow-hidden"
+      style={{ marginBottom: "calc(-1 * var(--bottom-nav-h))" }}
+    >
       <div ref={containerRef} className="absolute inset-0 bg-muted" />
 
       {!ready ? (
@@ -641,25 +646,39 @@ function MapPage() {
           auch inhaltlich hingehoert (er zeigt an, dass die Orte fuer den
           sichtbaren Ausschnitt geladen werden).
         */}
-        <div className="pointer-events-auto flex gap-1 rounded-2xl bg-card/95 p-1 shadow-card backdrop-blur">
-          <button
+        <div
+          className="pointer-events-auto grid grid-cols-2 gap-1 rounded-2xl border border-card/80 bg-card/90 p-1 shadow-card backdrop-blur-xl"
+          role="group"
+          aria-label="Map view"
+        >
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => switchMode("discover")}
-            className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-colors ${
-              mode === "discover" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            aria-pressed={mode === "discover"}
+            className={`h-10 rounded-xl px-3 text-sm font-semibold shadow-none ${
+              mode === "discover"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
             }`}
           >
+            <Compass size={17} />
             Discover
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => switchMode("mine")}
-            className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-colors ${
-              mode === "mine" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            aria-pressed={mode === "mine"}
+            className={`h-10 rounded-xl px-3 text-sm font-semibold shadow-none ${
+              mode === "mine"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
             }`}
           >
+            <MapPinned size={17} />
             My Map
-          </button>
+          </Button>
         </div>
 
         {/*
@@ -756,7 +775,8 @@ function MapPage() {
         size="icon"
         variant="secondary"
         aria-label="Show my location"
-        className="absolute bottom-6 right-4 z-10 size-12 rounded-2xl shadow-card"
+        className="absolute right-4 z-10 size-12 rounded-2xl shadow-card"
+        style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
         onClick={async () => {
           // Die laufende Ortung kennt die Position bereits -- direkt
           // hinspringen statt erneut zu messen. Das war vorher eine
@@ -788,7 +808,8 @@ function MapPage() {
         <Button
           asChild
           variant="secondary"
-          className="absolute bottom-6 left-4 z-10 h-9 rounded-full px-3 text-xs shadow-card"
+          className="absolute left-4 z-10 h-9 rounded-full px-3 text-xs shadow-card"
+          style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
         >
           <Link to="/new" search={{ create: true }}>
             <Plus size={14} className="mr-1" /> Can't find it?
