@@ -114,16 +114,15 @@
    * auf Geraeten mit Home-Indikator rutschten dadurch die schwebenden
    * Knoepfe auf der Karte (Standort, "Can't find it?") unter die Leiste.
    */
-  /* Die Leiste schwebt jetzt als freistehende Pille ueber dem Inhalt
-     (BottomNav.tsx). Diese Formel MUSS ihre tatsaechlichen Masse
+  /* Diese Formel MUSS die tatsaechlichen Masse der Leiste (BottomNav.tsx)
      nachbilden, sonst rutschen die schwebenden Kartenknoepfe (Standort,
      "Can't find it?") darunter oder es klafft eine Luecke:
 
-       0.5rem   Innenrand der Pille oben + unten (p-1)
+       0.5rem   Innenabstand oben (pt-2)
      + 3rem     feste Hoehe der Eintraege (h-12)
      = 3.5rem
 
-     Dazu der Abstand zum unteren Bildschirmrand, der dort als
+     Dazu der untere Innenabstand, der dort als
      max(0.625rem, safe-area) gesetzt ist. */
   --bottom-nav-h: calc(3.5rem + max(0.625rem, env(safe-area-inset-bottom)));
   /*

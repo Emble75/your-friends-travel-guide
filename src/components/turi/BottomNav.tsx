@@ -9,56 +9,63 @@ const items = [
 ] as const;
 
 /*
- * Die untere Navigation -- eine freistehende Pille statt eines Balkens.
+ * Die untere Navigation -- durchgehende Leiste aus milchigem Glas.
  *
- * Vorher lag sie als durchgehende Leiste auf der ganzen Breite und
- * schnitt den Bildschirm mit einer Trennlinie unten ab. Jetzt schwebt
- * sie ueber dem Inhalt: Die Seite laeuft sichtbar darunter weiter, was
- * die Oberflaeche leichter und weniger "abgeschnitten" wirken laesst.
+ * Zwei verworfene Fassungen stecken hier drin, beide aus demselben Grund
+ * gescheitert: Sie wollten sich vom Inhalt abheben und haben dafuer zu
+ * viel Gewicht aufgebaut.
  *
- * WICHTIG -- GEKOPPELT AN --bottom-nav-h IN styles.css: Scrollende Seiten
- * halten unten genau so viel Platz frei, wie diese Leiste hoch ist. Die
- * Karte laeuft sichtbar dahinter weiter; nur ihre schwebenden Knoepfe
- * werden um diesen Wert angehoben.
+ *   1. Freistehende weisse Pille -- verschmolz im Feed mit den weissen
+ *      Karten, die dahinter vorbeilaufen. Weiss auf Weiss.
+ *   2. Freistehende SCHWARZE Pille -- loeste das, war aber ein schwerer
+ *      dunkler Block am unteren Rand und zog alle Aufmerksamkeit auf
+ *      sich, obwohl Navigation Beiwerk ist.
  *
- * Aktuell: 0.5rem Innenrand der Pille (p-1, oben + unten)
+ * Die Loesung ist nicht mehr Kontrast, sondern ein anderes MATERIAL:
+ * eine durchgehende Leiste, die den Inhalt dahinter durchscheinen laesst
+ * und ihn dabei weichzeichnet. Die Flaeche liest sich dadurch als Glas
+ * ueber der Seite, nicht als weiterer Block darauf.
+ *
+ * Warum --background und nicht --card als Ton: Die Karten im Feed sind
+ * reines Weiss. Eine weisse Leiste darueber verschwindet darin. Der
+ * etwas waermere, dunklere Grundton der App hebt sich davon ab, ohne
+ * dafuer Kontrast aufwenden zu muessen.
+ *
+ * WICHTIG -- GEKOPPELT AN --bottom-nav-h IN styles.css: Jede Seite haelt
+ * unten genau so viel Platz frei, wie diese Leiste hoch ist, und die
+ * Karte berechnet daraus ihre Hoehe. Aendert sich hier ein Abstand, muss
+ * der Wert dort mitgezogen werden -- sonst rutschen die schwebenden
+ * Kartenknoepfe darunter.
+ *
+ * Aktuell: 0.5rem Innenabstand oben (pt-2)
  *        + 3rem feste Hoehe der Eintraege (h-12)
- *        = 3.5rem, dazu der Abstand zum unteren Rand.
+ *        = 3.5rem, dazu der untere Innenabstand.
  */
 export function BottomNav() {
   return (
     <nav
-      // pointer-events-none auf dem Rahmen, damit der freie Platz links
-      // und rechts der Pille nicht unsichtbar Klicks abfaengt -- dort
-      // liegt die Seite, und die soll bedienbar bleiben.
       aria-label="Main navigation"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/80 backdrop-blur-xl backdrop-saturate-150"
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
-      {/*
-       * Tintenschwarze Pille statt weisser: Vorher verschmolz die
-       * Navigation im Feed mit den weissen Karten, die hinter ihr
-       * vorbeilaufen -- weisser Rand auf weissem Rand. Dieselbe Tinte,
-       * die auf der Karte die Orts-Pins und in der App jeden Knopf
-       * traegt, hebt die Leiste jetzt unmissverstaendlich vom Inhalt ab.
-       * Der aktive Reiter invertiert: weisse Pille auf schwarzer Leiste.
-       */}
-      <div className="pointer-events-auto flex items-center gap-0.5 rounded-[1.375rem] bg-primary p-1 shadow-card">
+      <div className="app-shell flex items-stretch justify-between pt-2">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
-            className="turi-tap flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-[1.125rem] text-primary-foreground/55 transition-colors hover:text-primary-foreground/85"
-            // Aktiver Reiter: invertiert -- weisse Flaeche auf dunkler
-            // Leiste. aria-current markiert die aktive Seite fuer
-            // Screenreader -- Farbe allein ist dafuer keine Information.
+            className="turi-tap flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-muted-foreground transition-colors"
+            // Aktiver Reiter: die einzige Stelle in der Kern-Navigation,
+            // die Markenfarbe traegt. Die weiche Pille dahinter macht den
+            // Zustand auch ohne Farbsehen als Flaeche erkennbar.
+            // aria-current markiert die aktive Seite fuer Screenreader --
+            // Farbe allein ist dafuer keine Information.
             activeProps={{
-              className: "bg-card text-foreground shadow-sm font-bold",
+              className: "bg-brand-soft text-brand font-bold",
               "aria-current": "page",
             }}
           >
-            <Icon size={19} strokeWidth={2.2} />
-            <span className="text-2xs font-semibold">{label}</span>
+            <Icon size={20} strokeWidth={2} />
+            <span className="text-2xs font-medium">{label}</span>
           </Link>
         ))}
       </div>
