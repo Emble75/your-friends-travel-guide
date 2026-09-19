@@ -25,13 +25,13 @@ export function TuriGlyph({ className }: { className?: string }) {
         <circle cx="10" cy="10" r="6.5" fill="white" />
         <circle cx="22.2" cy="10" r="6.8" fill="white" />
         <circle cx="16" cy="23" r="6.8" fill="white" />
-        {/* Das T als weisse Flaeche zwischen den Orten: Querbalken endet
-            im rechten Kreis, der Schaft laeuft in den unteren Kreis und
-            endet dort -- kein Kreis wird zerschnitten. */}
-        <rect x="7" y="8" width="13" height="4" rx="2" fill="white" />
-        <rect x="14" y="8" width="4" height="14" rx="2" fill="white" />
+        {/* Das T als Aussparung: Querbalken endet im rechten Kreis, der
+            Schaft laeuft in den unteren Kreis und endet dort -- kein Kreis
+            wird zerschnitten, alle Silhouetten bleiben rund. */}
+        <rect x="7" y="8" width="13" height="4" rx="2" fill="black" />
+        <rect x="14" y="8" width="4" height="14" rx="2" fill="black" />
         {/* Der Pin im oberen rechten Ort. */}
-        <circle cx="22.3" cy="8" r="1.7" fill="white" />
+        <circle cx="22.3" cy="8" r="1.7" fill="black" />
       </mask>
       <rect width="32" height="32" fill="currentColor" mask={`url(#${maskId})`} />
     </svg>
