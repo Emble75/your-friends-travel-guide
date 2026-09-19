@@ -23,9 +23,18 @@ const items = [
  *
  * Fassung 2 und 3 versuchten dasselbe ueber KONTRAST. Entscheidend ist
  * aber das MATERIAL: Die Pille laesst den Inhalt durchscheinen und
- * zeichnet ihn weich. Sie liest sich dadurch als Glas ueber der Seite
- * statt als weiterer Block darauf -- und bleibt trotzdem sichtbar, weil
- * sie den waermeren Grundton der App traegt statt des Kartenweiss.
+ * zeichnet ihn weich -- sie liest sich dadurch als Glas ueber der Seite
+ * statt als weiterer Block darauf.
+ *
+ * ZUM FARBTON, denn der war zwischenzeitlich falsch: Eine Fassung trug
+ * den Seitenhintergrund statt des Kartenweiss, aus Sorge, Weiss wuerde
+ * vor den weissen Feed-Karten verschwinden. Das stimmt fuer eine
+ * durchgehende Leiste, die buendig am Inhalt klebt -- nicht fuer eine
+ * schwebende Pille: Die trennt sich durch Rand, Schatten und den
+ * Abstand ringsum, nicht durch ihre Fuellfarbe. Der Seitenton machte
+ * sie dagegen zum einzigen erhoehten Element der App, das nicht
+ * aussieht wie eine Karte. Jetzt dieselbe Flaeche, Haarlinie und
+ * Schatten wie jede andere Karte -- nur rund und durchscheinend.
  *
  * NUR SYMBOLE, KEINE BESCHRIFTUNG: macht die Pille kompakt genug, um zu
  * schweben. Die vier Symbole (Karte, Haus, Lupe, Person) sind ueberall
@@ -58,7 +67,7 @@ export function BottomNav() {
         Bildschirmen laeuft die Leiste sonst quer ueber die ganze Seite,
         waehrend der Inhalt darueber schmal bleibt.
       */}
-      <div className="pointer-events-auto flex w-full max-w-md items-center rounded-full border border-border/60 bg-background/70 p-1 shadow-card backdrop-blur-xl backdrop-saturate-150">
+      <div className="pointer-events-auto flex w-full max-w-md items-center rounded-full border border-border bg-card/80 p-1 shadow-card backdrop-blur-xl backdrop-saturate-150">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
