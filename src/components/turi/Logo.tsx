@@ -21,17 +21,18 @@ export function TuriGlyph({ className }: { className?: string }) {
     <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
       <mask id={maskId}>
         <rect width="32" height="32" fill="black" />
-        {/* Drei Orte: zwei oben, einer darunter -- sie beruehren sich nur. */}
-        <circle cx="10" cy="10" r="6.5" fill="white" />
-        <circle cx="22.2" cy="10" r="6.8" fill="white" />
-        <circle cx="16" cy="23" r="6.8" fill="white" />
-        {/* Das T als Aussparung: Querbalken endet im rechten Kreis, der
-            Schaft laeuft in den unteren Kreis und endet dort -- kein Kreis
-            wird zerschnitten, alle Silhouetten bleiben rund. */}
-        <rect x="7" y="8" width="13" height="4" rx="2" fill="black" />
-        <rect x="14" y="8" width="4" height="14" rx="2" fill="black" />
-        {/* Der Pin im oberen rechten Ort. */}
-        <circle cx="22.3" cy="8" r="1.7" fill="black" />
+        {/* Drei Orte in Dreiecksanordnung, wie im gewaehlten Konzept. */}
+        <circle cx="9.5" cy="9.3" r="7.5" fill="white" />
+        <circle cx="23.4" cy="8.3" r="7.1" fill="white" />
+        <circle cx="16.1" cy="23.1" r="7.7" fill="white" />
+        {/* Das T als Aussparung: Querbalken endet am Pin, der Schaft
+            laeuft in den unteren Kreis und endet dort. */}
+        <rect x="8.3" y="6.6" width="12.7" height="4.2" rx="2.1" fill="black" />
+        <rect x="13.85" y="6.6" width="4.6" height="15.6" rx="2.3" fill="black" />
+        {/* Der Pin als Aussparung im rechten Ort, der Punkt bleibt Marke. */}
+        <circle cx="23.1" cy="8.8" r="2.7" fill="black" />
+        <path d="M21.1 10.2 L25.1 10.2 L23.3 14.6 Z" fill="black" />
+        <circle cx="23.1" cy="8.8" r="1.15" fill="white" />
       </mask>
       <rect width="32" height="32" fill="currentColor" mask={`url(#${maskId})`} />
     </svg>
