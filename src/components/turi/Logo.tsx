@@ -26,8 +26,8 @@ export function TuriGlyph({ className }: { className?: string }) {
         <circle cx="22" cy="11" r="7.5" fill="white" />
         <circle cx="16" cy="23.5" r="7.5" fill="white" />
         {/* Das T als Negativraum: Querbalken + abstehender Schaft. */}
-        <rect x="2.5" y="9.8" width="27" height="4.5" rx="2.25" fill="black" />
-        <rect x="13.75" y="12" width="4.5" height="15.8" rx="2.25" fill="black" />
+        <rect x="3.4" y="9.8" width="25.2" height="4.5" rx="2.25" fill="black" />
+        <rect x="13.75" y="12" width="4.5" height="12" rx="2.25" fill="black" />
         {/* Der Pin im oberen rechten Ort. */}
         <circle cx="22" cy="7.4" r="1.9" fill="black" />
       </mask>
