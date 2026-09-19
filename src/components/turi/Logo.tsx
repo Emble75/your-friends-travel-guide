@@ -22,14 +22,14 @@ export function TuriGlyph({ className }: { className?: string }) {
       <mask id={maskId}>
         <rect width="32" height="32" fill="black" />
         {/* Drei Orte: zwei oben, einer darunter. */}
-        <circle cx="9.75" cy="11" r="6.75" fill="white" />
-        <circle cx="22.25" cy="11" r="6.75" fill="white" />
-        <circle cx="16" cy="24" r="6.75" fill="white" />
+        <circle cx="10" cy="11" r="7.5" fill="white" />
+        <circle cx="22" cy="11" r="7.5" fill="white" />
+        <circle cx="16" cy="23.5" r="7.5" fill="white" />
         {/* Das T als Negativraum: Querbalken + abstehender Schaft. */}
-        <rect x="3" y="11" width="26" height="5.25" rx="2.625" fill="black" />
-        <rect x="12.75" y="13.5" width="6.5" height="14" rx="3.25" fill="black" />
+        <rect x="2.5" y="9.8" width="27" height="4.5" rx="2.25" fill="black" />
+        <rect x="13.75" y="12" width="4.5" height="15.8" rx="2.25" fill="black" />
         {/* Der Pin im oberen rechten Ort. */}
-        <circle cx="22.25" cy="7.6" r="2.1" fill="black" />
+        <circle cx="22" cy="7.4" r="1.9" fill="black" />
       </mask>
       <rect width="32" height="32" fill="currentColor" mask={`url(#${maskId})`} />
     </svg>
