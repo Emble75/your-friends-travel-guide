@@ -38,7 +38,7 @@ const items = [
  * Kartenknoepfe darunter.
  *
  * Aktuell: 0.5rem Innenrand der Pille (p-1, oben + unten)
- *        + 3rem Hoehe der Eintraege (size-12)
+ *        + 3rem Hoehe der Eintraege (h-12)
  *        = 3.5rem, dazu der Abstand zum unteren Rand.
  */
 export function BottomNav() {
@@ -51,13 +51,20 @@ export function BottomNav() {
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4"
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border/60 bg-background/70 p-1 shadow-card backdrop-blur-xl backdrop-saturate-150">
+      {/*
+        Volle Breite statt enger Pille: Die Symbole verteilen sich ueber
+        den Bildschirm, statt in der Mitte zusammenzuruecken. max-w-md
+        entspricht der Inhaltsbreite der App (app-shell) -- auf breiten
+        Bildschirmen laeuft die Leiste sonst quer ueber die ganze Seite,
+        waehrend der Inhalt darueber schmal bleibt.
+      */}
+      <div className="pointer-events-auto flex w-full max-w-md items-center rounded-full border border-border/60 bg-background/70 p-1 shadow-card backdrop-blur-xl backdrop-saturate-150">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
             aria-label={label}
-            className="turi-tap flex size-12 items-center justify-center rounded-full text-muted-foreground transition-colors"
+            className="turi-tap flex h-12 flex-1 items-center justify-center rounded-full text-muted-foreground transition-colors"
             // Aktiver Reiter: die einzige Stelle in der Kern-Navigation,
             // die Markenfarbe traegt. Die Pille dahinter macht den
             // Zustand auch ohne Farbsehen als Flaeche erkennbar.
