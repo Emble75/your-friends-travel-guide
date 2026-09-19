@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, MapPin, MoreVertical, Pencil, Trash2, X } from "lucide-react";
+import {
+  Bookmark,
+  ImagePlus,
+  MapPin,
+  MoreVertical,
+  Navigation,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Stars, StarPicker } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
 import { ReportDialog } from "./ReportDialog";
 import { supabase } from "@/integrations/supabase/app-client";
-import { compressImage, getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
-import { isNative, takePhoto } from "@/lib/native";
+import { compressImage, directionsUrl, getErrorMessage, signedUrls, timeAgo } from "@/lib/turi";
+import { isNative, tap, takePhoto } from "@/lib/native";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -43,7 +52,15 @@ export type ReviewWithRelations = {
   created_at: string;
   user_id: string;
   profiles: { username: string; display_name: string | null; avatar_url: string | null } | null;
-  places: { id: string; name: string; city: string; category: string } | null;
+  places: {
+    id: string;
+    name: string;
+    city: string;
+    category: string;
+    lat: number | null;
+    lng: number | null;
+    google_place_id: string | null;
+  } | null;
   review_images: { id: string; image_url: string; position: number }[];
 };
 
@@ -93,6 +110,48 @@ export function ReviewCard({
   const totalEditPhotos = editExistingImages.length + editNewFiles.length;
 
   const profile = review.profiles;
+  const place = review.places;
+
+  /*
+   * Die eigene Merkliste -- EINE Abfrage fuer alle Karten.
+   *
+   * Der Feed zeigt viele Karten gleichzeitig. Wuerde jede ihren eigenen
+   * Merk-Zustand laden, waeren das ebenso viele Anfragen fuer dieselbe
+   * Information. Unter einem gemeinsamen Schluessel holt React Query sie
+   * genau einmal; jede Karte liest daraus nur ihren Ort heraus.
+   */
+  const { data: savedIds } = useQuery({
+    queryKey: ["my-saved-place-ids"],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) return new Set<string>();
+      const { data } = await supabase.from("saved_places").select("place_id").eq("user_id", uid);
+      return new Set((data ?? []).map((r) => r.place_id));
+    },
+  });
+  const isSaved = !!place && !!savedIds?.has(place.id);
+
+  async function toggleSave() {
+    if (!place) return;
+    void tap();
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return;
+    const { error } = isSaved
+      ? await supabase.from("saved_places").delete().eq("user_id", uid).eq("place_id", place.id)
+      : await supabase.from("saved_places").insert({ user_id: uid, place_id: place.id });
+    if (error) {
+      toast.error(getErrorMessage(error, "Action failed"));
+      return;
+    }
+    // Die Listen, die denselben Zustand zeigen, muessen mitziehen.
+    queryClient.invalidateQueries({ queryKey: ["my-saved-place-ids"] });
+    queryClient.invalidateQueries({ queryKey: ["my-saved-places"] });
+    queryClient.invalidateQueries({ queryKey: ["my-saved-places-map"] });
+    queryClient.invalidateQueries({ queryKey: ["saved-in-view"] });
+  }
 
   function openEdit() {
     setEditRating(review.rating);
@@ -271,18 +330,54 @@ export function ReviewCard({
         )}
       </div>
 
-      {showPlace && review.places ? (
-        <Link
-          to="/place/$placeId"
-          params={{ placeId: review.places.id }}
-          className="turi-tap mt-3 flex items-center gap-2 rounded-2xl bg-secondary px-3 py-2 transition-colors hover:bg-secondary/70"
-        >
-          <MapPin size={16} className="shrink-0 text-brand" />
-          <span className="truncate text-sm font-semibold">{review.places.name}</span>
-          <span className="turi-meta truncate text-xs text-muted-foreground">
-            {review.places.city}
-          </span>
-        </Link>
+      {showPlace && place ? (
+        /*
+          Ortszeile mit den beiden Nebenhandlungen daneben -- dieselben
+          runden Symbolknoepfe wie auf der Ortsseite und im Kartenpanel.
+          Vorher fuehrte von hier nur ein Weg zur Ortsseite; merken oder
+          sich hinfuehren lassen ging erst einen Schritt spaeter.
+        */
+        <div className="mt-3 flex items-center gap-2">
+          <Link
+            to="/place/$placeId"
+            params={{ placeId: place.id }}
+            className="turi-tap flex min-w-0 flex-1 items-center gap-2 rounded-2xl bg-secondary px-3 py-2 transition-colors hover:bg-secondary/70"
+          >
+            <MapPin size={16} className="shrink-0 text-brand" />
+            <span className="truncate text-sm font-semibold">{place.name}</span>
+            <span className="turi-meta truncate text-xs text-muted-foreground">{place.city}</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={toggleSave}
+            aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
+            aria-pressed={isSaved}
+            className={`turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
+              isSaved
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            <Bookmark size={15} fill={isSaved ? "currentColor" : "none"} />
+          </button>
+
+          <a
+            href={directionsUrl({
+              name: place.name,
+              city: place.city,
+              lat: place.lat,
+              lng: place.lng,
+              googlePlaceId: place.google_place_id,
+            })}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Directions in Google Maps"
+            className="turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+          >
+            <Navigation size={15} />
+          </a>
+        </div>
       ) : null}
 
       {review.text ? (
@@ -322,7 +417,7 @@ export function ReviewCard({
               {url ? (
                 <img
                   src={url}
-                  alt={`Photo ${i + 1} of ${review.places?.name ?? "place"}`}
+                  alt={`Photo ${i + 1} of ${place?.name ?? "place"}`}
                   loading="lazy"
                   decoding="async"
                   className="size-full object-cover"
@@ -433,4 +528,4 @@ export function ReviewCard({
 }
 
 export const reviewSelect =
-  "id, rating, text, created_at, user_id, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url), places(id, name, city, category), review_images(id, image_url, position)";
+  "id, rating, text, created_at, user_id, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url), places(id, name, city, category, lat, lng, google_place_id), review_images(id, image_url, position)";

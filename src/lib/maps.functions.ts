@@ -43,3 +43,19 @@ export const getPlaceById = createServerFn({ method: "POST" })
     const { placeById } = await import("./maps.server");
     return placeById(data.placeId);
   });
+
+export const suggestMapPlaces = createServerFn({ method: "POST" })
+  .middleware([requireAppSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        input: z.string().trim().min(2).max(120),
+        lat: z.number().min(-90).max(90).optional(),
+        lng: z.number().min(-180).max(180).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { suggestPlaces } = await import("./maps.server");
+    return suggestPlaces(data.input, data.lat, data.lng);
+  });

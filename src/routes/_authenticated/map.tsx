@@ -7,6 +7,7 @@ import {
   Compass,
   Loader2,
   LocateFixed,
+  MapPin,
   MapPinned,
   Navigation,
   Plus,
@@ -16,8 +17,9 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getPlaceById, searchMapPlaces } from "@/lib/maps.functions";
-import type { MapPlace } from "@/lib/maps.server";
+import { getPlaceById, searchMapPlaces, suggestMapPlaces } from "@/lib/maps.functions";
+import type { MapPlace, PlaceSuggestion } from "@/lib/maps.server";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ensureLocalPlace } from "@/lib/place-sync";
 import { currentLocationIcon, mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { supabase } from "@/integrations/supabase/app-client";
@@ -148,6 +150,57 @@ function MapPage() {
 
   const placeByIdFn = useServerFn(getPlaceById);
   const searchFn = useServerFn(searchMapPlaces);
+  const suggestFn = useServerFn(suggestMapPlaces);
+
+  /*
+   * Vorschlaege waehrend des Tippens.
+   *
+   * Nicht zu verwechseln mit der frueheren Trefferliste: Die stand
+   * NACH der Suche ueber der Karte und verdeckte genau die Pins, die
+   * sie erklaeren sollte. Diese Liste haengt am Eingabefeld, erscheint
+   * nur beim Tippen und verschwindet bei der Auswahl.
+   */
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[] | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const debouncedQuery = useDebouncedValue(query, 220);
+  // Die Kartenmitte als Ref, nicht als Abhaengigkeit: sonst fragte jede
+  // Verschiebung der Karte waehrend des Tippens neue Vorschlaege an.
+  const centerRef = useRef(center);
+  useEffect(() => {
+    centerRef.current = center;
+  }, [center]);
+
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (q.length < 2) {
+      setSuggestions(null);
+      return;
+    }
+    let active = true;
+    void suggestFn({ data: { input: q, lat: centerRef.current.lat, lng: centerRef.current.lng } })
+      .then((r) => active && setSuggestions(r))
+      .catch(() => active && setSuggestions(null));
+    return () => {
+      active = false;
+    };
+  }, [debouncedQuery, suggestFn]);
+
+  async function pickSuggestion(s: PlaceSuggestion) {
+    setSuggestOpen(false);
+    setSuggestions(null);
+    setQuery("");
+    try {
+      const place = await placeByIdFn({ data: { placeId: s.googlePlaceId } });
+      if (!place || !mapRef.current) return;
+      const c = { lat: place.lat, lng: place.lng };
+      mapRef.current.panTo(c);
+      mapRef.current.setZoom(16);
+      setCenter(c);
+      setSelected({ kind: "google", place });
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Could not open place"));
+    }
+  }
 
   const { data: myPlaces } = useQuery({
     queryKey: ["my-reviewed-places"],
@@ -701,10 +754,49 @@ function MapPage() {
                 setSearchCandidates(null);
               }
             }}
-            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            onFocus={() => setSuggestOpen(true)}
+            // Verzoegert schliessen: ein Klick auf einen Vorschlag loest
+            // sonst erst blur aus und die Liste waere weg, bevor der
+            // Klick ankommt.
+            onBlur={() => window.setTimeout(() => setSuggestOpen(false), 120)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setSuggestOpen(false);
+                void runSearch();
+              }
+              if (e.key === "Escape") setSuggestOpen(false);
+            }}
             placeholder={mode === "mine" ? "Search a city or place" : "Search city or place"}
             className="h-12 rounded-2xl border-0 bg-card pl-11 pr-11 shadow-card"
           />
+
+          {suggestOpen && suggestions && suggestions.length > 0 ? (
+            <ul className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+              {suggestions.slice(0, 6).map((s) => (
+                <li key={s.googlePlaceId} className="border-b border-border last:border-b-0">
+                  <button
+                    type="button"
+                    // Verhindert, dass das Feld den Fokus verliert, bevor
+                    // der Klick ankommt -- sonst schliesst blur die Liste
+                    // und der Klick geht ins Leere.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => void pickSuggestion(s)}
+                    className="turi-tap flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary"
+                  >
+                    <MapPin size={16} className="shrink-0 text-muted-foreground" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">{s.main}</span>
+                      {s.secondary ? (
+                        <span className="turi-meta block truncate text-xs text-muted-foreground">
+                          {s.secondary}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {/* Zeigt an, dass die Orte fuer den sichtbaren Ausschnitt noch
               geladen werden. Nur in "Discover" -- dort haengt die
               Pin-Anzeige am sichtbaren Bereich, in "My Map" nicht. */}

@@ -228,3 +228,73 @@ export async function placeById(placeId: string): Promise<MapPlace | null> {
   });
   return result[0] ?? null;
 }
+
+export type PlaceSuggestion = {
+  /** Googles Kennung -- damit laesst sich der Ort danach genau holen. */
+  googlePlaceId: string;
+  /** Der hervorgehobene Name, z. B. "Honest Greens". */
+  main: string;
+  /** Der Zusatz darunter, z. B. "Rua ... , Lisboa". */
+  secondary: string;
+};
+
+/**
+ * Vorschlaege waehrend des Tippens -- Googles Autocomplete.
+ *
+ * Bewusst NICHT die Volltextsuche: Die ist fuer fertige Suchbegriffe
+ * gedacht, liefert vollstaendige Ortsdatensaetze und wird pro Anfrage
+ * abgerechnet. Autocomplete liefert nur Namen und Kennung, ist dafuer
+ * deutlich guenstiger und genau fuer das Tippen gebaut.
+ *
+ * KEIN Zwischenspeicher: Jeder Tastendruck erzeugt eine andere Anfrage,
+ * da waere ein Speicher nutzlos und wuerde die Tabelle mit Fragmenten
+ * volllaufen lassen. Die Volltextsuche wird weiterhin zwischengespeichert.
+ */
+export async function suggestPlaces(
+  input: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceSuggestion[]> {
+  const body: Record<string, unknown> = { input, languageCode: "en" };
+  if (typeof lat === "number" && typeof lng === "number") {
+    body["locationBias"] = {
+      circle: { center: { latitude: lat, longitude: lng }, radius: 30000 },
+    };
+  }
+
+  const response = await fetch(endpoint("places/v1/places:autocomplete"), {
+    method: "POST",
+    // Die Feldmaske der Ortssuche passt hier nicht -- Autocomplete
+    // liefert "suggestions", keine "places". Ohne eigene Maske
+    // antwortet Google mit 400.
+    headers: headers("suggestions.placePrediction"),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`Google autocomplete failed [${response.status}]: ${text}`);
+    // Vorschlaege sind Komfort, kein Kernweg: faellt der Dienst aus,
+    // soll die Suche weiter benutzbar bleiben statt einen Fehler zu
+    // werfen. Der Nutzer tippt dann eben zu Ende und drueckt Suchen.
+    return [];
+  }
+
+  const json = (await response.json()) as {
+    suggestions?: {
+      placePrediction?: {
+        placeId?: string;
+        structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } };
+      };
+    }[];
+  };
+
+  return (json.suggestions ?? [])
+    .map((s) => s.placePrediction)
+    .filter((p): p is NonNullable<typeof p> => !!p?.placeId)
+    .map((p) => ({
+      googlePlaceId: p.placeId!,
+      main: p.structuredFormat?.mainText?.text ?? "",
+      secondary: p.structuredFormat?.secondaryText?.text ?? "",
+    }))
+    .filter((s) => s.main);
+}
