@@ -54,6 +54,19 @@ export const Route = createFileRoute("/_authenticated/map")({
 const DEFAULT_CENTER = { lat: 41.9028, lng: 12.4964 };
 
 /*
+ * Das Material aller schwebenden Bedienelemente auf der Karte --
+ * Umschalter, Suchfeld, Standort- und "Can't find it?"-Knopf.
+ *
+ * Bewusst EINE Konstante: Vorher hatte jedes dieser Elemente seine
+ * eigene Mischung aus Farbe, Rundung und Rand. Sie schweben aber alle
+ * ueber derselben Karte und gehoeren damit sichtbar zusammen -- und es
+ * ist dasselbe Glas wie das der unteren Navigationsleiste, damit die
+ * Karte nicht zwei Sprachen spricht.
+ */
+const FLOATING =
+  "border border-border bg-card/80 shadow-card backdrop-blur-xl backdrop-saturate-150";
+
+/*
  * Kartenzustand ueber einen Seitenwechsel hinweg merken.
  *
  * Oeffnet man von der Karte aus eine Ortsseite, wird die Karte komplett
@@ -700,7 +713,7 @@ function MapPage() {
           sichtbaren Ausschnitt geladen werden).
         */}
         <div
-          className="pointer-events-auto grid grid-cols-2 gap-1 rounded-2xl border border-card/80 bg-card/90 p-1 shadow-card backdrop-blur-xl"
+          className={`pointer-events-auto grid grid-cols-2 gap-1 rounded-full p-1 ${FLOATING}`}
           role="group"
           aria-label="Map view"
         >
@@ -709,9 +722,12 @@ function MapPage() {
             variant="ghost"
             onClick={() => switchMode("discover")}
             aria-pressed={mode === "discover"}
-            className={`h-10 rounded-xl px-3 text-sm font-semibold shadow-none ${
+            // Aktiv in der weichen Markenfarbe statt in massivem Schwarz --
+            // dieselbe Sprache wie der aktive Reiter unten. Der schwarze
+            // Block lag als schweres Gewicht ueber der Karte.
+            className={`h-10 rounded-full px-3 text-sm font-semibold shadow-none ${
               mode === "discover"
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                ? "bg-brand-soft text-brand hover:bg-brand-soft hover:text-brand"
                 : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
             }`}
           >
@@ -723,9 +739,9 @@ function MapPage() {
             variant="ghost"
             onClick={() => switchMode("mine")}
             aria-pressed={mode === "mine"}
-            className={`h-10 rounded-xl px-3 text-sm font-semibold shadow-none ${
+            className={`h-10 rounded-full px-3 text-sm font-semibold shadow-none ${
               mode === "mine"
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                ? "bg-brand-soft text-brand hover:bg-brand-soft hover:text-brand"
                 : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
             }`}
           >
@@ -767,7 +783,7 @@ function MapPage() {
               if (e.key === "Escape") setSuggestOpen(false);
             }}
             placeholder={mode === "mine" ? "Search a city or place" : "Search city or place"}
-            className="h-12 rounded-2xl border-0 bg-card pl-11 pr-11 shadow-card"
+            className={`h-12 rounded-full pl-11 pr-11 ${FLOATING}`}
           />
 
           {suggestOpen && suggestions && suggestions.length > 0 ? (
@@ -865,9 +881,9 @@ function MapPage() {
 
       <Button
         size="icon"
-        variant="secondary"
+        variant="ghost"
         aria-label="Show my location"
-        className="absolute right-4 z-10 size-12 rounded-2xl shadow-card"
+        className={`absolute right-4 z-10 size-12 rounded-full ${FLOATING}`}
         style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
         onClick={async () => {
           // Die laufende Ortung kennt die Position bereits -- direkt
@@ -899,12 +915,15 @@ function MapPage() {
       {mode === "discover" ? (
         <Button
           asChild
-          variant="secondary"
-          className="absolute left-4 z-10 h-9 rounded-full px-3 text-xs shadow-card"
+          variant="ghost"
+          // Gleiche Hoehe wie der Standortknopf gegenueber: Die beiden
+          // sitzen auf einer Linie und lasen sich vorher als zwei
+          // verschiedene Dinge -- flache Pille gegen hohes Quadrat.
+          className={`absolute left-4 z-10 h-12 rounded-full px-4 text-sm ${FLOATING}`}
           style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
         >
           <Link to="/new" search={{ create: true }}>
-            <Plus size={14} className="mr-1" /> Can't find it?
+            <Plus size={16} className="mr-1" /> Can't find it?
           </Link>
         </Button>
       ) : null}
