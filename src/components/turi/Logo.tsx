@@ -1,36 +1,37 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Die Bildmarke: vier verbundene Orte, die ein T bilden.
+ * Die Bildmarke: drei Kreise, deren gemeinsamer Negativraum ein T formt.
  *
- * Sie traegt beides -- den Anfangsbuchstaben UND die Idee der App: Punkte
- * sind Orte, die Linien die Verbindungen dazwischen ("The map only your
- * friends could draw").
+ * Sie traegt beides -- den Anfangsbuchstaben UND die Idee der App: Die
+ * Kreise sind Orte auf einer Karte, die weisse Flaeche dazwischen ist die
+ * Route, die sie verbindet ("The map only your friends could draw"). Im
+ * oberen rechten Kreis sitzt ein kleiner Standort-Pin als Aussparung.
  *
- * Punkte klein, Linien duenner und halbtransparent. Bei gleicher Staerke
- * und voller Deckung schluckten die Punkte die Linien und die Marke las
- * sich als ein Klumpen. Unterhalb von 16px treten die Linien zwar
- * zurueck, die vier Punktpositionen allein bilden aber weiterhin ein T --
- * die Form bleibt also lesbar, wo ein Logo tatsaechlich lebt.
+ * Technik: Eine SVG-Mask spart das T und den Pin aus den Kreisen aus.
+ * Dadurch bleibt das Zeichen ein einziger flacher Umriss -- es bleibt an
+ * jeder Groesse scharf und liest sich noch als T, wenn die Kreise bei
+ * 16px zu Blobs verschwimmen. Die Mask-ID kommt von useId, damit mehrere
+ * Instanzen der Marke auf einer Seite sich nicht in die Quere kommen.
  */
 export function TuriGlyph({ className }: { className?: string }) {
+  const maskId = useId();
   return (
     <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      {/* Die Linien bewusst duenner und halbtransparent: bei gleicher
-          Staerke und Deckung verschmolzen sie mit den Punkten zu einer
-          Flaeche. So bleiben Orte (Punkte) und Verbindungen (Linien)
-          unterscheidbar -- das ist der Inhalt der Marke. */}
-      <path
-        d="M6.5 10h19M16 10v13.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        opacity="0.6"
-      />
-      <circle cx="6.5" cy="10" r="3.4" fill="currentColor" />
-      <circle cx="16" cy="10" r="3.4" fill="currentColor" />
-      <circle cx="25.5" cy="10" r="3.4" fill="currentColor" />
-      <circle cx="16" cy="23.5" r="3.4" fill="currentColor" />
+      <mask id={maskId}>
+        <rect width="32" height="32" fill="black" />
+        {/* Drei Orte: zwei oben, einer darunter. */}
+        <circle cx="9.75" cy="11" r="6.75" fill="white" />
+        <circle cx="22.25" cy="11" r="6.75" fill="white" />
+        <circle cx="16" cy="24" r="6.75" fill="white" />
+        {/* Das T als Negativraum: Querbalken + abstehender Schaft. */}
+        <rect x="3" y="11" width="26" height="5.25" rx="2.625" fill="black" />
+        <rect x="12.75" y="13.5" width="6.5" height="14" rx="3.25" fill="black" />
+        {/* Der Pin im oberen rechten Ort. */}
+        <circle cx="22.25" cy="7.6" r="2.1" fill="black" />
+      </mask>
+      <rect width="32" height="32" fill="currentColor" mask={`url(#${maskId})`} />
     </svg>
   );
 }
@@ -44,7 +45,7 @@ export function TuriMark({ className }: { className?: string }) {
         className,
       )}
     >
-      <TuriGlyph className="size-[62%] text-white" />
+      <TuriGlyph className="size-[68%]" />
     </div>
   );
 }
