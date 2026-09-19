@@ -27,8 +27,8 @@ export function TuriGlyph({ className }: { className?: string }) {
         <circle cx="16.1" cy="23.1" r="7.7" fill="white" />
         {/* Das T als Aussparung: Querbalken endet am Pin, der Schaft
             laeuft in den unteren Kreis und endet dort. */}
-        <rect x="8.3" y="6.6" width="12.7" height="4.2" rx="2.1" fill="black" />
-        <rect x="13.85" y="6.6" width="4.6" height="15.6" rx="2.3" fill="black" />
+        <rect x="8.1" y="6.4" width="13" height="4.6" rx="2.3" fill="black" />
+        <rect x="13.7" y="6.4" width="5" height="15.9" rx="2.5" fill="black" />
         {/* Der Pin als Aussparung im rechten Ort, der Punkt bleibt Marke. */}
         <circle cx="23.1" cy="8.8" r="2.7" fill="black" />
         <path d="M21.1 10.2 L25.1 10.2 L23.3 14.6 Z" fill="black" />
