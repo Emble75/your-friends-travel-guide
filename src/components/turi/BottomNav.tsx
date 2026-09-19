@@ -77,16 +77,28 @@ export function BottomNav() {
             key={to}
             to={to}
             aria-label={label}
-            className="turi-tap flex h-12 flex-1 items-center justify-center rounded-full text-muted-foreground transition-colors"
+            className="turi-tap flex h-12 flex-1 items-center justify-center rounded-full transition-colors"
             // Aktiver Reiter: die einzige Stelle in der Kern-Navigation,
             // die Markenfarbe traegt. Die Pille dahinter macht den
             // Zustand auch ohne Farbsehen als Flaeche erkennbar.
             // aria-current markiert die aktive Seite fuer Screenreader --
             // Farbe allein ist dafuer keine Information.
+            /*
+             * Die Farbe des INAKTIVEN Zustands gehoert in inactiveProps,
+             * nicht in die Grundklassen.
+             *
+             * Stand sie dort, kollidierte sie mit text-brand: Beide sind
+             * gewoehnliche Utility-Klassen gleicher Spezifitaet, es
+             * gewinnt also die, die im erzeugten Stylesheet WEITER UNTEN
+             * steht -- und das war text-muted-foreground. Der aktive
+             * Reiter bekam dadurch zwar die blaue Flaeche, aber ein
+             * graues Symbol. Getrennt gibt es den Konflikt nicht.
+             */
             activeProps={{
               className: "bg-brand-soft text-brand",
               "aria-current": "page",
             }}
+            inactiveProps={{ className: "text-muted-foreground" }}
           >
             <Icon size={23} strokeWidth={2} />
           </Link>
