@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Map, Home, Search, User } from "lucide-react";
+import { Map, Rows3, Search, User } from "lucide-react";
 
 const items = [
   { to: "/map", label: "Map", icon: Map },
-  { to: "/feed", label: "Feed", icon: Home },
+  { to: "/feed", label: "Feed", icon: Rows3 },
   { to: "/explore", label: "Search", icon: Search },
   { to: "/me", label: "Profile", icon: User },
 ] as const;
@@ -37,8 +37,12 @@ const items = [
  * Schatten wie jede andere Karte -- nur rund und durchscheinend.
  *
  * NUR SYMBOLE, KEINE BESCHRIFTUNG: macht die Pille kompakt genug, um zu
- * schweben. Die vier Symbole (Karte, Haus, Lupe, Person) sind ueberall
- * dieselben; aria-label traegt den Namen fuer Screenreader nach.
+ * schweben. aria-label traegt den Namen fuer Screenreader nach.
+ *
+ * Das Feed-Symbol ist bewusst dasselbe wie der Feed-Umschalter auf
+ * Profilseiten (Rows3), nicht ein Haus: Ein Haus hiesse "Startseite",
+ * der Reiter zeigt aber einen Feed -- und zwei verschiedene Zeichen
+ * fuer dieselbe Sache in derselben App sind eine Stolperstelle.
  *
  * WICHTIG -- GEKOPPELT AN --bottom-nav-h IN styles.css: Jede Seite haelt
  * unten so viel Platz frei, wie diese Leiste hoch ist, und die Karte
