@@ -179,12 +179,20 @@ function MapPage() {
   // Der eigene Standort als Zustand (nicht nur als Marker), damit
   // Entfernungen in Liste und Ortspanel gerechnet werden koennen.
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
-  // Nur ein aktiver Wechsel auf "My Map" soll die Ansicht auf alle eigenen
-  // Orte einpassen -- nicht ein blosser Neuaufbau der Karte.
-  const wantFitRef = useRef(false);
-
+  /*
+   * Der Moduswechsel laesst die Kamera in Ruhe.
+   *
+   * Frueher passte "My Map" die Ansicht auf ALLE eigenen Orte ein. Wer
+   * in Barcelona stand und umschaltete, wurde auf halb Europa
+   * herausgezogen, weil irgendwo noch Stockholm und Lissabon liegen --
+   * und musste sich jedes Mal zurueckarbeiten. Der Umschalter beantwortet
+   * die Frage "was liegt HIER von mir?", nicht "zeig mir mein Lebenswerk".
+   *
+   * Wer doch alles sehen will, bekommt es weiterhin -- aber auf
+   * Zuruf: Liegt im Bild kein einziger eigener Ort, erscheint dafuer
+   * ein Knopf (siehe fitAll).
+   */
   function switchMode(next: "discover" | "mine") {
-    if (next === "mine" && mode !== "mine") wantFitRef.current = true;
     mapSession.mode = next;
     setMode(next);
   }
@@ -451,16 +459,43 @@ function MapPage() {
     return out;
   }, [mode, myPlaces, mySavedPlaces, reviewedInView, savedInView]);
 
+  /*
+   * Was davon im Bild liegt.
+   *
+   * In "Discover" holt die Abfrage ohnehin nur den sichtbaren
+   * Ausschnitt; in "My Map" liegen dagegen ALLE eigenen Orte vor, auch
+   * die auf anderen Kontinenten. Filterleiste, Liste und die Zahl auf
+   * dem Listenknopf beziehen sich aber ausdruecklich auf das Bild
+   * ("12 places in this view") -- ohne diesen Schnitt waere die Zahl
+   * dort eine ueber die ganze Welt.
+   */
+  const visiblePins = useMemo(() => {
+    if (!bounds) return pins;
+    return pins.filter(
+      (p) =>
+        p.lat >= bounds.swLat &&
+        p.lat <= bounds.neLat &&
+        p.lng >= bounds.swLng &&
+        p.lng <= bounds.neLng,
+    );
+  }, [pins, bounds]);
+
   const counts = useMemo(() => {
     const m = new Map<Category, number>();
-    for (const p of pins) m.set(p.category, (m.get(p.category) ?? 0) + 1);
+    for (const p of visiblePins) m.set(p.category, (m.get(p.category) ?? 0) + 1);
     return m;
-  }, [pins]);
+  }, [visiblePins]);
 
-  const filteredPins = useMemo(
-    () => (filter ? pins.filter((p) => p.category === filter) : pins),
-    [pins, filter],
+  const byFilter = useCallback(
+    (list: Pin[]) => (filter ? list.filter((p) => p.category === filter) : list),
+    [filter],
   );
+
+  // Marker: alle Orte des Modus -- was ausserhalb des Bildes liegt,
+  // stoert nicht und ist sofort da, sobald man dorthin schiebt.
+  const filteredPins = useMemo(() => byFilter(pins), [byFilter, pins]);
+  // Liste und Filterleiste: nur das Sichtbare.
+  const listPins = useMemo(() => byFilter(visiblePins), [byFilter, visiblePins]);
 
   /*
    * Welche Filter die Leiste zeigt. Bewusst in der festen Reihenfolge der
@@ -649,23 +684,14 @@ function MapPage() {
     });
   }, [ready, filteredPins]);
 
-  // "Meine Karte": nur beim aktiven Wechsel in den Modus auf alle eigenen
-  // Orte (bewertet + Wunschliste) zoomen.
-  //
-  // wantFitRef wird ausschliesslich von switchMode gesetzt. Ohne diese
-  // Absicherung lief das Einpassen auch beim blossen Neuaufbau der Karte
-  // und beim Nachladen der Ortsdaten -- und zog die Ansicht wieder von der
-  // gerade betrachteten Stadt auf alle eigenen Orte heraus.
-  useEffect(() => {
-    if (!wantFitRef.current || mode !== "mine" || !mapRef.current) return;
-    const all = [...(myPlaces ?? []), ...(mySavedPlaces ?? [])];
-    // Noch keine Daten -- eingepasst wird, sobald sie eintreffen.
-    if (all.length === 0) return;
-    wantFitRef.current = false;
-    const fitBounds = new google.maps.LatLngBounds();
-    all.forEach((p) => fitBounds.extend({ lat: p.lat, lng: p.lng }));
-    mapRef.current.fitBounds(fitBounds, 60);
-  }, [mode, myPlaces, mySavedPlaces]);
+  /** Auf Zuruf: die Ansicht auf alle eigenen Orte einpassen. */
+  const fitAll = useCallback(() => {
+    if (!mapRef.current || pins.length === 0) return;
+    void tap();
+    const box = new google.maps.LatLngBounds();
+    pins.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
+    mapRef.current.fitBounds(box, 60);
+  }, [pins]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -910,6 +936,29 @@ function MapPage() {
           seinem Gebiet herausgescrollt ist -- sonst verschwaende der
           Grund, warum die Karte fast leer ist.
         */}
+        {/*
+          Der Ersatz fuer das frueher automatische Herauszoomen: Liegt im
+          Bild kein einziger eigener Ort, sagt die Karte das -- und bietet
+          den Sprung an, statt ihn ungefragt zu machen.
+        */}
+        {mode === "mine" && pins.length > 0 && visiblePins.length === 0 ? (
+          <div
+            className={`pointer-events-auto flex w-fit items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 ${FLOATING}`}
+          >
+            <span className="turi-meta text-xs text-muted-foreground">
+              None of your places here
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={fitAll}
+              className="h-7 rounded-full bg-brand-soft px-3 text-xs font-semibold text-brand hover:bg-brand-soft hover:text-brand"
+            >
+              Show all
+            </Button>
+          </div>
+        ) : null}
+
         {chipCategories.length > 1 ? (
           <div className="pointer-events-auto -mx-4 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex w-max items-center gap-1.5">
@@ -943,11 +992,11 @@ function MapPage() {
         className="absolute right-4 z-10 flex flex-col items-end gap-2"
         style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
       >
-        {pins.length > 0 ? (
+        {listPins.length > 0 ? (
           <Button
             type="button"
             variant="ghost"
-            aria-label={`Show the ${filteredPins.length} places here as a list`}
+            aria-label={`Show the ${listPins.length} places here as a list`}
             className={`h-12 rounded-full px-4 text-sm font-semibold ${FLOATING}`}
             onClick={() => {
               void tap();
@@ -955,7 +1004,7 @@ function MapPage() {
             }}
           >
             <List size={18} className="mr-1.5" />
-            {filteredPins.length}
+            {listPins.length}
           </Button>
         ) : null}
 
@@ -1011,7 +1060,7 @@ function MapPage() {
       <PlacesListSheet
         open={listOpen}
         onClose={() => setListOpen(false)}
-        pins={filteredPins}
+        pins={listPins}
         myPos={myPos}
         heading={mode === "mine" ? "Your places here" : "Your friends here"}
         onPick={(p) => {
