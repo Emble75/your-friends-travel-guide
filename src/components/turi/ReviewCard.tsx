@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Stars, StarPicker } from "./Stars";
+import {
+  FolderPicker,
+  folderChoiceFor,
+  resolveFolderChoice,
+  type FolderChoice,
+} from "./FolderPicker";
 import { UserAvatar } from "./UserAvatar";
 import { ReportDialog } from "./ReportDialog";
 import { supabase } from "@/integrations/supabase/app-client";
@@ -62,6 +68,7 @@ export type ReviewWithRelations = {
     google_place_id: string | null;
   } | null;
   review_images: { id: string; image_url: string; position: number }[];
+  trip_folder_id: string | null;
 };
 
 type ExistingImage = { id: string; image_url: string; position: number };
@@ -79,6 +86,9 @@ export function ReviewCard({
   const [editText, setEditText] = useState(review.text ?? "");
   const [editExistingImages, setEditExistingImages] = useState<ExistingImage[]>([]);
   const [editNewFiles, setEditNewFiles] = useState<File[]>([]);
+  const [editFolder, setEditFolder] = useState<FolderChoice>(
+    folderChoiceFor(review.trip_folder_id),
+  );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -158,6 +168,7 @@ export function ReviewCard({
     setEditText(review.text ?? "");
     setEditExistingImages(sortedImages);
     setEditNewFiles([]);
+    setEditFolder(folderChoiceFor(review.trip_folder_id));
     setEditOpen(true);
   }
 
@@ -182,9 +193,14 @@ export function ReviewCard({
     if (!me) return;
     setSaving(true);
     try {
+      // Der Ordner wird hier mitgeschrieben -- bisher liess er sich nur
+      // im Moment des Schreibens vergeben. Ein neuer Name legt den
+      // Ordner an (resolveFolderChoice), ein gleichnamiger wird
+      // wiederverwendet.
+      const folderId = await resolveFolderChoice(editFolder, me);
       const { error } = await supabase
         .from("reviews")
-        .update({ rating: editRating, text: editText.trim() || null })
+        .update({ rating: editRating, text: editText.trim() || null, trip_folder_id: folderId })
         .eq("id", review.id);
       if (error) throw error;
 
@@ -516,6 +532,18 @@ export function ReviewCard({
             </div>
           </div>
 
+          {/*
+            Der Ordner steht bewusst hier unten, nach Note, Text und
+            Fotos: Er ist Ordnung, nicht Inhalt. Wichtig ist, dass es ihn
+            ueberhaupt gibt -- nach der Reise will man seine acht
+            Lissabon-Bewertungen zusammenfassen, und bisher ging das nur
+            im Moment des Schreibens.
+          */}
+          <div>
+            <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Folder</p>
+            <FolderPicker value={editFolder} onChange={setEditFolder} />
+          </div>
+
           <DialogFooter>
             <Button onClick={saveEdit} disabled={saving} className="w-full rounded-2xl">
               {saving ? "Saving…" : "Save"}
@@ -528,4 +556,4 @@ export function ReviewCard({
 }
 
 export const reviewSelect =
-  "id, rating, text, created_at, user_id, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url), places(id, name, city, category, lat, lng, google_place_id), review_images(id, image_url, position)";
+  "id, rating, text, created_at, user_id, trip_folder_id, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url), places(id, name, city, category, lat, lng, google_place_id), review_images(id, image_url, position)";

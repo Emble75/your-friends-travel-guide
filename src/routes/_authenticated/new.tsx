@@ -1,11 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ImagePlus, MapPin, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import { AppHeader } from "@/components/turi/AppHeader";
+import {
+  FolderPicker,
+  NO_FOLDER,
+  resolveFolderChoice,
+  type FolderChoice,
+} from "@/components/turi/FolderPicker";
 import { StarPicker } from "@/components/turi/Stars";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +50,53 @@ export const Route = createFileRoute("/_authenticated/new")({
 
 type Place = { id: string; name: string; city: string; category: string };
 
+/*
+ * Der Entwurf.
+ *
+ * Eine Bewertung ist schnell zwei Absaetze lang, und das Formular ist
+ * eine ganz normale Seite: Ein Anruf, ein App-Wechsel, ein versehentlich
+ * getippter Zurueck-Pfeil -- und alles Geschriebene war weg. Nichts
+ * daran war je gespeichert.
+ *
+ * Bewusst im Browser-Speicher und nicht in der Datenbank: Ein halber
+ * Entwurf ist nichts, was andere sehen sollen, er gehoert auf dieses
+ * Geraet. Fotos lassen sich so nicht sichern -- sie sind Dateien, keine
+ * Texte -- und muessen nach einem Abbruch neu gewaehlt werden.
+ */
+const DRAFT_KEY = "turi:new-review-draft";
+
+type Draft = {
+  placeId: string | null;
+  rating: number;
+  text: string;
+  folder: FolderChoice;
+};
+
+function readDraft(): Draft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Draft;
+    if (typeof parsed?.text !== "string" || typeof parsed?.rating !== "number") return null;
+    return parsed;
+  } catch {
+    // Beschaedigter oder gesperrter Speicher darf die Seite nicht
+    // aufhalten -- dann eben ohne Entwurf.
+    return null;
+  }
+}
+
+function writeDraft(draft: Draft | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (draft) window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    else window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* privater Modus o. ae. -- der Entwurf ist Komfort, kein Kernweg */
+  }
+}
+
 function NewReviewPage() {
   const navigate = useNavigate();
   const searchFn = useServerFn(searchMapPlaces);
@@ -58,42 +111,62 @@ function NewReviewPage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
-  const [folderId, setFolderId] = useState<string | null>(null);
-  const [newFolderMode, setNewFolderMode] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
+  const [folder, setFolder] = useState<FolderChoice>(NO_FOLDER);
+  // Zeigt den Hinweis "Entwurf wiederhergestellt" -- ohne ihn waere
+  // unklar, woher der Text kommt, den man nicht gerade getippt hat.
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftChecked = useRef(false);
 
-  const { data: folders } = useQuery({
-    queryKey: ["my-trip-folders"],
-    queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const { data, error } = await supabase
-        .from("trip_folders")
-        .select("id, name")
-        .eq("owner_id", auth.user!.id)
-        .order("name");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  /*
+   * Einen vorhandenen Entwurf zurueckholen -- aber nur, wenn er zu dem
+   * passt, was man gerade vorhat: Kommt man ueber "Bewerten" von einer
+   * bestimmten Ortsseite, darf der Entwurf zu einem ANDEREN Ort dessen
+   * Auswahl nicht ueberschreiben. Er bleibt dann liegen.
+   */
+  useEffect(() => {
+    if (draftChecked.current) return;
+    draftChecked.current = true;
+    const draft = readDraft();
+    if (!draft) return;
+    if (placeId && draft.placeId !== placeId) return;
+    if (create && !draft.placeId) return;
+    setRating(draft.rating);
+    setText(draft.text);
+    setFolder(draft.folder ?? NO_FOLDER);
+    if (draft.placeId && !placeId) {
+      void supabase
+        .from("places")
+        .select("id, name, city, category")
+        .eq("id", draft.placeId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setPlace(data);
+            setCreating(false);
+          }
+        });
+    }
+    setDraftRestored(true);
+  }, [placeId, create]);
 
-  async function resolveFolderId(userId: string): Promise<string | null> {
-    if (!newFolderMode) return folderId;
-    const name = newFolderName.trim();
-    if (!name) return null;
-    const { data: existing } = await supabase
-      .from("trip_folders")
-      .select("id")
-      .eq("owner_id", userId)
-      .ilike("name", name)
-      .maybeSingle();
-    if (existing) return existing.id;
-    const { data: created, error } = await supabase
-      .from("trip_folders")
-      .insert({ owner_id: userId, name })
-      .select("id")
-      .single();
-    if (error) throw error;
-    return created.id;
+  /*
+   * Laufend sichern, sobald etwas Eigenes drinsteht. Ein leeres Formular
+   * schreibt bewusst nichts: sonst wuerde blosses Oeffnen der Seite einen
+   * echten Entwurf ueberschreiben.
+   */
+  useEffect(() => {
+    if (!draftChecked.current) return;
+    const hasContent = rating > 0 || text.trim().length > 0;
+    if (!hasContent) return;
+    writeDraft({ placeId: place?.id ?? null, rating, text, folder });
+  }, [place, rating, text, folder]);
+
+  function discardDraft() {
+    writeDraft(null);
+    setRating(0);
+    setText("");
+    setFolder(NO_FOLDER);
+    setDraftRestored(false);
   }
 
   useEffect(() => {
@@ -212,7 +285,7 @@ function NewReviewPage() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user!.id;
-      const resolvedFolderId = await resolveFolderId(userId);
+      const resolvedFolderId = await resolveFolderChoice(folder, userId);
       const { data: review, error } = await supabase
         .from("reviews")
         .insert({
@@ -241,6 +314,7 @@ function NewReviewPage() {
         if (imgErr) throw imgErr;
       }
 
+      writeDraft(null);
       toast.success("Review saved");
       // "replace" statt normalem Push: die "Bewerten"-Seite soll nach dem
       // Speichern nicht in der Zurueck-Historie stehen bleiben, sonst
@@ -262,6 +336,21 @@ function NewReviewPage() {
           Markenschriftzug -- man kommt her, um genau eine Sache zu tun. */}
       <AppHeader title="New review" showBack fallbackTo="/map" />
       <form onSubmit={submit} className="app-shell space-y-5 py-4">
+        {draftRestored ? (
+          <div className="flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-3">
+            <p className="turi-meta min-w-0 flex-1 text-xs text-muted-foreground">
+              Draft restored. Photos aren't part of a draft.
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 shrink-0 rounded-full px-3 text-xs"
+              onClick={discardDraft}
+            >
+              Discard
+            </Button>
+          </div>
+        ) : null}
         <section className="turi-card p-5">
           <Label className="turi-eyebrow">Place</Label>
           {place ? (
@@ -422,49 +511,7 @@ function NewReviewPage() {
             Group places by trip (e.g. "Puglia", "Madrid") and later share the folder with specific
             people.
           </p>
-          {newFolderMode ? (
-            <div className="mt-2 flex gap-2">
-              <Input
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="e.g. Puglia"
-                className="h-11 flex-1 rounded-2xl"
-                autoFocus
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                className="rounded-2xl"
-                onClick={() => {
-                  setNewFolderMode(false);
-                  setNewFolderName("");
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <Select
-              value={folderId ?? "__none"}
-              onValueChange={(v) => {
-                if (v === "__new") setNewFolderMode(true);
-                else setFolderId(v === "__none" ? null : v);
-              }}
-            >
-              <SelectTrigger className="mt-2 h-11 rounded-2xl">
-                <SelectValue placeholder="No folder" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">No folder</SelectItem>
-                {(folders ?? []).map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
-                    {f.name}
-                  </SelectItem>
-                ))}
-                <SelectItem value="__new">+ New folder</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+          <FolderPicker value={folder} onChange={setFolder} className="mt-2" />
         </section>
 
         <Button type="submit" disabled={saving} className="h-13 w-full rounded-2xl py-4 text-base">
