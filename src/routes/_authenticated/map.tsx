@@ -26,7 +26,8 @@ import { ensureLocalPlace } from "@/lib/place-sync";
 import { currentLocationIcon, mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { CATEGORIES, type Category, normalizeCategory } from "@/lib/categories";
 import { openLabel, openState } from "@/lib/hours";
-import { CATEGORY_ICONS, CATEGORY_LABELS, PlaceList } from "@/components/turi/PlaceList";
+import { PlaceList } from "@/components/turi/PlaceList";
+import { CategoryFilterBar } from "@/components/turi/CategoryFilter";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { supabase } from "@/integrations/supabase/app-client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
@@ -480,12 +481,6 @@ function MapPage() {
     );
   }, [pins, bounds]);
 
-  const counts = useMemo(() => {
-    const m = new Map<Category, number>();
-    for (const p of visiblePins) m.set(p.category, (m.get(p.category) ?? 0) + 1);
-    return m;
-  }, [visiblePins]);
-
   const byFilter = useCallback(
     (list: Pin[]) => (filter ? list.filter((p) => p.category === filter) : list),
     [filter],
@@ -496,18 +491,6 @@ function MapPage() {
   const filteredPins = useMemo(() => byFilter(pins), [byFilter, pins]);
   // Liste und Filterleiste: nur das Sichtbare.
   const listPins = useMemo(() => byFilter(visiblePins), [byFilter, visiblePins]);
-
-  /*
-   * Welche Filter die Leiste zeigt. Bewusst in der festen Reihenfolge der
-   * Kategorienliste und NICHT nach Haeufigkeit sortiert: sonst sortierten
-   * sich die Knoepfe bei jedem Verschieben der Karte neu, und man
-   * traefe beim zweiten Griff etwas anderes als beim ersten.
-   */
-  const chipCategories = useMemo(() => {
-    const list = CATEGORIES.filter((c) => counts.has(c));
-    if (filter && !list.includes(filter)) return [...list, filter];
-    return list;
-  }, [counts, filter]);
 
   // Init map
   useEffect(() => {
@@ -922,65 +905,17 @@ function MapPage() {
 
         {/*
           Filter nach Art des Ortes.
-          
+
           Hier standen bisher zwei feste Legenden-Pillen ("4.5 = von
           Freunden bewertet", "Lesezeichen = will ich noch hin"). Sie
           erklaerten die Karte einmal und standen danach fuer immer im
-          Weg. Die Filterleiste sagt dasselbe -- welche Arten von Orten
-          hier liegen -- und laesst sich benutzen. Die Bedeutung von Note
-          und Lesezeichen steht jetzt ausgeschrieben in der Liste.
+          Weg. Die Leiste sagt dasselbe -- welche Arten von Orten hier
+          liegen -- und laesst sich benutzen.
 
-          Gezeigt werden nur Kategorien, die im Ausschnitt WIRKLICH
-          vorkommen: ein Filter, der garantiert nichts findet, ist eine
-          Sackgasse. Der gerade aktive bleibt sichtbar, auch wenn man aus
-          seinem Gebiet herausgescrollt ist -- sonst verschwaende der
-          Grund, warum die Karte fast leer ist.
+          Das Bauteil liegt in CategoryFilter.tsx und steht genauso ueber
+          den Karten von Profilen und Ordnern.
         */}
-        {/*
-          Der Ersatz fuer das frueher automatische Herauszoomen: Liegt im
-          Bild kein einziger eigener Ort, sagt die Karte das -- und bietet
-          den Sprung an, statt ihn ungefragt zu machen.
-        */}
-        {mode === "mine" && pins.length > 0 && visiblePins.length === 0 ? (
-          <div
-            className={`pointer-events-auto flex w-fit items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 ${FLOATING}`}
-          >
-            <span className="turi-meta text-xs text-muted-foreground">
-              None of your places here
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={fitAll}
-              className="h-7 rounded-full bg-brand-soft px-3 text-xs font-semibold text-brand hover:bg-brand-soft hover:text-brand"
-            >
-              Show all
-            </Button>
-          </div>
-        ) : null}
-
-        {chipCategories.length > 1 ? (
-          <div className="pointer-events-auto -mx-4 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex w-max items-center gap-1.5">
-              <FilterChip
-                label="All"
-                count={pins.length}
-                active={filter === null}
-                onClick={() => setFilter(null)}
-              />
-              {chipCategories.map((c) => (
-                <FilterChip
-                  key={c}
-                  label={CATEGORY_LABELS[c]}
-                  icon={CATEGORY_ICONS[c]}
-                  count={counts.get(c) ?? 0}
-                  active={filter === c}
-                  onClick={() => setFilter(filter === c ? null : c)}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
+        <CategoryFilterBar items={visiblePins} value={filter} onChange={setFilter} />
       </div>
 
       {/*
@@ -1435,43 +1370,6 @@ function PlaceSheet({
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-/** Ein Knopf der Filterleiste. */
-function FilterChip({
-  label,
-  count,
-  icon: Icon,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  icon?: LucideIcon;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        void tap();
-        onClick();
-      }}
-      aria-pressed={active}
-      // Aktiv in der weichen Markenfarbe -- dieselbe Sprache wie der
-      // Modus-Umschalter darueber und der aktive Reiter unten.
-      className={`turi-tap flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors ${FLOATING} ${
-        active ? "bg-brand-soft text-brand" : "text-muted-foreground"
-      }`}
-    >
-      {Icon ? <Icon size={14} /> : null}
-      {label}
-      <span className={`turi-meta text-xs font-normal ${active ? "" : "text-muted-foreground/70"}`}>
-        {count}
-      </span>
-    </button>
   );
 }
 

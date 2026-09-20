@@ -24,7 +24,9 @@ import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { ReportDialog } from "@/components/turi/ReportDialog";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
-import { PlacesMiniMap, type MiniMapPlace } from "@/components/turi/PlacesMiniMap";
+import { PinMap } from "@/components/turi/PinMap";
+import { type PlaceListItem } from "@/components/turi/PlaceList";
+import { normalizeCategory } from "@/lib/categories";
 import { ProfileCover, asProfileColor } from "@/components/turi/ProfileCover";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
@@ -198,29 +200,47 @@ function ProfilePage() {
       // Person sehen darf (gleiche Sichtbarkeit wie im Feed).
       const { data: rows } = await supabase
         .from("reviews")
-        .select("place_id, rating, places(id, name, lat, lng, category)")
+        .select("place_id, rating, places(id, name, city, lat, lng, category)")
         .eq("user_id", data!.profile.id);
-      const byId = new Map<string, { name: string; lat: number; lng: number }>();
+      type Row = {
+        id: string;
+        name: string;
+        city: string | null;
+        category: string;
+        lat: number | null;
+        lng: number | null;
+      };
+      const byId = new Map<string, Row>();
       const sums = new Map<string, { total: number; count: number }>();
       for (const r of rows ?? []) {
-        const p = r.places as unknown as {
-          id: string;
-          name: string;
-          lat: number | null;
-          lng: number | null;
-        } | null;
-        if (p && p.lat != null && p.lng != null) {
-          byId.set(p.id, { name: p.name, lat: p.lat, lng: p.lng });
-          const entry = sums.get(p.id) ?? { total: 0, count: 0 };
-          entry.total += r.rating;
-          entry.count += 1;
-          sums.set(p.id, entry);
-        }
+        const p = r.places as unknown as Row | null;
+        if (!p) continue;
+        byId.set(p.id, p);
+        const entry = sums.get(p.id) ?? { total: 0, count: 0 };
+        entry.total += r.rating;
+        entry.count += 1;
+        sums.set(p.id, entry);
       }
-      const result: MiniMapPlace[] = [];
+      const result: PlaceListItem[] = [];
       for (const [id, place] of byId) {
         const { total, count } = sums.get(id)!;
-        result.push({ id, ...place, rating: total / count });
+        result.push({
+          id,
+          name: place.name,
+          city: place.city,
+          category: normalizeCategory(place.category),
+          lat: place.lat,
+          lng: place.lng,
+          rating: total / count,
+          /*
+           * Bewusst 0: Die Zeile unter dem Namen wuerde sonst "1 friend"
+           * sagen. Auf der Karte EINER Person ist das keine Information,
+           * sondern Rauschen -- es sind ihre Orte, die Zahl waere
+           * ueberall dieselbe.
+           */
+          friends: 0,
+          saved: false,
+        });
       }
       return result;
     },
@@ -436,8 +456,12 @@ function ProfilePage() {
 
             {view === "map" ? (
               mapLoading ? (
-                <Skeleton className="h-[60vh] rounded-3xl" />
-              ) : (mapPlaces ?? []).length === 0 ? (
+                <Skeleton className="h-[62vh] rounded-3xl" />
+              ) : // Orte ohne gespeicherte Position koennen nicht auf die
+              // Karte. Gezaehlt wird deshalb, was tatsaechlich dort
+              // landen kann -- sonst stuende hier eine leere Karte ohne
+              // jede Erklaerung.
+              (mapPlaces ?? []).filter((p) => p.lat != null && p.lng != null).length === 0 ? (
                 /*
                   Ohne diesen Zweig stand hier eine leere Weltkarte: die
                   Karte laedt, zoomt aber auf nichts, und man raet, ob die
@@ -455,9 +479,11 @@ function ProfilePage() {
                   }
                 />
               ) : (
-                <div className="h-[60vh] overflow-hidden rounded-3xl border border-border shadow-card">
-                  <PlacesMiniMap places={mapPlaces!} />
-                </div>
+                <PinMap
+                  pins={mapPlaces!}
+                  heading={`${profile.display_name || profile.username}'s places`}
+                  className="h-[62vh]"
+                />
               )
             ) : reviews.length > 0 ? (
               reviews.map((r) => <ReviewCard key={r.id} review={r} />)

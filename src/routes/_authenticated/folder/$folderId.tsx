@@ -19,7 +19,9 @@ import { share } from "@/lib/native";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
-import { PlacesMiniMap, type MiniMapPlace } from "@/components/turi/PlacesMiniMap";
+import { PinMap } from "@/components/turi/PinMap";
+import { type PlaceListItem } from "@/components/turi/PlaceList";
+import { normalizeCategory } from "@/lib/categories";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,13 +136,13 @@ function FolderPage() {
    * Durchschnitt; Orte ohne Koordinaten (von Hand angelegt) koennen
    * nicht auf die Karte und werden unten benannt.
    */
-  const mapPlaces: MiniMapPlace[] = (() => {
-    const byId = new Map<string, { name: string; lat: number; lng: number }>();
+  const mapPlaces: PlaceListItem[] = (() => {
+    const byId = new Map<string, NonNullable<(typeof reviews)[number]["places"]>>();
     const sums = new Map<string, { total: number; count: number }>();
     for (const r of reviews) {
       const p = r.places;
-      if (!p || p.lat == null || p.lng == null) continue;
-      byId.set(p.id, { name: p.name, lat: p.lat, lng: p.lng });
+      if (!p) continue;
+      byId.set(p.id, p);
       const entry = sums.get(p.id) ?? { total: 0, count: 0 };
       entry.total += r.rating;
       entry.count += 1;
@@ -148,10 +150,19 @@ function FolderPage() {
     }
     return Array.from(byId.entries()).map(([id, place]) => ({
       id,
-      ...place,
+      name: place.name,
+      city: place.city,
+      category: normalizeCategory(place.category),
+      lat: place.lat,
+      lng: place.lng,
       rating: sums.get(id)!.total / sums.get(id)!.count,
+      // Siehe Profilkarte: "1 friend" waere hier ueberall dasselbe.
+      friends: 0,
+      saved: false,
     }));
   })();
+
+  const placedCount = mapPlaces.filter((p) => p.lat != null && p.lng != null).length;
 
   return (
     <>
@@ -240,16 +251,14 @@ function FolderPage() {
             </div>
 
             {view === "map" ? (
-              mapPlaces.length === 0 ? (
+              placedCount === 0 ? (
                 <EmptyState
                   icon={MapIcon}
                   title="Nothing to show on the map"
                   text="These reviews are for places without a saved location, so they can't be placed on the map."
                 />
               ) : (
-                <div className="h-[60vh] overflow-hidden rounded-3xl border border-border shadow-card">
-                  <PlacesMiniMap places={mapPlaces} />
-                </div>
+                <PinMap pins={mapPlaces} heading={folder.name} className="h-[62vh]" />
               )
             ) : (
               reviews.map((r) => <ReviewCard key={r.id} review={r} />)
