@@ -790,15 +790,28 @@ function MePage() {
                 Frage -- "welcher dieser Orte ist jetzt der richtige?" --
                 und sie wurde hier bisher anders beantwortet als dort.
               */
-              <PlaceList
-                items={savedPlaces ?? []}
-                showCity
-                summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
-                onPick={(item) => {
-                  setCollection(null);
-                  navigate({ to: "/place/$placeId", params: { placeId: item.id } });
-                }}
-              />
+              <>
+                {/*
+                  Der Hinweis steht hier und nicht auf der Karte: Wer die
+                  Liste oeffnet, sucht seine gemerkten Orte -- dass sie
+                  auch auf der Karte liegen, ist genau in diesem Moment
+                  eine neue Information. Auf der Karte selbst waere es
+                  eine Erklaerung fuer etwas, das man dort schon sieht.
+                */}
+                <p className="turi-meta flex items-center gap-2 px-3 pb-2 text-xs text-muted-foreground">
+                  <Bookmark size={13} className="shrink-0 text-map-accent" fill="currentColor" />
+                  You&apos;ll find these marked on your map, too.
+                </p>
+                <PlaceList
+                  items={savedPlaces ?? []}
+                  showCity
+                  summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
+                  onPick={(item) => {
+                    setCollection(null);
+                    navigate({ to: "/place/$placeId", params: { placeId: item.id } });
+                  }}
+                />
+              </>
             )}
           </div>
         </SheetContent>

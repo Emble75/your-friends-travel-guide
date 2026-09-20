@@ -368,27 +368,6 @@ function AuthPage() {
           sondern nur noch eine Weiche. Wer nicht angemeldet ist, landete
           darueber sofort wieder genau hier -- ein Knopf, der nichts tut.
         */}
-
-        {/*
-          Datenschutz und Nutzungsbedingungen in BEIDEN Ansichten.
-          Bisher standen sie nur neben dem Zustimmungshaken beim
-          Registrieren -- wer sich bloss anmeldet oder erst nachlesen
-          will, bevor er ein Konto anlegt, kam gar nicht an sie heran.
-          Apple prueft bei der Einreichung genau das: Die
-          Datenschutzerklaerung muss in der App erreichbar sein, nicht
-          nur im Kleingedruckten eines Formulars.
-        */}
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          <Link to="/legal/privacy" className="underline underline-offset-2">
-            Privacy Policy
-          </Link>
-          <span className="px-2" aria-hidden="true">
-            ·
-          </span>
-          <Link to="/legal/terms" className="underline underline-offset-2">
-            Terms of Service
-          </Link>
-        </p>
       </div>
     </main>
   );
