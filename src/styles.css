@@ -216,6 +216,26 @@
    * gross sein.
    */
   --brand-orange: oklch(0.68 0.19 38);
+  /*
+   * Farbbaender der Profile -- ein eigener Satz, ausschliesslich fuer
+   * das Band hinter dem Profilbild.
+   *
+   * Sie gehoeren NICHT zur Oberflaechen-Palette und duerfen nirgends
+   * sonst auftauchen: Knoepfe, Leisten und Zeichen bleiben Sache von
+   * --brand und den Neutralen. Hier geht es um das Gegenteil --
+   * darum, dass sich Profile voneinander unterscheiden.
+   *
+   * Sie liegen bewusst dicht beieinander in Helligkeit (0.55-0.70) und
+   * Buntheit (0.11-0.21), damit sie nebeneinander wie ein Satz wirken
+   * und nicht wie ein Farbkasten. Alle tragen weisse Elemente (den Ring
+   * um das Profilbild), deshalb keine helleren Werte.
+   */
+  --cover-teal: oklch(0.58 0.11 205);
+  --cover-green: oklch(0.55 0.14 152);
+  --cover-sand: oklch(0.7 0.11 80);
+  --cover-red: oklch(0.55 0.2 25);
+  --cover-pink: oklch(0.6 0.2 352);
+  --cover-purple: oklch(0.5 0.21 300);
   --primary-foreground: oklch(0.99 0.002 258);
   /*
    * Trotz des Namens ein NEUTRALES Hellgrau, keine Aufhellung von

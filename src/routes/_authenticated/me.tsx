@@ -532,7 +532,10 @@ function MePage() {
                   <p className="text-xs text-muted-foreground">
                     The band behind your photo. Pick what suits your picture.
                   </p>
-                  <div className="mt-3 flex gap-3">
+                  {/* Zehn Punkte passen nicht mehr in eine Zeile --
+                      umbrechen statt schrumpfen, sonst wird die
+                      Trefferflaeche zu klein. */}
+                  <div className="mt-3 flex flex-wrap gap-3">
                     {PROFILE_COLORS.map((c) => (
                       <ProfileColorSwatch
                         key={c}
