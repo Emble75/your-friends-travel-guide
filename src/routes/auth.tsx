@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TuriMark } from "@/components/turi/Logo";
 import { TurnstileWidget } from "@/components/turi/TurnstileWidget";
 import { getAppUrl, getErrorMessage } from "@/lib/turi";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -31,6 +32,16 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  /*
+   * Ist der Wunschname noch frei?
+   *
+   * Frueher entschied das die Datenbank still fuer einen: Bei Kollision
+   * haengte sie eine Zahl an, und man erfuhr hinterher, dass man jetzt
+   * "tom1" heisst. Der Name steht im Profil, in geteilten Links und in
+   * der Personensuche -- das ist nichts, was jemand anders entscheiden
+   * darf. Jetzt wird beim Tippen geprueft und beim Absenden abgelehnt.
+   */
+  const [nameState, setNameState] = useState<"idle" | "checking" | "free" | "taken">("idle");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,11 +77,38 @@ function AuthPage() {
     return null;
   }
 
+  const debouncedUsername = useDebouncedValue(username, 400);
+
+  useEffect(() => {
+    const name = debouncedUsername.trim().toLowerCase();
+    if (mode !== "signup" || !/^[a-z0-9._]{3,30}$/.test(name)) {
+      setNameState("idle");
+      return;
+    }
+    let active = true;
+    setNameState("checking");
+    void supabase.rpc("username_available", { name }).then(({ data, error }) => {
+      if (!active) return;
+      // Faellt die Pruefung aus, NICHT blockieren: Der Trigger lehnt
+      // einen vergebenen Namen ohnehin ab. Ein Formular, das wegen
+      // einer wackligen Leitung nicht abschickbar ist, waere schlimmer
+      // als eine spaete Fehlermeldung.
+      setNameState(error ? "idle" : data ? "free" : "taken");
+    });
+    return () => {
+      active = false;
+    };
+  }, [debouncedUsername, mode]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const problem = firstProblem();
     if (problem) {
       toast.error(problem);
+      return;
+    }
+    if (mode === "signup" && nameState === "taken") {
+      toast.error(`@${username.trim().toLowerCase()} is already taken — please pick another`);
       return;
     }
     if (mode === "signup" && !acceptedTerms) {
@@ -109,26 +147,33 @@ function AuthPage() {
             .update({ accepted_terms_at: new Date().toISOString() })
             .eq("id", data.user.id);
 
-          // The username can collide -- the DB then automatically appends a
-          // number. Let the user know if that happened.
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("username")
-            .eq("id", data.user.id)
-            .maybeSingle();
-          if (profile && profile.username !== typedUsername) {
-            toast.info(
-              `"${typedUsername}" was already taken — your username is now @${profile.username}`,
-            );
-          }
-
+          // Die frueher hier stehende Meldung "dein Name ist jetzt
+          // @tom1" ist entfallen: Die Datenbank benennt nicht mehr um,
+          // sie lehnt ab (siehe Migration 20260922090000).
           navigate({ to: "/map" });
         } else {
           setSent(true);
         }
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "Something went wrong"));
+      /*
+       * Der Trigger lehnt einen vergebenen Namen mit einer Ausnahme ab;
+       * beim Anmeldedienst kommt das als unspezifischer Datenbankfehler
+       * an ("Database error saving new user"). Ohne diese Uebersetzung
+       * stuende dort eine Meldung, mit der niemand etwas anfangen kann --
+       * dabei ist die Ursache bekannt und leicht zu beheben.
+       *
+       * Dieser Weg greift nur, wenn die Pruefung beim Tippen nicht
+       * gegriffen hat: bei zwei Anmeldungen in derselben Sekunde, oder
+       * wenn die Pruefung wegen einer wackligen Leitung ausfiel.
+       */
+      const message = getErrorMessage(err, "Something went wrong");
+      if (mode === "signup" && /database error|username_taken|duplicate/i.test(message)) {
+        setNameState("taken");
+        toast.error(`@${username.trim().toLowerCase()} is already taken — please pick another`);
+      } else {
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -206,9 +251,27 @@ function AuthPage() {
                   spellCheck={false}
                   className="h-12 rounded-2xl"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Letters, numbers, dots and underscores.
-                </p>
+                {/*
+                  Die Rueckmeldung steht an der Stelle der Regel-Zeile,
+                  nicht zusaetzlich darunter: Sie beantwortet dieselbe
+                  Frage ("ist mein Name in Ordnung?") und waere als
+                  zweite Zeile nur Gedraenge.
+                */}
+                {nameState === "taken" ? (
+                  <p className="text-xs font-medium text-destructive">
+                    @{username.trim().toLowerCase()} is already taken — please pick another.
+                  </p>
+                ) : nameState === "free" ? (
+                  <p className="text-xs font-medium text-positive">
+                    @{username.trim().toLowerCase()} is available.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {nameState === "checking"
+                      ? "Checking…"
+                      : "Letters, numbers, dots and underscores."}
+                  </p>
+                )}
               </div>
             ) : null}
             <div className="space-y-1.5">

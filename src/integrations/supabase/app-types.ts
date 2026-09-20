@@ -45,7 +45,16 @@ type DeviceTokenRow = {
 };
 
 export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
-  public: Omit<GenPublic, "Tables"> & {
+  public: Omit<GenPublic, "Tables" | "Functions"> & {
+    // username_available: darf schon VOR der Anmeldung aufgerufen werden
+    // (SECURITY DEFINER, gibt nur ja/nein zurueck). Siehe die Migration
+    // 20260922090000_username_taken_is_an_error.sql.
+    Functions: GenPublic["Functions"] & {
+      username_available: {
+        Args: { name: string };
+        Returns: boolean;
+      };
+    };
     Tables: Omit<GenTables, "follows" | "places" | "profiles" | "reviews"> & {
       follows: WithColumns<
         GenTables["follows"],

@@ -23,9 +23,14 @@ export function asProfileColor(value: unknown): ProfileColor {
 /*
  * Die Flaechenfarben. Alle vier stammen aus der Palette:
  *   blue   --brand            Markenblau
- *   grey   --muted-foreground mittleres Warmgrau
- *   black  --primary          das sehr dunkle Warmgrau der Schalter
+ *   grey   --muted-foreground mittleres Kuehlgrau
+ *   black  --foreground       das Tintenschwarz des Fliesstexts
  *   orange --brand-orange     der zweite Markenakzent
+ *
+ * "black" hing frueher an --primary. Seit --primary das Markenblau
+ * traegt, waere aus der Auswahl "Black" unbemerkt ein zweites Blau
+ * geworden -- neben dem, das schon "Blue" heisst. Es haengt deshalb
+ * jetzt an --foreground, das tatsaechlich schwarz ist und es bleibt.
  *
  * Der leichte Verlauf nach unten ist kein Schmuck: das Profilbild
  * ueberlappt das Band, und ein gleichmaessig satter Ton laesst den
@@ -34,7 +39,8 @@ export function asProfileColor(value: unknown): ProfileColor {
 const SURFACE: Record<ProfileColor, string> = {
   blue: "bg-[linear-gradient(160deg,var(--brand),color-mix(in_oklab,var(--brand)_82%,black))]",
   grey: "bg-[linear-gradient(160deg,var(--muted-foreground),color-mix(in_oklab,var(--muted-foreground)_80%,black))]",
-  black: "bg-[linear-gradient(160deg,color-mix(in_oklab,var(--primary)_88%,white),var(--primary))]",
+  black:
+    "bg-[linear-gradient(160deg,color-mix(in_oklab,var(--foreground)_88%,white),var(--foreground))]",
   orange:
     "bg-[linear-gradient(160deg,var(--brand-orange),color-mix(in_oklab,var(--brand-orange)_82%,black))]",
 };
@@ -43,7 +49,7 @@ const SURFACE: Record<ProfileColor, string> = {
 const FLAT: Record<ProfileColor, string> = {
   blue: "bg-brand",
   grey: "bg-muted-foreground",
-  black: "bg-primary",
+  black: "bg-foreground",
   orange: "bg-brand-orange",
 };
 
