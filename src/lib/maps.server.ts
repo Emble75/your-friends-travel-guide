@@ -24,8 +24,22 @@ function directKey() {
   return process.env["GOOGLE_PLACES_API_KEY"];
 }
 
-// Orte ändern sich selten – 30 Tage Cache spart die meisten Google-Places-Kosten.
-const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/*
+ * Wie lange eine Antwort liegen bleibt -- je nachdem, wie schnell sie
+ * verdirbt.
+ *
+ * STAMMDATEN eines Ortes (Name, Adresse, Art, Koordinaten) aendern sich
+ * praktisch nie: ein halbes Jahr. Frueher standen hier 30 Tage, weil im
+ * selben Eintrag die Oeffnungszeiten lagen -- die sind entfernt, also
+ * faellt die Begrenzung weg.
+ *
+ * TREFFERLISTEN einer Suche altern schneller: Es eroeffnen neue Orte,
+ * die sonst monatelang nicht auftauchten. Zwei Monate sind ein
+ * Kompromiss zwischen Kosten und Vollstaendigkeit.
+ */
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TTL_DETAILS_MS = 180 * DAY_MS;
+const TTL_SEARCH_MS = 60 * DAY_MS;
 
 /** Rundet Koordinaten auf ein ~1,1km-Raster, damit nahe beieinanderliegende
  * Suchanfragen denselben Cache-Eintrag treffen. */
@@ -33,7 +47,11 @@ function gridCoord(v: number) {
   return Math.round(v * 100) / 100;
 }
 
-async function withCache<T>(cacheKey: string, fetcher: () => Promise<T>): Promise<T> {
+async function withCache<T>(
+  cacheKey: string,
+  fetcher: () => Promise<T>,
+  ttlMs: number,
+): Promise<T> {
   const { data: cached } = await supabaseAdmin
     .from("poi_cache")
     .select("payload, expires_at")
@@ -52,7 +70,7 @@ async function withCache<T>(cacheKey: string, fetcher: () => Promise<T>): Promis
     .upsert({
       cache_key: cacheKey,
       payload: fresh as unknown as never,
-      expires_at: new Date(Date.now() + CACHE_TTL_MS).toISOString(),
+      expires_at: new Date(Date.now() + ttlMs).toISOString(),
     })
     .then(({ error }) => {
       if (error)
@@ -61,12 +79,6 @@ async function withCache<T>(cacheKey: string, fetcher: () => Promise<T>): Promis
 
   return fresh;
 }
-
-/** Ein Oeffnungszeitraum, wie Google ihn liefert. day: 0 = Sonntag. */
-export type OpeningPeriod = {
-  open: { day: number; hour: number; minute: number };
-  close?: { day: number; hour: number; minute: number };
-};
 
 export type MapPlace = {
   googlePlaceId: string;
@@ -80,21 +92,6 @@ export type MapPlace = {
   rawType: string | null;
   lat: number;
   lng: number;
-  /*
-   * Der WOECHENTLICHE Oeffnungsplan -- bewusst nicht Googles fertiges
-   * "hat gerade offen".
-   *
-   * Ortsdaten werden 30 Tage zwischengespeichert (poi_cache). Ein
-   * Ja/Nein von heute waere morgen falsch und uebermorgen eine Luege;
-   * der Wochenplan aendert sich dagegen praktisch nie. Ob gerade offen
-   * ist, rechnen wir daraus selbst aus -- siehe lib/hours.ts.
-   *
-   * Nur bei der Einzelort-Abfrage gefuellt, nicht bei Suche und
-   * Vorschlaegen: dort waeren es Kosten fuer Angaben, die niemand sieht.
-   */
-  hours: OpeningPeriod[] | null;
-  /** Zeitverschiebung des Ortes in Minuten -- ohne sie waere "jetzt" unsere Zeit. */
-  utcOffsetMinutes: number | null;
 };
 
 const FIELD_MASK =
@@ -103,18 +100,17 @@ const FIELD_MASK =
  * Die Einzelort-Abfrage (Get Place). Google liefert das Objekt hier
  * direkt zurueck, nicht in ein "places"-Array verpackt -- das
  * Feld-Praefix "places." darf deshalb NICHT verwendet werden (sonst
- * 400). Zusaetzlich zur Suche holt sie den Oeffnungsplan.
+ * 400).
  *
- * KOSTENHINWEIS: regularOpeningHours gehoert bei Google in die teuerste
- * Feldgruppe ("Enterprise") und hebt damit den Preis genau dieser einen
- * Abfrage. Sie laeuft nur, wenn jemand einen Ort wirklich oeffnet, und
- * ihr Ergebnis liegt danach 30 Tage im Zwischenspeicher -- fuer ALLE
- * Nutzer, nicht pro Person. Suche und Vorschlaege bleiben unveraendert
- * guenstig.
- */
-const SINGLE_FIELD_MASK =
-  "id,displayName,formattedAddress,location,primaryTypeDisplayName,primaryType," +
-  "regularOpeningHours.periods,utcOffsetMinutes";
+ * KEINE OEFFNUNGSZEITEN: Sie lagen eine Zeit lang mit drin und haben
+ * diese Abfrage in Googles teuerste Feldgruppe gehoben (rund 25 statt
+ * 17 Dollar je tausend). Das war es nicht wert -- und es hatte eine
+ * zweite, groessere Folge: Weil Oeffnungszeiten verderben, musste der
+ * Zwischenspeicher kurz bleiben. Ohne sie enthaelt die Antwort nur
+ * noch Stammdaten, die sich praktisch nie aendern, und darf entsprechend
+ * lange liegen.
+ */ const SINGLE_FIELD_MASK =
+  "id,displayName,formattedAddress,location,primaryTypeDisplayName,primaryType";
 
 type GooglePlace = {
   id: string;
@@ -123,8 +119,6 @@ type GooglePlace = {
   primaryTypeDisplayName?: { text?: string };
   primaryType?: string;
   location?: { latitude: number; longitude: number };
-  regularOpeningHours?: { periods?: OpeningPeriod[] };
-  utcOffsetMinutes?: number;
 };
 
 function headers(fieldMask: string = FIELD_MASK) {
@@ -168,8 +162,6 @@ function map(places: GooglePlace[] | undefined): MapPlace[] {
       rawType: p.primaryType ?? null,
       lat: p.location!.latitude,
       lng: p.location!.longitude,
-      hours: p.regularOpeningHours?.periods ?? null,
-      utcOffsetMinutes: p.utcOffsetMinutes ?? null,
     }));
 }
 
@@ -209,19 +201,23 @@ export async function searchPlacesText(query: string, lat?: number, lng?: number
       : "global";
   const cacheKey = `text:${normalizedQuery}:${locationPart}`;
 
-  return withCache(cacheKey, () => {
-    const body: Record<string, unknown> = {
-      textQuery: query,
-      maxResultCount: 15,
-      languageCode: "en",
-    };
-    if (typeof lat === "number" && typeof lng === "number") {
-      body["locationBias"] = {
-        circle: { center: { latitude: lat, longitude: lng }, radius: 20000 },
+  return withCache(
+    cacheKey,
+    () => {
+      const body: Record<string, unknown> = {
+        textQuery: query,
+        maxResultCount: 15,
+        languageCode: "en",
       };
-    }
-    return call("places/v1/places:searchText", body);
-  });
+      if (typeof lat === "number" && typeof lng === "number") {
+        body["locationBias"] = {
+          circle: { center: { latitude: lat, longitude: lng }, radius: 20000 },
+        };
+      }
+      return call("places/v1/places:searchText", body);
+    },
+    TTL_SEARCH_MS,
+  );
 }
 
 /**
@@ -232,25 +228,26 @@ export async function searchPlacesText(query: string, lat?: number, lng?: number
  * Ort abgefragt wird, nicht ein ganzer Umkreis.
  */
 export async function placeById(placeId: string, sessionToken?: string): Promise<MapPlace | null> {
-  // "v2", weil die Antwort jetzt zusaetzlich den Oeffnungsplan enthaelt.
-  // Ohne neuen Schluessel kaeme 30 Tage lang der alte Eintrag OHNE
-  // Zeiten zurueck, und die Anzeige bliebe scheinbar grundlos leer.
   const cacheKey = `details:v2:${placeId}`;
-  const result = await withCache(cacheKey, async () => {
-    /*
-     * Das Sitzungs-Token gehoert an die Detailabfrage, nicht nur an die
-     * Vorschlaege: Erst sie schliesst die Sitzung ab, und erst dadurch
-     * werden die vorausgegangenen Tastendruck-Anfragen kostenlos.
-     *
-     * Wird die Antwort aus dem Zwischenspeicher bedient, geht gar keine
-     * Anfrage hinaus -- dann bleibt die Sitzung offen und die
-     * Vorschlaege werden einzeln berechnet. Das ist der guenstigere der
-     * beiden Faelle und deshalb kein Problem.
-     */
-    const suffix = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : "";
-    const p = await callGet(`places/v1/places/${placeId}${suffix}`);
-    return map(p ? [p] : []);
-  });
+  const result = await withCache(
+    cacheKey,
+    async () => {
+      /*
+       * Das Sitzungs-Token gehoert an die Detailabfrage, nicht nur an die
+       * Vorschlaege: Erst sie schliesst die Sitzung ab, und erst dadurch
+       * werden die vorausgegangenen Tastendruck-Anfragen kostenlos.
+       *
+       * Wird die Antwort aus dem Zwischenspeicher bedient, geht gar keine
+       * Anfrage hinaus -- dann bleibt die Sitzung offen und die
+       * Vorschlaege werden einzeln berechnet. Das ist der guenstigere der
+       * beiden Faelle und deshalb kein Problem.
+       */
+      const suffix = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : "";
+      const p = await callGet(`places/v1/places/${placeId}${suffix}`);
+      return map(p ? [p] : []);
+    },
+    TTL_DETAILS_MS,
+  );
   return result[0] ?? null;
 }
 

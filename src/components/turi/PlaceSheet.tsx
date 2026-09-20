@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Bookmark, Navigation, Star, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
-import { getPlaceById } from "@/lib/maps.functions";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
 import { directionsUrl, getErrorMessage } from "@/lib/turi";
-import { openLabel, openState } from "@/lib/hours";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
@@ -56,7 +53,6 @@ export function PlaceSheet({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const placeByIdFn = useServerFn(getPlaceById);
   const [busy, setBusy] = useState(false);
 
   /*
@@ -165,32 +161,17 @@ export function PlaceSheet({
         };
 
   /*
-   * Oeffnungszeiten.
+   * Die Oeffnungszeiten standen hier einmal ("Open - until 22:00").
+   * Sie sind bewusst wieder entfernt: Google berechnet sie in seiner
+   * teuersten Feldgruppe, und sie zwangen den Zwischenspeicher auf
+   * kurze Fristen, weil sie im Gegensatz zu Namen und Koordinaten
+   * verderben. Fuer eine Ortsvorschau war das ein schlechter Tausch --
+   * die Note der Freunde ist der Grund, warum man hier hinschaut.
    *
-   * Sie haengen an Googles Kennung, nicht an unserem Datensatz -- ein
-   * eigener Pin bringt sie also nicht mit, obwohl genau dort die Frage
-   * aufkommt ("das Cafe meiner Freundin -- hat das jetzt ueberhaupt
-   * offen?"). Deshalb hier eine eigene Abfrage, sobald eine Kennung
-   * bekannt ist.
-   *
-   * Die Antwort liegt serverseitig 30 Tage im Zwischenspeicher und gilt
-   * fuer alle Nutzer gemeinsam; "gerade offen" rechnen wir aus dem
-   * Wochenplan selbst (lib/hours.ts), das bleibt also richtig.
-   *
-   * Kam der Ort ueber einen Klick auf Googles Kartensymbol, liegen die
-   * Zeiten schon vor -- dann wird gar nicht erst gefragt.
+   * Nebenwirkung, die mehr wert war als die Anzeige: Fuer eigene Pins
+   * geht jetzt ueberhaupt keine Anfrage mehr an Google, wenn man die
+   * Vorschau oeffnet.
    */
-  const googleId = header?.googlePlaceId ?? null;
-  const ownHours = target?.kind === "google" ? target.place.hours : null;
-  const { data: details } = useQuery({
-    queryKey: ["place-hours", googleId],
-    enabled: !!googleId && !ownHours,
-    staleTime: 60 * 60_000,
-    queryFn: () => placeByIdFn({ data: { placeId: googleId! } }),
-  });
-  const hoursSource =
-    target?.kind === "google" && target.place.hours ? target.place : (details ?? null);
-  const hours = openLabel(openState(hoursSource?.hours, hoursSource?.utcOffsetMinutes));
   const distance =
     myPos && header
       ? distanceLabel(metersBetween(myPos, { lat: header.lat, lng: header.lng }))
@@ -328,33 +309,12 @@ export function PlaceSheet({
             ist. Fehlt eine der Angaben (kein Standort erlaubt, keine
             Zeiten hinterlegt), faellt sie still weg.
           */}
-          {hours || distance ? (
-            <div className="turi-meta flex items-center gap-2 text-xs">
-              {hours ? (
-                <span
-                  className={`flex items-center gap-1.5 font-semibold ${
-                    hours.open ? "text-positive" : "text-muted-foreground"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`size-1.5 rounded-full ${
-                      hours.open ? "bg-positive" : "bg-muted-foreground"
-                    }`}
-                  />
-                  {hours.text}
-                </span>
-              ) : null}
-              {hours && distance ? (
-                <span aria-hidden="true" className="text-muted-foreground">
-                  ·
-                </span>
-              ) : null}
-              {distance ? <span className="text-muted-foreground">{distance} away</span> : null}
-            </div>
+          {distance ? (
+            <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
           ) : null}
 
           {/*
+            Bewusst NUR der Durchschnitt          {/*
             Bewusst NUR der Durchschnitt, keine einzelnen Bewertungen.
             Das Panel ist der schnelle Blick von der Karte aus -- die
             Bewertungen selbst stehen vollstaendig hinter "All reviews".
