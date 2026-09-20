@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { List, LocateFixed } from "lucide-react";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { List, LocateFixed, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { currentLocationIcon, mapColor, ratingPinIcon } from "@/lib/mapIcons";
 import { type Category } from "@/lib/categories";
 import { currentPosition, tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CategoryFilterBar } from "./CategoryFilter";
 import { PlaceList, type PlaceListItem } from "./PlaceList";
@@ -31,21 +33,29 @@ import { PlaceSheet, type SheetTarget } from "./PlaceSheet";
  *    beantwortet dieselbe Leiste und dieselbe Liste wie auf der
  *    Hauptkarte -- eine Geste, die man nicht zweimal lernen muss.
  *
- * 3. DIESELBE VORSCHAU WIE AUF DER HAUPTKARTE. Ein Tipp auf einen Pin
+ * 3. SUCHE IN IHREN ORTEN -- nicht in Googles Weltbestand. Getippt wird
+ *    gegen Name und Stadt der Pins, die Karte springt auf die Treffer.
+ *    Das ist hier die richtige Frage ("hat Tom etwas in Lissabon?"),
+ *    und es hat zwei angenehme Nebenwirkungen: Es kostet nichts, weil
+ *    keine Anfrage an Google geht, und ein leeres Ergebnis ist selbst
+ *    eine Antwort -- "Tom hat dort nichts" -- statt einer Kamerafahrt
+ *    in eine leere Gegend.
+ *
+ * 4. DIESELBE VORSCHAU WIE AUF DER HAUPTKARTE. Ein Tipp auf einen Pin
  *    oeffnet das Panel von unten -- Note, Oeffnungszeit, Entfernung,
  *    Merken -- und nicht sofort die ganze Ortsseite. Auf einer Karte
  *    schaut man meist nur kurz nach und tippt dann den naechsten Pin
  *    an; der Sprung auf eine eigene Seite unterbricht das jedes Mal
  *    und baut beim Zurueckkommen die Karte neu auf.
  *
- * 4. DER EIGENE STANDORT. Derselbe Knopf wie auf der Hauptkarte. Er
+ * 5. DER EIGENE STANDORT. Derselbe Knopf wie auf der Hauptkarte. Er
  *    beantwortet auf einer fremden Karte die wichtigste Frage
  *    ueberhaupt: "Was davon ist da, wo ich gerade bin?" Ohne ihn muss
  *    man sich aus der Gesamtansicht von Hand in die eigene Stadt
  *    schieben. Danach sortiert auch die Liste nach Entfernung, ohne
  *    noch einmal nach dem Standort zu fragen.
  *
- * 5. RUHIGERE GRUNDKARTE. Zusaetzlich zu den Ortssymbolen sind auch
+ * 6. RUHIGERE GRUNDKARTE. Zusaetzlich zu den Ortssymbolen sind auch
  *    Nahverkehrssymbole aus. Was bleibt, sind Strassen, Wasser, Namen --
  *    genug zur Orientierung, wenig genug, dass die Pins die einzige
  *    Farbe im Bild sind.
@@ -75,6 +85,9 @@ const mapMemory = new Map<
 >();
 
 /** Material der schwebenden Knoepfe -- wie auf der Hauptkarte. */
+const FLOATING =
+  "border border-border bg-card/80 shadow-card backdrop-blur-xl backdrop-saturate-150";
+
 const FLOATING_CONTROL =
   "h-11 rounded-full border border-border bg-card/80 px-4 text-sm font-semibold shadow-card backdrop-blur-xl backdrop-saturate-150";
 
@@ -117,6 +130,7 @@ export function PinMap({
   );
   const [listOpen, setListOpen] = useState(false);
   const [selected, setSelected] = useState<SheetTarget | null>(null);
+  const [query, setQuery] = useState("");
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   /*
@@ -156,26 +170,38 @@ export function PinMap({
   );
 
   /*
+   * Die Suche laeuft ueber Name UND Stadt. Beides ist gemeint: "Honest
+   * Greens" findet den einen Ort, "Lissabon" alles, was dort liegt.
+   */
+  const term = query.trim().toLowerCase();
+  const queried = useMemo(() => {
+    if (!term) return placed;
+    return placed.filter(
+      (p) => p.name.toLowerCase().includes(term) || (p.city ?? "").toLowerCase().includes(term),
+    );
+  }, [placed, term]);
+
+  /*
    * Was im Bild liegt. Orte ohne Koordinaten koennen per Definition
    * nicht darin sein -- sie stehen dafuer vollstaendig im Feed-Reiter
    * derselben Seite.
    */
   const visible = useMemo(() => {
-    if (!bounds) return placed;
-    return placed.filter(
+    if (!bounds) return queried;
+    return queried.filter(
       (p) =>
         p.lat >= bounds.swLat &&
         p.lat <= bounds.neLat &&
         p.lng >= bounds.swLng &&
         p.lng <= bounds.neLng,
     );
-  }, [placed, bounds]);
+  }, [queried, bounds]);
 
-  // Marker: alle Orte der Person. Was ausserhalb des Bildes liegt,
-  // stoert nicht und ist sofort da, sobald man dorthin schiebt.
+  // Marker: alle Treffer, auch ausserhalb des Bildes -- die Kamera zieht
+  // gleich hin.
   const shown = useMemo(
-    () => (filter ? placed.filter((p) => p.category === filter) : placed),
-    [placed, filter],
+    () => (filter ? queried.filter((p) => p.category === filter) : queried),
+    [queried, filter],
   );
   // Liste und Filterleiste: nur das Sichtbare.
   const listed = useMemo(
@@ -306,6 +332,32 @@ export function PinMap({
     }
   }, [ready, shown, placed]);
 
+  /*
+   * Bei einer Suche auf die Treffer springen.
+   *
+   * Verzoegert, damit die Karte nicht bei jedem Tastendruck einen Satz
+   * macht. Ohne diesen Sprung waere die Suche auf einer Weltkarte
+   * wirkungslos: Die Treffer laegen irgendwo ausserhalb des Bildes, und
+   * man saehe nur, dass die Pins weniger geworden sind.
+   */
+  const debouncedTerm = useDebouncedValue(term, 350);
+  useEffect(() => {
+    if (!ready || !mapRef.current || !debouncedTerm) return;
+    const hits = placed.filter(
+      (p) =>
+        p.name.toLowerCase().includes(debouncedTerm) ||
+        (p.city ?? "").toLowerCase().includes(debouncedTerm),
+    );
+    if (hits.length === 0) return;
+    const box = new google.maps.LatLngBounds();
+    hits.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
+    mapRef.current.fitBounds(box, 64);
+    // Ein einzelner Treffer wuerde sonst bis zur Hausnummer
+    // herangezoomt -- der Umgebung beraubt sagt er wenig.
+    if (hits.length === 1) mapRef.current.setZoom(15);
+    fittedRef.current = true;
+  }, [ready, debouncedTerm, placed]);
+
   // Beim Verlassen der Seite aufraeumen.
   useEffect(() => {
     const marker = meMarkerRef;
@@ -334,7 +386,39 @@ export function PinMap({
 
       {/* Die Leisten schweben ueber der Karte, wie auf der Hauptkarte. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 space-y-3 p-4">
+        <div className="pointer-events-auto relative">
+          <Search
+            size={17}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search these places"
+            aria-label="Search these places"
+            className={`h-11 rounded-full pl-10 pr-10 ${FLOATING}`}
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="turi-tap turi-hit absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+        </div>
+
         <CategoryFilterBar items={visible} value={filter} onChange={setFilter} />
+
+        {term && queried.length === 0 ? (
+          <div
+            className={`pointer-events-auto w-fit rounded-full px-3 py-1.5 text-xs text-muted-foreground ${FLOATING}`}
+          >
+            Nothing here matches “{query.trim()}”
+          </div>
+        ) : null}
       </div>
 
       {/*
