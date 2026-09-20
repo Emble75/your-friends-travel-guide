@@ -38,6 +38,16 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/folder/$folderId")({
+  /*
+   * Feed oder Karte steht in der Adresse -- aus demselben Grund wie auf
+   * Profilseiten: Tippt man auf der Karte einen Ort an, wird diese Seite
+   * abgebaut und beim Zurueckkehren neu erzeugt. Ein Komponentenzustand
+   * waere dann weg, und man landete wieder im Feed, obwohl man von der
+   * Karte kam.
+   */
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(search["view"] === "map" ? { view: "map" as const } : {}),
+  }),
   head: () => ({
     meta: [{ title: "Folder – Turi" }],
   }),
@@ -46,10 +56,10 @@ export const Route = createFileRoute("/_authenticated/folder/$folderId")({
 
 function FolderPage() {
   const { folderId } = Route.useParams();
+  const { view = "feed" } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [shareOpen, setShareOpen] = useState(false);
-  const [view, setView] = useState<"feed" | "map">("feed");
 
   const { data, isLoading } = useQuery({
     queryKey: ["trip-folder", folderId],
@@ -197,7 +207,14 @@ function FolderPage() {
             <div className="flex gap-1 rounded-2xl bg-secondary p-1">
               <button
                 type="button"
-                onClick={() => setView("feed")}
+                onClick={() =>
+                  navigate({
+                    to: "/folder/$folderId",
+                    params: { folderId },
+                    search: {},
+                    replace: true,
+                  })
+                }
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
                   view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
                 }`}
@@ -206,7 +223,14 @@ function FolderPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setView("map")}
+                onClick={() =>
+                  navigate({
+                    to: "/folder/$folderId",
+                    params: { folderId },
+                    search: { view: "map" },
+                    replace: true,
+                  })
+                }
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
                   view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
                 }`}

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -48,6 +48,21 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/u/$username")({
+  /*
+   * Feed oder Karte steht in der Adresse, nicht im Komponentenzustand.
+   *
+   * WARUM: Tippt man auf der Karte einen Ort an, wird diese Seite
+   * abgebaut und beim Zurueckkehren neu erzeugt -- ein blosser
+   * useState-Wert ist dann weg, und man landete wieder im Feed,
+   * obwohl man von der Karte kam. In der Adresse ueberlebt die
+   * Ansicht den Sprung, den Zurueck-Knopf und auch das Neuladen.
+   *
+   * "feed" wird bewusst NICHT geschrieben: Es ist der Normalfall, und
+   * ein ?view=feed an jedem Profil-Link waere nur Rauschen.
+   */
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(search["view"] === "map" ? { view: "map" as const } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Profile – Turi" },
@@ -61,10 +76,11 @@ export const Route = createFileRoute("/_authenticated/u/$username")({
 
 function ProfilePage() {
   const { username } = Route.useParams();
+  const { view = "feed" } = Route.useSearch();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
   const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
-  const [view, setView] = useState<"feed" | "map">("feed");
   // Nach einem Klick gilt der vom Button bestaetigte Status, sonst der
   // aus der Profil-Query geladene.
   const [clickedStatus, setClickedStatus] = useState<{ value: FollowStatus } | null>(null);
@@ -386,7 +402,14 @@ function ProfilePage() {
             <div className="flex gap-1 rounded-2xl bg-secondary p-1">
               <button
                 type="button"
-                onClick={() => setView("feed")}
+                onClick={() =>
+                  navigate({
+                    to: "/u/$username",
+                    params: { username },
+                    search: {},
+                    replace: true,
+                  })
+                }
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
                   view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
                 }`}
@@ -395,7 +418,14 @@ function ProfilePage() {
               </button>
               <button
                 type="button"
-                onClick={() => setView("map")}
+                onClick={() =>
+                  navigate({
+                    to: "/u/$username",
+                    params: { username },
+                    search: { view: "map" },
+                    replace: true,
+                  })
+                }
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
                   view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
                 }`}
