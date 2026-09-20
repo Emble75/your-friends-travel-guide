@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { List } from "lucide-react";
+import { List, LocateFixed } from "lucide-react";
+import { toast } from "sonner";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
-import { ratingPinIcon } from "@/lib/mapIcons";
+import { currentLocationIcon, mapColor, ratingPinIcon } from "@/lib/mapIcons";
 import { type Category } from "@/lib/categories";
-import { tap } from "@/lib/native";
+import { currentPosition, tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CategoryFilterBar } from "./CategoryFilter";
@@ -30,11 +31,22 @@ import { PlaceList, type PlaceListItem } from "./PlaceList";
  *    beantwortet dieselbe Leiste und dieselbe Liste wie auf der
  *    Hauptkarte -- eine Geste, die man nicht zweimal lernen muss.
  *
- * 3. RUHIGERE GRUNDKARTE. Zusaetzlich zu den Ortssymbolen sind auch
+ * 3. DER EIGENE STANDORT. Derselbe Knopf wie auf der Hauptkarte. Er
+ *    beantwortet auf einer fremden Karte die wichtigste Frage
+ *    ueberhaupt: "Was davon ist da, wo ich gerade bin?" Ohne ihn muss
+ *    man sich aus der Gesamtansicht von Hand in die eigene Stadt
+ *    schieben. Danach sortiert auch die Liste nach Entfernung, ohne
+ *    noch einmal nach dem Standort zu fragen.
+ *
+ * 4. RUHIGERE GRUNDKARTE. Zusaetzlich zu den Ortssymbolen sind auch
  *    Nahverkehrssymbole aus. Was bleibt, sind Strassen, Wasser, Namen --
  *    genug zur Orientierung, wenig genug, dass die Pins die einzige
  *    Farbe im Bild sind.
  */
+
+/** Material der schwebenden Knoepfe -- wie auf der Hauptkarte. */
+const FLOATING_CONTROL =
+  "h-11 rounded-full border border-border bg-card/80 px-4 text-sm font-semibold shadow-card backdrop-blur-xl backdrop-saturate-150";
 
 /** Grundkarte ohne Googles eigene Orts- und Verkehrssymbole. */
 const QUIET_STYLE: google.maps.MapTypeStyle[] = [
@@ -61,8 +73,13 @@ export function PinMap({
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const fittedRef = useRef(false);
+  // Eigener Standort: Punkt und Genauigkeitskreis, wie auf der Hauptkarte.
+  const meMarkerRef = useRef<google.maps.Marker | null>(null);
+  const meCircleRef = useRef<google.maps.Circle | null>(null);
   const [filter, setFilter] = useState<Category | null>(null);
   const [listOpen, setListOpen] = useState(false);
+  const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
 
   // Orte ohne Koordinaten koennen nicht auf die Karte. In der Liste
   // stehen sie trotzdem -- sie existieren ja.
@@ -82,6 +99,62 @@ export function PinMap({
     () => (filter ? pins.filter((p) => p.category === filter) : pins),
     [pins, filter],
   );
+
+  /*
+   * Zum eigenen Standort springen.
+   *
+   * Bewusst EINMALIGE Ortung statt laufender Verfolgung: Diese Karte
+   * steht in einer Seite, die man durchblaettert, nicht im Vordergrund
+   * wie die Hauptkarte. Eine dauerhaft laufende Ortung zoege hier nur
+   * Akku, ohne dass jemand hinsieht.
+   */
+  async function goToMe() {
+    void tap();
+    setLocating(true);
+    const c = await currentPosition();
+    setLocating(false);
+    if (!c) {
+      toast.error("Couldn't get your location");
+      return;
+    }
+    setMyPos({ lat: c.lat, lng: c.lng });
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!meMarkerRef.current) {
+      meMarkerRef.current = new google.maps.Marker({
+        map,
+        // Unter den Ortspins: der eigene Punkt soll sie nicht verdecken,
+        // wenn man genau davorsteht.
+        zIndex: 1,
+        clickable: false,
+        icon: currentLocationIcon(),
+      });
+      meCircleRef.current = new google.maps.Circle({
+        map,
+        strokeOpacity: 0,
+        fillColor: mapColor("me"),
+        fillOpacity: 0.12,
+        clickable: false,
+      });
+    }
+    meMarkerRef.current.setPosition(c);
+    meCircleRef.current?.setCenter(c);
+    // Bei guter Ortung waere der Kreis winzig und nur Unruhe.
+    meCircleRef.current?.setRadius(c.accuracy > 25 ? c.accuracy : 0);
+
+    /*
+     * Ab jetzt nicht mehr automatisch einpassen. Treffen die Orte erst
+     * nach diesem Tippen ein, wuerde das Einpassen die Kamera sonst
+     * wieder von hier wegziehen -- und man stuende erneut vor der
+     * Gesamtansicht, obwohl man ausdruecklich "zu mir" gesagt hat.
+     */
+    fittedRef.current = true;
+    map.panTo(c);
+    // 14 statt naeher: Die Frage lautet "was ist hier in der Gegend?",
+    // nicht "wo genau stehe ich".
+    map.setZoom(14);
+  }
 
   useEffect(() => {
     if (!ready || !containerRef.current || mapRef.current) return;
@@ -128,6 +201,18 @@ export function PinMap({
     }
   }, [ready, shown, placed, navigate]);
 
+  // Beim Verlassen der Seite aufraeumen.
+  useEffect(() => {
+    const marker = meMarkerRef;
+    const circle = meCircleRef;
+    return () => {
+      marker.current?.setMap(null);
+      circle.current?.setMap(null);
+      marker.current = null;
+      circle.current = null;
+    };
+  }, []);
+
   return (
     <div
       className={`relative overflow-hidden rounded-3xl border border-border bg-muted shadow-card ${className ?? ""}`}
@@ -147,21 +232,42 @@ export function PinMap({
         <CategoryFilterBar items={pins} value={filter} onChange={setFilter} />
       </div>
 
-      {listed.length > 0 ? (
+      {/*
+        Beide Knoepfe in einer Saeule, wie auf der Hauptkarte -- dort
+        sitzt die Liste ueber dem Standort, und das soll man nicht
+        zweimal lernen muessen.
+      */}
+      <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2">
+        {listed.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            aria-label={`Show these ${listed.length} places as a list`}
+            className={FLOATING_CONTROL}
+            onClick={() => {
+              void tap();
+              setListOpen(true);
+            }}
+          >
+            <List size={17} className="mr-1.5" />
+            {listed.length}
+          </Button>
+        ) : null}
+
         <Button
           type="button"
           variant="ghost"
-          aria-label={`Show these ${listed.length} places as a list`}
-          className="absolute bottom-4 right-4 h-11 rounded-full border border-border bg-card/80 px-4 text-sm font-semibold shadow-card backdrop-blur-xl backdrop-saturate-150"
-          onClick={() => {
-            void tap();
-            setListOpen(true);
-          }}
+          size="icon"
+          aria-label="Show my location"
+          disabled={locating}
+          onClick={goToMe}
+          className={`size-11 rounded-full border border-border bg-card/80 shadow-card backdrop-blur-xl backdrop-saturate-150 ${
+            locating ? "opacity-70" : ""
+          }`}
         >
-          <List size={17} className="mr-1.5" />
-          {listed.length}
+          <LocateFixed size={19} />
         </Button>
-      ) : null}
+      </div>
 
       <Sheet open={listOpen} onOpenChange={(o) => !o && setListOpen(false)}>
         <SheetContent
@@ -173,6 +279,7 @@ export function PinMap({
           </SheetHeader>
           <PlaceList
             items={listed}
+            myPos={myPos}
             showCity
             summary={`${listed.length} ${listed.length === 1 ? "place" : "places"}`}
             onPick={(item) => {
