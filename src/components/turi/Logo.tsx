@@ -2,31 +2,36 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 /*
- * Die Bildmarke: das T, ausgespart aus einem Kartenstift.
+ * Die Bildmarke: ein Daumen, ausgespart aus einem Kartenstift.
  *
- * Der Weg hierher: erst ein blosses T auf der Markenflaeche -- richtig,
- * aber austauschbar, es haette zu jeder App mit T gepasst. Dann eine
- * gebaute Marke aus drei Kreisen, deren Negativraum ein T formte: zu
- * unruhig und bei kleinen Groessen nicht mehr als T zu lesen. Jetzt
- * beides zusammen -- der Buchstabe sagt, wer es ist, die Form sagt,
- * worum es geht.
+ * Die Form sagt "Ort", das Zeichen darin sagt "Empfehlung" -- zusammen
+ * genau das, was die App tut. Der Weg hierher ging ueber ein blosses T
+ * (richtig, aber austauschbar), drei Kreise (unruhig, klein nicht mehr
+ * lesbar) und das T im Stift (gut, aber ohne Aussage ueber den Zweck).
  *
- * TECHNIK: Eine Maske spart das T aus dem Stift aus, das Ergebnis ist
- * EIN flacher Umriss in currentColor. Kein Verlauf, keine zweite Farbe,
- * keine Linienstaerke, die beim Verkleinern zulaeuft. Die Masken-Kennung
- * kommt von useId, damit mehrere Marken auf einer Seite sich nicht in
- * die Quere kommen.
+ * WARUM DER DAUMEN GROESSER UND KANTIGER IST als in der ersten Fassung:
+ * Ein Daumen im Kopf eines Stifts hat wenig Platz, und alles Feine
+ * verschwindet zuerst. In der ersten Zeichnung war der Spalt zwischen
+ * Handballen und Faust unter einem halben Pixel breit, sobald die Marke
+ * im Browser-Reiter stand -- uebrig blieb ein weisser Fleck. Deshalb:
+ *   * groesserer Kopf (Radius 9 statt 8.5), damit ueberhaupt Platz ist
+ *   * der Daumen fuellt jetzt zwei Drittel des Kopfes statt der Haelfte
+ *   * der Spalt ist 1.6 Einheiten breit, nicht 1.0
+ *   * keine Fingerlinien, keine Verjuengungen -- drei klare Formen
+ *
+ * TECHNIK: Eine Maske spart den Daumen aus dem Stift aus. Das Ergebnis
+ * ist EIN flacher Umriss in currentColor: kein Verlauf, keine zweite
+ * Farbe, keine Linienstaerke, die beim Verkleinern zulaeuft.
  *
  * GEOMETRIE (Koordinatenraum 32x32, dieselben Zahlen wie im Skript, das
  * Favicon, App-Symbol und Startbild zeichnet -- aendert sich hier etwas,
  * muss es dort mit):
- *   Kopf:   Kreis um (16, 11.8), Radius 8.5
- *   Spitze: (16, 28.8)
- *   Flanken: die beiden Tangenten von der Spitze an den Kreis; sie
- *            treffen ihn bei y = 16.05. Dadurch geht der Kopf ohne Knick
- *            in die Spitze ueber -- eine aufgesetzte Dreiecksnase waere
- *            genau die Stelle, an der billige Kartenstifte auffallen.
- *   T:      Versalhoehe 9, Strichstaerke 1.98, zentriert im Kopf.
+ *   Kopf:    Kreis um (16, 11.5), Radius 9
+ *   Spitze:  (16, 29.2)
+ *   Flanken: die Tangenten von der Spitze an den Kreis, sie treffen ihn
+ *            bei y = 16.08. Dadurch geht der Kopf ohne Knick in die
+ *            Spitze ueber.
+ *   Daumen:  Handballen, Faust und Daumen als drei abgerundete Rechtecke
  */
 export function TuriGlyph({ className }: { className?: string }) {
   const maskId = useId();
@@ -34,10 +39,11 @@ export function TuriGlyph({ className }: { className?: string }) {
     <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
       <mask id={maskId}>
         <rect width="32" height="32" fill="black" />
-        <path d="M16 28.8 L8.64 16.05 A8.5 8.5 0 1 1 23.36 16.05 Z" fill="white" />
-        {/* Das T als Aussparung: Querbalken und Schaft. */}
-        <rect x="12.05" y="7.3" width="7.9" height="1.98" fill="black" />
-        <rect x="15.01" y="7.3" width="1.98" height="9" fill="black" />
+        <path d="M16 29.2 L8.25 16.08 A9 9 0 1 1 23.75 16.08 Z" fill="white" />
+        {/* Der Daumen als Aussparung: Ballen, Faust, Daumen. */}
+        <rect x="10" y="10.6" width="3" height="6.2" rx="1.5" fill="black" />
+        <rect x="14.6" y="9.6" width="7.6" height="7.2" rx="2.2" fill="black" />
+        <rect x="14.6" y="5.8" width="3.6" height="5.4" rx="1.8" fill="black" />
       </mask>
       <rect width="32" height="32" fill="currentColor" mask={`url(#${maskId})`} />
     </svg>
@@ -46,8 +52,8 @@ export function TuriGlyph({ className }: { className?: string }) {
 
 /**
  * Bildmarke auf der Markenflaeche -- fuer App-Symbol, Anmeldung und
- * Startseite. Der Stift misst 78% der Kachel: Er ist schmaler als breit,
- * eine kleinere Zahl liesse ihn in der Flaeche verloren wirken.
+ * Startseite. 74% der Kachel: Der Stift ist deutlich hoeher als breit,
+ * ein groesserer Wert liesse ihn oben und unten an den Rand stossen.
  */
 export function TuriMark({ className }: { className?: string }) {
   return (
@@ -57,7 +63,7 @@ export function TuriMark({ className }: { className?: string }) {
         className,
       )}
     >
-      <TuriGlyph className="size-[78%] text-white" />
+      <TuriGlyph className="size-[74%] text-white" />
     </div>
   );
 }

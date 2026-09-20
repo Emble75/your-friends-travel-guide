@@ -9,7 +9,23 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        /*
+         * Die Haupthandlung: helle Markenflaeche, blaue Schrift, blaue
+         * Haarlinie -- KEIN gefuellter, satter Knopf.
+         *
+         * Vorher war das erst ein schwarzer, dann ein voll blauer
+         * Block. Beide Male dasselbe Problem: Die App ist hell und
+         * kuehl, und ein grosser gesaettigter Flaeck darin zieht alle
+         * Aufmerksamkeit auf sich, obwohl er nur ein Knopf ist. Satte
+         * Toene bleiben jetzt den Kartenpins und dem Merken-Zeichen
+         * vorbehalten.
+         *
+         * Die Haarlinie ist nicht Zierde: Die helle Flaeche allein
+         * unterscheidet sich kaum vom weissen Untergrund (1.2:1), der
+         * Rand macht daraus wieder einen erkennbaren Knopf -- genau das
+         * verlangt WCAG 1.4.11 fuer Bedienelemente.
+         */
+        default: "border border-brand/40 bg-brand-soft text-brand hover:bg-brand-soft/70",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",

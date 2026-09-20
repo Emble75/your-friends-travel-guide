@@ -13,24 +13,35 @@
  *
  * Colour roles — this split was reached after several rounds of
  * correction, please keep it:
- *   --primary  das Markenblau. Traegt die HAUPTHANDLUNG eines
- *              Bildschirms -- "Review", "Sign in", "Publish" -- dazu
- *              aktive Zustaende und Fokusringe. Pro Bildschirm soll
- *              genau EIN gefuellter Knopf diese Farbe tragen; alles
- *              Weitere ist "secondary" (hellgrau, dunkle Schrift).
+ *   --primary  das Markenblau, hier als SCHRIFT- und Symbolfarbe:
+ *              Verweise, Ladezeichen, die Beschriftung der
+ *              Haupthandlung. Als grosse gefuellte Flaeche kommt es
+ *              NICHT mehr vor -- siehe unten.
  *   --brand    dasselbe Blau unter dem Markennamen: Bildmarke,
  *              Akzentlinie, aktiver Reiter. primary und brand sind
  *              bewusst derselbe Wert und bleiben trotzdem zwei Namen --
  *              der eine beschreibt eine Rolle, der andere die Marke.
  *   --star     a separate gold, reserved for rating stars.
  *
- * ZUR HERKUNFT: --primary war lange ein neutrales Fast-Schwarz. Das
- * passte zur frueheren, waermeren und kontrastreicheren Palette; seit
- * der Grundton auf kuehles Hellgrau gedreht wurde, lagen die schwarzen
- * Knoepfe wie Fremdkoerper darauf -- am deutlichsten im Ortspanel ueber
- * der Karte, wo gleich mehrere nebeneinander standen. Schwarz ist
- * deshalb als Knopffarbe abgeschafft. Es bleibt, wo es hingehoert:
- * Fliesstext (--foreground) und die Kartenpins (--map-pin).
+ * ZUR HERKUNFT -- zwei Runden, dieselbe Lehre: --primary war lange ein
+ * neutrales Fast-Schwarz. Das passte zur frueheren, waermeren Palette;
+ * seit der Grundton auf kuehles Hellgrau gedreht wurde, lagen die
+ * schwarzen Knoepfe wie Fremdkoerper darauf. Danach wurde daraus ein
+ * voll gefuellter blauer Knopf -- und der war genau derselbe Fehler in
+ * einer anderen Farbe: ein grosser gesaettigter Flaeck in einer hellen,
+ * kuehlen App zieht alle Aufmerksamkeit auf sich, obwohl er nur ein
+ * Knopf ist.
+ *
+ * DIE REGEL, die daraus folgt: Die Oberflaeche bleibt hell. Satte Toene
+ * sind zwei Dingen vorbehalten, die tatsaechlich Inhalt tragen -- den
+ * Kartenpins (--map-pin, tintenschwarz) und dem Merken-Zeichen
+ * (--map-accent, Blau). Knoepfe sind hell: die Haupthandlung als helle
+ * Markenflaeche mit blauer Schrift und blauer Haarlinie, alles Weitere
+ * hellgrau mit dunkler Schrift.
+ *
+ * Gemessen: blaue Schrift auf --brand-soft 5.40:1, auf Weiss 6.46:1 --
+ * beide ueber der Grenze von 4.5:1. Bei 0.55 Helligkeit (der Wert
+ * davor) waren es nur 4.33:1 auf der hellen Flaeche.
  *
  * Gemessen (WCAG 2.2 AA, September 2026): Fliesstext 17.37:1, Sekundaer-
  * text 4.94:1 auf dem Hintergrund und 4.59:1 auf Chips und Eingabe-
@@ -175,13 +186,13 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0.005 262);
   /* Siehe Rollenbeschreibung oben: identisch mit --brand. */
-  --primary: oklch(0.55 0.23 266);
+  --primary: oklch(0.5 0.23 266);
   /*
    * Markenblau. Ausgangspunkt war #0840D0; auf hellem Grund traegt es
    * ohnehin, aufgehellt auf 0.55 bleibt es auch auf dunklen Flaechen
    * (Bildmarke, App-Icon) lesbar -- weisse Marke darin 5.16:1.
    */
-  --brand: oklch(0.55 0.23 266);
+  --brand: oklch(0.5 0.23 266);
   /* Sehr leichte Markentoenung: Hintergrund-Pille fuer aktive Zustaende
      (z. B. untere Navigation). Traegt die Marke sichtbarer, ohne Flaechen
      voll einzufaerben. */
@@ -250,7 +261,7 @@
      3:1 erreicht aber auch sie nicht, dafuer muesste das Feld mittelgrau
      werden. */
   --field: oklch(0.93 0.005 258);
-  --ring: oklch(0.55 0.23 266);
+  --ring: oklch(0.5 0.23 266);
 
   /*
    * Kartenfarben -- die einzige Stelle, an der sie definiert sind.
@@ -300,7 +311,7 @@
 
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0.005 262);
-  --sidebar-primary: oklch(0.55 0.23 266);
+  --sidebar-primary: oklch(0.5 0.23 266);
   --sidebar-primary-foreground: oklch(0.99 0.002 258);
   --sidebar-accent: oklch(0.915 0.006 258);
   --sidebar-accent-foreground: oklch(0.28 0.007 262);
