@@ -82,17 +82,13 @@ export async function compressImage(
   return new File([blob], newName, { type: "image/jpeg" });
 }
 
-export const CATEGORIES = [
-  "Restaurant",
-  "Cafe",
-  "Bar",
-  "Hotel",
-  "Beach",
-  "Museum",
-  "Landmark",
-  "Nature",
-  "Other",
-] as const;
+/*
+ * Die Kategorien stehen jetzt in lib/categories.ts -- zusammen mit der
+ * Zuordnung von Googles Ortstypen auf genau diese Liste. Hier nur noch
+ * weitergereicht, damit die bestehenden Importe aus "@/lib/turi"
+ * weiterhin stimmen.
+ */
+export { CATEGORIES } from "./categories";
 
 /**
  * Extrahiert eine lesbare Fehlermeldung aus caught errors. Supabase-/

@@ -46,12 +46,20 @@ type DeviceTokenRow = {
 
 export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
   public: Omit<GenPublic, "Tables"> & {
-    Tables: Omit<GenTables, "follows" | "profiles" | "reviews"> & {
+    Tables: Omit<GenTables, "follows" | "places" | "profiles" | "reviews"> & {
       follows: WithColumns<
         GenTables["follows"],
         { status: string },
         { status?: string },
         { status?: string }
+      >;
+      // google_type: Googles maschinenlesbarer Ortstyp ("coffee_shop").
+      // Quelle fuer die Kategorie-Zuordnung, siehe lib/categories.ts.
+      places: WithColumns<
+        GenTables["places"],
+        { google_type: string | null },
+        { google_type?: string | null },
+        { google_type?: string | null }
       >;
       profiles: WithColumns<
         GenTables["profiles"],

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/app-client";
+import { categoryFromGoogle } from "./categories";
 import type { MapPlace } from "./maps.server";
 
 /**
@@ -41,7 +42,13 @@ export async function ensureLocalPlace(place: MapPlace) {
     .insert({
       name: place.name,
       city: cityFromAddress(place.address),
-      category: place.category ?? "Sonstiges",
+      // Eine unserer neun festen Kategorien, nicht mehr Googles
+      // Anzeigetext -- sonst laesst sich auf der Karte nicht danach
+      // filtern (siehe categories.ts). Der rohe Typ wandert zusaetzlich
+      // in google_type: Aendert sich unsere Zuordnung spaeter, laesst
+      // sich daraus jederzeit neu ableiten.
+      category: categoryFromGoogle(place.rawType, place.category),
+      google_type: place.rawType,
       google_place_id: place.googlePlaceId,
       address: place.address,
       lat: place.lat,

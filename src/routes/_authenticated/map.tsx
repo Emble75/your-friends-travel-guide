@@ -1,18 +1,27 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Bookmark,
   Compass,
+  Landmark,
   Loader2,
   LocateFixed,
   MapPin,
   MapPinned,
+  Martini,
+  Mountain,
   Navigation,
   Plus,
   Search,
   Star,
+  Umbrella,
+  UtensilsCrossed,
+  Coffee,
+  BedDouble,
+  Building2,
+  List,
   Users,
   X,
 } from "lucide-react";
@@ -22,6 +31,9 @@ import type { MapPlace, PlaceSuggestion } from "@/lib/maps.server";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ensureLocalPlace } from "@/lib/place-sync";
 import { currentLocationIcon, mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
+import { CATEGORIES, type Category, normalizeCategory } from "@/lib/categories";
+import { openLabel, openState } from "@/lib/hours";
+import { distanceLabel, metersBetween } from "@/lib/geo";
 import { supabase } from "@/integrations/supabase/app-client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { Stars } from "@/components/turi/Stars";
@@ -67,6 +79,37 @@ const FLOATING =
   "border border-border bg-card/80 shadow-card backdrop-blur-xl backdrop-saturate-150";
 
 /*
+ * Beschriftung und Zeichen der Filter.
+ *
+ * Mehrzahl, weil die Leiste Mengen filtert ("Cafes", nicht "Cafe").
+ * "Nature" und "Other" bleiben unveraendert -- sie sind bereits
+ * Sammelbegriffe.
+ */
+const CATEGORY_LABELS: Record<Category, string> = {
+  Restaurant: "Restaurants",
+  Cafe: "Cafés",
+  Bar: "Bars",
+  Hotel: "Hotels",
+  Beach: "Beaches",
+  Museum: "Museums",
+  Landmark: "Landmarks",
+  Nature: "Nature",
+  Other: "Other",
+};
+
+const CATEGORY_ICONS: Record<Category, typeof Coffee> = {
+  Restaurant: UtensilsCrossed,
+  Cafe: Coffee,
+  Bar: Martini,
+  Hotel: BedDouble,
+  Beach: Umbrella,
+  Museum: Building2,
+  Landmark: Landmark,
+  Nature: Mountain,
+  Other: MapPin,
+};
+
+/*
  * Kartenzustand ueber einen Seitenwechsel hinweg merken.
  *
  * Oeffnet man von der Karte aus eine Ortsseite, wird die Karte komplett
@@ -98,13 +141,28 @@ const AREA_TYPES = new Set([
   "neighborhood",
 ]);
 
-type MyPlace = {
+/*
+ * Ein Ort, wie ihn die Karte braucht -- egal aus welcher Quelle.
+ *
+ * Vorher hatte jeder der vier Zweige (bewertet/gemerkt, jeweils
+ * "Discover" und "My Map") seine eigene Form und seinen eigenen
+ * Marker-Code. Filter und Liste haetten das vervierfacht. Jetzt laufen
+ * alle Quellen in EINE Liste, und Marker, Filterleiste und Trefferliste
+ * lesen aus derselben.
+ *
+ * rating ist die Durchschnittsnote aus dem eigenen Kreis (in "My Map"
+ * die eigene), friends die Anzahl der Bewertungen dahinter. Fehlt beides,
+ * ist es ein reiner Merk-Ort.
+ */
+type Pin = {
   id: string;
   name: string;
   lat: number;
   lng: number;
-  category: string;
-  rating: number;
+  category: Category;
+  rating?: number;
+  friends: number;
+  saved: boolean;
 };
 
 /*
@@ -151,6 +209,13 @@ function MapPage() {
   const [query, setQuery] = useState("");
   const [searchCandidates, setSearchCandidates] = useState<MapPlace[] | null>(null);
   const [mode, setMode] = useState<"discover" | "mine">(mapSession.mode ?? "discover");
+  // Filter nach Art des Ortes -- null heisst "alles zeigen".
+  const [filter, setFilter] = useState<Category | null>(null);
+  // Die Trefferliste zum aktuellen Ausschnitt.
+  const [listOpen, setListOpen] = useState(false);
+  // Der eigene Standort als Zustand (nicht nur als Marker), damit
+  // Entfernungen in Liste und Ortspanel gerechnet werden koennen.
+  const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   // Nur ein aktiver Wechsel auf "My Map" soll die Ansicht auf alle eigenen
   // Orte einpassen -- nicht ein blosser Neuaufbau der Karte.
   const wantFitRef = useRef(false);
@@ -226,7 +291,10 @@ function MapPage() {
         .select("place_id, rating, places(id, name, lat, lng, category)")
         .eq("user_id", me);
       const seen = new Map<string, { total: number; count: number }>();
-      const byId = new Map<string, { name: string; lat: number; lng: number; category: string }>();
+      const byId = new Map<
+        string,
+        { name: string; lat: number; lng: number; category: Category }
+      >();
       for (const r of data ?? []) {
         const p = r.places as unknown as {
           id: string;
@@ -236,17 +304,25 @@ function MapPage() {
           category: string;
         } | null;
         if (p && p.lat != null && p.lng != null) {
-          byId.set(p.id, { name: p.name, lat: p.lat, lng: p.lng, category: p.category });
+          byId.set(p.id, {
+            name: p.name,
+            lat: p.lat,
+            lng: p.lng,
+            // Altbestand kann noch Googles Anzeigetext tragen, solange
+            // die Migration nicht gelaufen ist -- hier abgefangen, damit
+            // der Filter trotzdem vollstaendig bleibt.
+            category: normalizeCategory(p.category),
+          });
           const entry = seen.get(p.id) ?? { total: 0, count: 0 };
           entry.total += r.rating;
           entry.count += 1;
           seen.set(p.id, entry);
         }
       }
-      const result: MyPlace[] = [];
+      const result: Omit<Pin, "saved">[] = [];
       for (const [id, place] of byId) {
         const { total, count } = seen.get(id)!;
-        result.push({ id, ...place, rating: total / count });
+        result.push({ id, ...place, rating: total / count, friends: count });
       }
       return result;
     },
@@ -263,18 +339,26 @@ function MapPage() {
       const me = auth.user!.id;
       const { data } = await supabase
         .from("saved_places")
-        .select("places(id, name, lat, lng)")
+        .select("places(id, name, lat, lng, category)")
         .eq("user_id", me);
-      const result: { id: string; name: string; lat: number; lng: number }[] = [];
+      const result: { id: string; name: string; lat: number; lng: number; category: Category }[] =
+        [];
       for (const r of data ?? []) {
         const p = r.places as unknown as {
           id: string;
           name: string;
           lat: number | null;
           lng: number | null;
+          category: string;
         } | null;
         if (p && p.lat != null && p.lng != null) {
-          result.push({ id: p.id, name: p.name, lat: p.lat, lng: p.lng });
+          result.push({
+            id: p.id,
+            name: p.name,
+            lat: p.lat,
+            lng: p.lng,
+            category: normalizeCategory(p.category),
+          });
         }
       }
       return result;
@@ -310,7 +394,7 @@ function MapPage() {
           name: string;
           lat: number;
           lng: number;
-          googlePlaceId: string | null;
+          category: Category;
           total: number;
           count: number;
         }
@@ -321,13 +405,13 @@ function MapPage() {
           name: string;
           lat: number;
           lng: number;
-          google_place_id: string | null;
+          category: string;
         };
         const entry = seen.get(p.id) ?? {
           name: p.name,
           lat: p.lat,
           lng: p.lng,
-          googlePlaceId: p.google_place_id,
+          category: normalizeCategory(p.category),
           total: 0,
           count: 0,
         };
@@ -340,7 +424,12 @@ function MapPage() {
         name: v.name,
         lat: v.lat,
         lng: v.lng,
+        category: v.category,
         rating: v.total / v.count,
+        // Wie viele aus dem Kreis diesen Ort bewertet haben -- die Liste
+        // zeigt es ("3 friends"), und es ist der Unterschied zwischen
+        // einer einzelnen Meinung und einem echten Tipp.
+        friends: v.count,
       }));
     },
   });
@@ -356,7 +445,7 @@ function MapPage() {
       const { swLat, swLng, neLat, neLng } = bounds!;
       const { data, error: qErr } = await supabase
         .from("saved_places")
-        .select("places!inner(id, name, lat, lng)")
+        .select("places!inner(id, name, lat, lng, category)")
         .eq("user_id", me)
         .gte("places.lat", swLat)
         .lte("places.lat", neLat)
@@ -364,11 +453,63 @@ function MapPage() {
         .lte("places.lng", neLng);
       if (qErr) throw qErr;
       return (data ?? []).map((r) => {
-        const p = r.places as unknown as { id: string; name: string; lat: number; lng: number };
-        return { id: p.id, name: p.name, lat: p.lat, lng: p.lng };
+        const p = r.places as unknown as {
+          id: string;
+          name: string;
+          lat: number;
+          lng: number;
+          category: string;
+        };
+        return {
+          id: p.id,
+          name: p.name,
+          lat: p.lat,
+          lng: p.lng,
+          category: normalizeCategory(p.category),
+        };
       });
     },
   });
+
+  /*
+   * Aus allen Quellen EINE Liste -- Grundlage fuer Marker, Filterleiste
+   * und Trefferliste. Ein Ort, der bewertet UND gemerkt ist, steht genau
+   * einmal darin und traegt beides.
+   */
+  const pins = useMemo<Pin[]>(() => {
+    const reviewed = mode === "mine" ? (myPlaces ?? []) : (reviewedInView ?? []);
+    const saved = mode === "mine" ? (mySavedPlaces ?? []) : (savedInView ?? []);
+    const savedIds = new Set(saved.map((p) => p.id));
+    const reviewedIds = new Set(reviewed.map((p) => p.id));
+    const out: Pin[] = reviewed.map((p) => ({ ...p, saved: savedIds.has(p.id) }));
+    for (const p of saved) {
+      if (!reviewedIds.has(p.id)) out.push({ ...p, friends: 0, saved: true });
+    }
+    return out;
+  }, [mode, myPlaces, mySavedPlaces, reviewedInView, savedInView]);
+
+  const counts = useMemo(() => {
+    const m = new Map<Category, number>();
+    for (const p of pins) m.set(p.category, (m.get(p.category) ?? 0) + 1);
+    return m;
+  }, [pins]);
+
+  const filteredPins = useMemo(
+    () => (filter ? pins.filter((p) => p.category === filter) : pins),
+    [pins, filter],
+  );
+
+  /*
+   * Welche Filter die Leiste zeigt. Bewusst in der festen Reihenfolge der
+   * Kategorienliste und NICHT nach Haeufigkeit sortiert: sonst sortierten
+   * sich die Knoepfe bei jedem Verschieben der Karte neu, und man
+   * traefe beim zweiten Griff etwas anderes als beim ersten.
+   */
+  const chipCategories = useMemo(() => {
+    const list = CATEGORIES.filter((c) => counts.has(c));
+    if (filter && !list.includes(filter)) return [...list, filter];
+    return list;
+  }, [counts, filter]);
 
   // Init map
   useEffect(() => {
@@ -460,6 +601,10 @@ function MapPage() {
         });
       }
       meMarkerRef.current.setPosition(c);
+      // Nur bei echter Bewegung neu setzen: die Ortung meldet sich alle
+      // paar Sekunden, und jede Meldung wuerde sonst die ganze Seite neu
+      // zeichnen, obwohl sich an den Entfernungen nichts aendert.
+      setMyPos((prev) => (prev && metersBetween(prev, c) < 20 ? prev : { lat: c.lat, lng: c.lng }));
       meAccuracyRef.current?.setCenter(c);
       // Bei guter Ortung waere der Kreis winzig und nur Unruhe.
       meAccuracyRef.current?.setRadius(c.accuracy > 25 ? c.accuracy : 0);
@@ -512,94 +657,34 @@ function MapPage() {
     return () => markers.current.forEach((m) => m.setMap(null));
   }, []);
 
-  // Render markers
+  /*
+   * Marker zeichnen -- ein Zweig fuer beide Modi.
+   *
+   * Vorher standen hier zwei fast gleiche Bloecke (einer fuer "Discover",
+   * einer fuer "My Map") mit je zwei Unterfaellen. Die Unterschiede
+   * liegen laengst in der Pin-Liste oben; hier bleibt nur noch das
+   * Zeichnen.
+   */
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     markersRef.current.forEach((m) => m.setMap(null));
 
-    if (mode === "mine") {
-      const reviewedIds = new Set((myPlaces ?? []).map((p) => p.id));
-      const mySavedIds = new Set((mySavedPlaces ?? []).map((p) => p.id));
-      const reviewedMarkers = (myPlaces ?? []).map((p) => {
-        const marker = new google.maps.Marker({
-          map: mapRef.current!,
-          position: { lat: p.lat, lng: p.lng },
-          title: p.name,
-          zIndex: 10,
-          // Steht der Ort zusaetzlich auf der Wunschliste, traegt der Pin
-          // beides -- sonst verschwaende die eine Angabe hinter der anderen.
-          icon: ratingPinIcon(p.rating, { saved: mySavedIds.has(p.id) }),
-        });
-        marker.addListener("click", () =>
-          setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
-        );
-        return marker;
-      });
-      // Eigene Wunschliste ("Will ich noch hin") zusaetzlich zeigen -- nur
-      // die, die noch nicht ohnehin schon bewertet sind (sonst doppelt).
-      const savedMarkers = (mySavedPlaces ?? [])
-        .filter((p) => !reviewedIds.has(p.id))
-        .map((p) => {
-          const marker = new google.maps.Marker({
-            map: mapRef.current!,
-            position: { lat: p.lat, lng: p.lng },
-            title: p.name,
-            zIndex: 10,
-            icon: ratingPinIcon(),
-          });
-          marker.addListener("click", () =>
-            setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
-          );
-          return marker;
-        });
-      markersRef.current = [...reviewedMarkers, ...savedMarkers];
-      return;
-    }
-
-    // Entdecken-Modus: nur unsere eigenen Pins (bewertet/gemerkt). Alles
-    // andere zeigt Google selbst ueber die eingebauten, kostenlosen Symbole
-    // (siehe clickableIcons + Klick-Listener oben).
-    //
-    // Prioritaet: "Will ich noch hin" (teal) gewinnt gegen "von Freunden
-    // bewertet" (orange), wenn beides auf denselben Ort zutrifft -- die
-    // eigene, bewusste Merkliste soll auf einen Blick erkennbar bleiben,
-    // statt von der Bewertungs-Farbe ueberdeckt zu werden.
-    const savedIds = new Set((savedInView ?? []).map((p) => p.id));
-    const ratingById = new Map((reviewedInView ?? []).map((p) => [p.id, p.rating]));
-    const reviewedMarkers = (reviewedInView ?? [])
-      .filter((p) => !savedIds.has(p.id))
-      .map((p) => {
-        const marker = new google.maps.Marker({
-          map: mapRef.current!,
-          position: { lat: p.lat, lng: p.lng },
-          title: p.name,
-          zIndex: 10,
-          icon: ratingPinIcon(p.rating),
-        });
-        marker.addListener("click", () =>
-          setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
-        );
-        return marker;
-      });
-    const savedMarkers = (savedInView ?? []).map((p) => {
+    markersRef.current = filteredPins.map((p) => {
       const marker = new google.maps.Marker({
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
-        zIndex: 11,
-        // Pin statt Punkt -- mit Bewertung drin, falls ein Freund den Ort
-        // schon bewertet hat, sonst nur das Lesezeichen. Das Lesezeichen
-        // steht auch neben der Note: sonst saehe ein gemerkter, bewerteter
-        // Ort aus wie ein bloss bewerteter in anderer Farbe.
-        icon: ratingPinIcon(ratingById.get(p.id), { saved: true }),
+        // Gemerkte Orte eine Stufe hoeher: die eigene, bewusste Liste
+        // soll nicht hinter fremden Bewertungen verschwinden.
+        zIndex: p.saved ? 11 : 10,
+        icon: ratingPinIcon(p.rating, { saved: p.saved }),
       });
       marker.addListener("click", () =>
         setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
       );
       return marker;
     });
-    markersRef.current = [...reviewedMarkers, ...savedMarkers];
-  }, [ready, mode, reviewedInView, savedInView, myPlaces, mySavedPlaces, navigate]);
+  }, [ready, filteredPins]);
 
   // "Meine Karte": nur beim aktiven Wechsel in den Modus auf alle eigenen
   // Orte (bewertet + Wunschliste) zoomen.
@@ -846,71 +931,103 @@ function MapPage() {
           </div>
         ) : null}
 
-        {mode === "discover" && reviewedInView && reviewedInView.length > 0 ? (
-          <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <span className="turi-meta rounded bg-map-pin px-1 py-px text-[10px] font-bold text-white">
-              4.5
-            </span>{" "}
-            reviewed by friends
-          </div>
-        ) : null}
+        {/*
+          Filter nach Art des Ortes.
+          
+          Hier standen bisher zwei feste Legenden-Pillen ("4.5 = von
+          Freunden bewertet", "Lesezeichen = will ich noch hin"). Sie
+          erklaerten die Karte einmal und standen danach fuer immer im
+          Weg. Die Filterleiste sagt dasselbe -- welche Arten von Orten
+          hier liegen -- und laesst sich benutzen. Die Bedeutung von Note
+          und Lesezeichen steht jetzt ausgeschrieben in der Liste.
 
-        {mode === "discover" && savedInView && savedInView.length > 0 ? (
-          <div className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-            <Bookmark size={12} className="text-map-accent" fill="currentColor" /> want to go
-          </div>
-        ) : null}
-
-        {mode === "mine" ? (
-          <div className="pointer-events-auto flex flex-col gap-1.5">
-            <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-              <span className="turi-meta rounded bg-map-pin px-1 py-px text-[10px] font-bold text-white">
-                4.5
-              </span>{" "}
-              {(myPlaces ?? []).length} places you've reviewed
+          Gezeigt werden nur Kategorien, die im Ausschnitt WIRKLICH
+          vorkommen: ein Filter, der garantiert nichts findet, ist eine
+          Sackgasse. Der gerade aktive bleibt sichtbar, auch wenn man aus
+          seinem Gebiet herausgescrollt ist -- sonst verschwaende der
+          Grund, warum die Karte fast leer ist.
+        */}
+        {chipCategories.length > 1 ? (
+          <div className="pointer-events-auto -mx-4 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex w-max items-center gap-1.5">
+              <FilterChip
+                label="All"
+                count={pins.length}
+                active={filter === null}
+                onClick={() => setFilter(null)}
+              />
+              {chipCategories.map((c) => (
+                <FilterChip
+                  key={c}
+                  label={CATEGORY_LABELS[c]}
+                  icon={CATEGORY_ICONS[c]}
+                  count={counts.get(c) ?? 0}
+                  active={filter === c}
+                  onClick={() => setFilter(filter === c ? null : c)}
+                />
+              ))}
             </div>
-            {mySavedPlaces && mySavedPlaces.length > 0 ? (
-              <div className="flex w-fit items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-card backdrop-blur">
-                <Bookmark size={12} className="text-map-accent" fill="currentColor" />{" "}
-                {mySavedPlaces.length} want to go
-              </div>
-            ) : null}
           </div>
         ) : null}
       </div>
 
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label="Show my location"
-        className={`absolute right-4 z-10 size-12 rounded-full ${FLOATING}`}
+      {/*
+        Beide Knoepfe in einer Saeule statt einzeln positioniert: so
+        bleibt ihr Abstand zueinander an einer Stelle festgelegt, und
+        die Liste sitzt sichtbar ueber dem Standortknopf.
+      */}
+      <div
+        className="absolute right-4 z-10 flex flex-col items-end gap-2"
         style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
-        onClick={async () => {
-          // Die laufende Ortung kennt die Position bereits -- direkt
-          // hinspringen statt erneut zu messen. Das war vorher eine
-          // zweite Anfrage mit spuerbarer Wartezeit, obwohl der Punkt
-          // schon auf der Karte lag.
-          const known = meMarkerRef.current?.getPosition();
-          if (known) {
-            mapRef.current?.panTo(known);
-            mapRef.current?.setZoom(16);
-            setCenter({ lat: known.lat(), lng: known.lng() });
-            return;
-          }
-          // Noch keine Ortung erhalten (Berechtigung offen oder kein
-          // Empfang) -- dann doch einmal aktiv fragen.
-          const c = await currentPosition();
-          if (!c) {
-            toast.error("Couldn't get your location");
-            return;
-          }
-          mapRef.current?.panTo(c);
-          mapRef.current?.setZoom(16);
-          setCenter(c);
-        }}
       >
-        <LocateFixed size={20} />
-      </Button>
+        {pins.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            aria-label={`Show the ${filteredPins.length} places here as a list`}
+            className={`h-12 rounded-full px-4 text-sm font-semibold ${FLOATING}`}
+            onClick={() => {
+              void tap();
+              setListOpen(true);
+            }}
+          >
+            <List size={18} className="mr-1.5" />
+            {filteredPins.length}
+          </Button>
+        ) : null}
+
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="Show my location"
+          className={`size-12 rounded-full ${FLOATING}`}
+          onClick={async () => {
+            // Die laufende Ortung kennt die Position bereits -- direkt
+            // hinspringen statt erneut zu messen. Das war vorher eine
+            // zweite Anfrage mit spuerbarer Wartezeit, obwohl der Punkt
+            // schon auf der Karte lag.
+            const known = meMarkerRef.current?.getPosition();
+            if (known) {
+              mapRef.current?.panTo(known);
+              mapRef.current?.setZoom(16);
+              setCenter({ lat: known.lat(), lng: known.lng() });
+              return;
+            }
+            // Noch keine Ortung erhalten (Berechtigung offen oder kein
+            // Empfang) -- dann doch einmal aktiv fragen.
+            const c = await currentPosition();
+            if (!c) {
+              toast.error("Couldn't get your location");
+              return;
+            }
+            mapRef.current?.panTo(c);
+            mapRef.current?.setZoom(16);
+            setCenter(c);
+          }}
+        >
+          <LocateFixed size={20} />
+        </Button>
+      </div>
 
       {mode === "discover" ? (
         <Button
@@ -928,14 +1045,36 @@ function MapPage() {
         </Button>
       ) : null}
 
-      <PlaceSheet target={selected} onClose={() => setSelected(null)} />
+      <PlacesListSheet
+        open={listOpen}
+        onClose={() => setListOpen(false)}
+        pins={filteredPins}
+        myPos={myPos}
+        heading={mode === "mine" ? "Your places here" : "Your friends here"}
+        onPick={(p) => {
+          setListOpen(false);
+          mapRef.current?.panTo({ lat: p.lat, lng: p.lng });
+          setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng });
+        }}
+      />
+
+      <PlaceSheet target={selected} onClose={() => setSelected(null)} myPos={myPos} />
     </div>
   );
 }
 
-function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: () => void }) {
+function PlaceSheet({
+  target,
+  onClose,
+  myPos,
+}: {
+  target: SheetTarget | null;
+  onClose: () => void;
+  myPos: { lat: number; lng: number } | null;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const placeByIdFn = useServerFn(getPlaceById);
   const [busy, setBusy] = useState(false);
 
   /*
@@ -1042,6 +1181,38 @@ function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: 
           lng: target.lng,
           googlePlaceId: data?.place?.google_place_id ?? null,
         };
+
+  /*
+   * Oeffnungszeiten.
+   *
+   * Sie haengen an Googles Kennung, nicht an unserem Datensatz -- ein
+   * eigener Pin bringt sie also nicht mit, obwohl genau dort die Frage
+   * aufkommt ("das Cafe meiner Freundin -- hat das jetzt ueberhaupt
+   * offen?"). Deshalb hier eine eigene Abfrage, sobald eine Kennung
+   * bekannt ist.
+   *
+   * Die Antwort liegt serverseitig 30 Tage im Zwischenspeicher und gilt
+   * fuer alle Nutzer gemeinsam; "gerade offen" rechnen wir aus dem
+   * Wochenplan selbst (lib/hours.ts), das bleibt also richtig.
+   *
+   * Kam der Ort ueber einen Klick auf Googles Kartensymbol, liegen die
+   * Zeiten schon vor -- dann wird gar nicht erst gefragt.
+   */
+  const googleId = header?.googlePlaceId ?? null;
+  const ownHours = target?.kind === "google" ? target.place.hours : null;
+  const { data: details } = useQuery({
+    queryKey: ["place-hours", googleId],
+    enabled: !!googleId && !ownHours,
+    staleTime: 60 * 60_000,
+    queryFn: () => placeByIdFn({ data: { placeId: googleId! } }),
+  });
+  const hoursSource =
+    target?.kind === "google" && target.place.hours ? target.place : (details ?? null);
+  const hours = openLabel(openState(hoursSource?.hours, hoursSource?.utcOffsetMinutes));
+  const distance =
+    myPos && header
+      ? distanceLabel(metersBetween(myPos, { lat: header.lat, lng: header.lng }))
+      : null;
 
   const reviews = data?.reviews ?? [];
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
@@ -1169,6 +1340,39 @@ function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: 
 
         <div className="mt-4 space-y-3 px-4">
           {/*
+            Die beiden praktischen Fragen zuerst: Hat es offen, und wie
+            weit ist es? Sie entscheiden, ob man ueberhaupt weiterliest --
+            eine 4,8 nuetzt nichts, wenn der Laden seit zwei Stunden zu
+            ist. Fehlt eine der Angaben (kein Standort erlaubt, keine
+            Zeiten hinterlegt), faellt sie still weg.
+          */}
+          {hours || distance ? (
+            <div className="turi-meta flex items-center gap-2 text-xs">
+              {hours ? (
+                <span
+                  className={`flex items-center gap-1.5 font-semibold ${
+                    hours.open ? "text-positive" : "text-muted-foreground"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`size-1.5 rounded-full ${
+                      hours.open ? "bg-positive" : "bg-muted-foreground"
+                    }`}
+                  />
+                  {hours.text}
+                </span>
+              ) : null}
+              {hours && distance ? (
+                <span aria-hidden="true" className="text-muted-foreground">
+                  ·
+                </span>
+              ) : null}
+              {distance ? <span className="text-muted-foreground">{distance} away</span> : null}
+            </div>
+          ) : null}
+
+          {/*
             Bewusst NUR der Durchschnitt, keine einzelnen Bewertungen.
             Das Panel ist der schnelle Blick von der Karte aus -- die
             Bewertungen selbst stehen vollstaendig hinter "All reviews".
@@ -1217,6 +1421,170 @@ function PlaceSheet({ target, onClose }: { target: SheetTarget | null; onClose: 
             </Button>
           </div>
         </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/** Ein Knopf der Filterleiste. */
+function FilterChip({
+  label,
+  count,
+  icon: Icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  icon?: typeof Coffee;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void tap();
+        onClick();
+      }}
+      aria-pressed={active}
+      // Aktiv in der weichen Markenfarbe -- dieselbe Sprache wie der
+      // Modus-Umschalter darueber und der aktive Reiter unten.
+      className={`turi-tap flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors ${FLOATING} ${
+        active ? "bg-brand-soft text-brand" : "text-muted-foreground"
+      }`}
+    >
+      {Icon ? <Icon size={14} /> : null}
+      {label}
+      <span className={`turi-meta text-xs font-normal ${active ? "" : "text-muted-foreground/70"}`}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
+/*
+ * Die Orte des aktuellen Ausschnitts als Liste.
+ *
+ * WARUM ES SIE GIBT: Auf der Karte siehst du, WO etwas liegt, aber nicht,
+ * was das Beste davon ist -- dazu muesstest du jeden Pin einzeln
+ * antippen. Bei dreissig Pins in einer fremden Stadt ist das der
+ * Unterschied zwischen "ich habe eine Karte" und "ich weiss, wo ich
+ * hingehe". Es sind dieselben Orte wie auf der Karte, derselbe Filter,
+ * nur sortierbar und auf einen Blick vergleichbar.
+ */
+function PlacesListSheet({
+  open,
+  onClose,
+  pins,
+  myPos,
+  heading,
+  onPick,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pins: Pin[];
+  myPos: { lat: number; lng: number } | null;
+  heading: string;
+  onPick: (pin: Pin) => void;
+}) {
+  const [sort, setSort] = useState<"rating" | "distance">("rating");
+
+  const rows = useMemo(() => {
+    const withDistance = pins.map((p) => ({
+      pin: p,
+      meters: myPos ? metersBetween(myPos, p) : null,
+    }));
+    if (sort === "distance" && myPos) {
+      return withDistance.sort((a, b) => (a.meters ?? 0) - (b.meters ?? 0));
+    }
+    // Nach Note, gemerkte Orte ohne Bewertung ans Ende -- sie sind keine
+    // Empfehlung, sondern ein eigener Merkzettel.
+    return withDistance.sort((a, b) => (b.pin.rating ?? -1) - (a.pin.rating ?? -1));
+  }, [pins, myPos, sort]);
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent
+        side="bottom"
+        className="flex max-h-[78dvh] flex-col rounded-t-3xl border-0 p-0"
+      >
+        <SheetHeader className="px-6 pb-3 pt-6 text-left">
+          <SheetTitle className="flex items-center gap-3 pr-8">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-lg font-bold">{heading}</span>
+              <span className="turi-meta block text-xs font-normal text-muted-foreground">
+                {pins.length} {pins.length === 1 ? "place" : "places"} in this view
+              </span>
+            </span>
+            {myPos ? (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary p-1">
+                {(["rating", "distance"] as const).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSort(key)}
+                    aria-pressed={sort === key}
+                    className={`turi-tap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      sort === key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                    }`}
+                  >
+                    {key === "rating" ? "Top rated" : "Nearest"}
+                  </button>
+                ))}
+              </span>
+            ) : null}
+          </SheetTitle>
+        </SheetHeader>
+
+        <ul className="min-h-0 flex-1 overflow-y-auto px-3 pb-8">
+          {rows.map(({ pin, meters }) => {
+            const Icon = CATEGORY_ICONS[pin.category];
+            return (
+              <li key={pin.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void tap();
+                    onPick(pin);
+                  }}
+                  className="turi-tap flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-secondary"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                    <Icon size={17} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{pin.name}</span>
+                    <span className="turi-meta block truncate text-xs text-muted-foreground">
+                      {[
+                        CATEGORY_LABELS[pin.category].replace(/s$/, ""),
+                        pin.friends > 0
+                          ? `${pin.friends} ${pin.friends === 1 ? "friend" : "friends"}`
+                          : "Want to go",
+                        meters !== null ? distanceLabel(meters) : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                  {/*
+                    Dieselben zwei Zeichen wie auf der Karte -- schwarze
+                    Note und blaues Lesezeichen. Hier stehen sie neben
+                    ausgeschriebenem Text und erklaeren damit nebenbei,
+                    was die Pins draussen bedeuten.
+                  */}
+                  {pin.rating !== undefined ? (
+                    <span className="turi-meta shrink-0 rounded-md bg-map-pin px-1.5 py-0.5 text-xs font-bold text-white">
+                      {pin.rating.toFixed(1)}
+                    </span>
+                  ) : (
+                    <Bookmark size={16} className="shrink-0 text-map-accent" fill="currentColor" />
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </SheetContent>
     </Sheet>
   );

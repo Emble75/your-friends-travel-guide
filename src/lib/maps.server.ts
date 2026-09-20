@@ -62,6 +62,12 @@ async function withCache<T>(cacheKey: string, fetcher: () => Promise<T>): Promis
   return fresh;
 }
 
+/** Ein Oeffnungszeitraum, wie Google ihn liefert. day: 0 = Sonntag. */
+export type OpeningPeriod = {
+  open: { day: number; hour: number; minute: number };
+  close?: { day: number; hour: number; minute: number };
+};
+
 export type MapPlace = {
   googlePlaceId: string;
   name: string;
@@ -74,15 +80,41 @@ export type MapPlace = {
   rawType: string | null;
   lat: number;
   lng: number;
+  /*
+   * Der WOECHENTLICHE Oeffnungsplan -- bewusst nicht Googles fertiges
+   * "hat gerade offen".
+   *
+   * Ortsdaten werden 30 Tage zwischengespeichert (poi_cache). Ein
+   * Ja/Nein von heute waere morgen falsch und uebermorgen eine Luege;
+   * der Wochenplan aendert sich dagegen praktisch nie. Ob gerade offen
+   * ist, rechnen wir daraus selbst aus -- siehe lib/hours.ts.
+   *
+   * Nur bei der Einzelort-Abfrage gefuellt, nicht bei Suche und
+   * Vorschlaegen: dort waeren es Kosten fuer Angaben, die niemand sieht.
+   */
+  hours: OpeningPeriod[] | null;
+  /** Zeitverschiebung des Ortes in Minuten -- ohne sie waere "jetzt" unsere Zeit. */
+  utcOffsetMinutes: number | null;
 };
 
 const FIELD_MASK =
   "places.id,places.displayName,places.formattedAddress,places.location,places.primaryTypeDisplayName,places.primaryType";
-// Bei der Einzelort-Abfrage (Get Place) liefert Google das Objekt direkt
-// zurueck, nicht in ein "places"-Array verpackt -- das Feld-Praefix
-// "places." darf hier deshalb NICHT verwendet werden (sonst 400).
+/*
+ * Die Einzelort-Abfrage (Get Place). Google liefert das Objekt hier
+ * direkt zurueck, nicht in ein "places"-Array verpackt -- das
+ * Feld-Praefix "places." darf deshalb NICHT verwendet werden (sonst
+ * 400). Zusaetzlich zur Suche holt sie den Oeffnungsplan.
+ *
+ * KOSTENHINWEIS: regularOpeningHours gehoert bei Google in die teuerste
+ * Feldgruppe ("Enterprise") und hebt damit den Preis genau dieser einen
+ * Abfrage. Sie laeuft nur, wenn jemand einen Ort wirklich oeffnet, und
+ * ihr Ergebnis liegt danach 30 Tage im Zwischenspeicher -- fuer ALLE
+ * Nutzer, nicht pro Person. Suche und Vorschlaege bleiben unveraendert
+ * guenstig.
+ */
 const SINGLE_FIELD_MASK =
-  "id,displayName,formattedAddress,location,primaryTypeDisplayName,primaryType";
+  "id,displayName,formattedAddress,location,primaryTypeDisplayName,primaryType," +
+  "regularOpeningHours.periods,utcOffsetMinutes";
 
 type GooglePlace = {
   id: string;
@@ -91,6 +123,8 @@ type GooglePlace = {
   primaryTypeDisplayName?: { text?: string };
   primaryType?: string;
   location?: { latitude: number; longitude: number };
+  regularOpeningHours?: { periods?: OpeningPeriod[] };
+  utcOffsetMinutes?: number;
 };
 
 function headers(fieldMask: string = FIELD_MASK) {
@@ -134,6 +168,8 @@ function map(places: GooglePlace[] | undefined): MapPlace[] {
       rawType: p.primaryType ?? null,
       lat: p.location!.latitude,
       lng: p.location!.longitude,
+      hours: p.regularOpeningHours?.periods ?? null,
+      utcOffsetMinutes: p.utcOffsetMinutes ?? null,
     }));
 }
 
@@ -221,7 +257,10 @@ export async function searchPlacesText(query: string, lat?: number, lng?: number
  * Ort abgefragt wird, nicht ein ganzer Umkreis.
  */
 export async function placeById(placeId: string): Promise<MapPlace | null> {
-  const cacheKey = `details:${placeId}`;
+  // "v2", weil die Antwort jetzt zusaetzlich den Oeffnungsplan enthaelt.
+  // Ohne neuen Schluessel kaeme 30 Tage lang der alte Eintrag OHNE
+  // Zeiten zurueck, und die Anzeige bliebe scheinbar grundlos leer.
+  const cacheKey = `details:v2:${placeId}`;
   const result = await withCache(cacheKey, async () => {
     const p = await callGet(`places/v1/places/${placeId}`);
     return map(p ? [p] : []);
