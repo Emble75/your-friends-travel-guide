@@ -2,22 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAppSupabaseAuth } from "@/integrations/supabase/app-auth-middleware";
 
-export const getNearbyPlaces = createServerFn({ method: "POST" })
-  .middleware([requireAppSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        lat: z.number().min(-90).max(90),
-        lng: z.number().min(-180).max(180),
-        radius: z.number().min(100).max(5000).default(1200),
-      })
-      .parse(data),
-  )
-  .handler(async ({ data }) => {
-    const { nearbyPlaces } = await import("./maps.server");
-    return nearbyPlaces(data.lat, data.lng, data.radius);
-  });
-
 export const searchMapPlaces = createServerFn({ method: "POST" })
   .middleware([requireAppSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -37,11 +21,17 @@ export const searchMapPlaces = createServerFn({ method: "POST" })
 export const getPlaceById = createServerFn({ method: "POST" })
   .middleware([requireAppSupabaseAuth])
   .inputValidator((data: unknown) =>
-    z.object({ placeId: z.string().trim().min(1).max(200) }).parse(data),
+    z
+      .object({
+        placeId: z.string().trim().min(1).max(200),
+        // Siehe suggestMapPlaces: schliesst eine Vorschlagssitzung ab.
+        sessionToken: z.string().trim().min(8).max(64).optional(),
+      })
+      .parse(data),
   )
   .handler(async ({ data }) => {
     const { placeById } = await import("./maps.server");
-    return placeById(data.placeId);
+    return placeById(data.placeId, data.sessionToken);
   });
 
 export const suggestMapPlaces = createServerFn({ method: "POST" })
@@ -52,10 +42,19 @@ export const suggestMapPlaces = createServerFn({ method: "POST" })
         input: z.string().trim().min(2).max(120),
         lat: z.number().min(-90).max(90).optional(),
         lng: z.number().min(-180).max(180).optional(),
+        /*
+         * Die Kennung einer Vorschlagssitzung.
+         *
+         * Google rechnet alle Tastendruck-Anfragen einer Suche ZUSAMMEN
+         * mit der abschliessenden Detailabfrage als EINE Sitzung ab --
+         * aber nur, wenn alle dieselbe Kennung tragen. Ohne sie kostet
+         * jeder Tastendruck einzeln.
+         */
+        sessionToken: z.string().trim().min(8).max(64).optional(),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
     const { suggestPlaces } = await import("./maps.server");
-    return suggestPlaces(data.input, data.lat, data.lng);
+    return suggestPlaces(data.input, data.lat, data.lng, data.sessionToken);
   });

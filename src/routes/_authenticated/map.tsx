@@ -179,6 +179,29 @@ function MapPage() {
    */
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[] | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
+
+  /*
+   * Die Kennung der laufenden Vorschlagssitzung.
+   *
+   * Google rechnet alle Tastendruck-Anfragen EINER Suche zusammen mit
+   * der abschliessenden Detailabfrage als eine einzige Sitzung ab --
+   * aber nur, wenn alle dieselbe Kennung tragen. Ohne sie kostet jeder
+   * Tastendruck einzeln, und ein getipptes "Honest Greens" sind schnell
+   * ein Dutzend Anfragen.
+   *
+   * Die Kennung entsteht beim ersten Tastendruck und wird verworfen,
+   * sobald ein Vorschlag gewaehlt oder das Feld geleert wurde -- die
+   * naechste Suche ist eine neue Sitzung.
+   */
+  const searchSessionRef = useRef<string | null>(null);
+  function searchSession() {
+    if (!searchSessionRef.current) {
+      searchSessionRef.current =
+        globalThis.crypto?.randomUUID?.() ??
+        `s-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    return searchSessionRef.current;
+  }
   const debouncedQuery = useDebouncedValue(query, 220);
   // Die Kartenmitte als Ref, nicht als Abhaengigkeit: sonst fragte jede
   // Verschiebung der Karte waehrend des Tippens neue Vorschlaege an.
@@ -194,7 +217,14 @@ function MapPage() {
       return;
     }
     let active = true;
-    void suggestFn({ data: { input: q, lat: centerRef.current.lat, lng: centerRef.current.lng } })
+    void suggestFn({
+      data: {
+        input: q,
+        lat: centerRef.current.lat,
+        lng: centerRef.current.lng,
+        sessionToken: searchSession(),
+      },
+    })
       .then((r) => active && setSuggestions(r))
       .catch(() => active && setSuggestions(null));
     return () => {
@@ -206,8 +236,12 @@ function MapPage() {
     setSuggestOpen(false);
     setSuggestions(null);
     setQuery("");
+    // Dieselbe Kennung wie die Vorschlaege -- sie schliesst die Sitzung
+    // ab. Danach beginnt die naechste Suche eine neue.
+    const token = searchSession();
+    searchSessionRef.current = null;
     try {
-      const place = await placeByIdFn({ data: { placeId: s.googlePlaceId } });
+      const place = await placeByIdFn({ data: { placeId: s.googlePlaceId, sessionToken: token } });
       if (!place || !mapRef.current) return;
       const c = { lat: place.lat, lng: place.lng };
       mapRef.current.panTo(c);
@@ -658,6 +692,9 @@ function MapPage() {
               setQuery(e.target.value);
               if (!e.target.value.trim()) {
                 setSearchCandidates(null);
+                // Leeres Feld heisst: Suche abgebrochen. Die naechste
+                // ist eine eigene Sitzung.
+                searchSessionRef.current = null;
               }
             }}
             onFocus={() => setSuggestOpen(true)}

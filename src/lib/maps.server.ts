@@ -201,31 +201,6 @@ async function callGet(path: string): Promise<GooglePlace | null> {
   return (await response.json()) as GooglePlace;
 }
 
-export async function nearbyPlaces(lat: number, lng: number, radius: number) {
-  const roundedRadius = Math.round(Math.min(radius, 5000) / 250) * 250;
-  const cacheKey = `nearby:${gridCoord(lat)}:${gridCoord(lng)}:${roundedRadius}`;
-  return withCache(cacheKey, () =>
-    call("places/v1/places:searchNearby", {
-      includedTypes: [
-        "restaurant",
-        "cafe",
-        "bar",
-        "hotel",
-        "museum",
-        "tourist_attraction",
-        "park",
-        "bakery",
-        "night_club",
-      ],
-      maxResultCount: 20,
-      languageCode: "en",
-      locationRestriction: {
-        circle: { center: { latitude: lat, longitude: lng }, radius: roundedRadius },
-      },
-    }),
-  );
-}
-
 export async function searchPlacesText(query: string, lat?: number, lng?: number) {
   const normalizedQuery = query.trim().toLowerCase();
   const locationPart =
@@ -256,13 +231,24 @@ export async function searchPlacesText(query: string, lat?: number, lng?: number
  * guenstiger als eine Nearby-Search, da nur der tatsaechlich angeklickte
  * Ort abgefragt wird, nicht ein ganzer Umkreis.
  */
-export async function placeById(placeId: string): Promise<MapPlace | null> {
+export async function placeById(placeId: string, sessionToken?: string): Promise<MapPlace | null> {
   // "v2", weil die Antwort jetzt zusaetzlich den Oeffnungsplan enthaelt.
   // Ohne neuen Schluessel kaeme 30 Tage lang der alte Eintrag OHNE
   // Zeiten zurueck, und die Anzeige bliebe scheinbar grundlos leer.
   const cacheKey = `details:v2:${placeId}`;
   const result = await withCache(cacheKey, async () => {
-    const p = await callGet(`places/v1/places/${placeId}`);
+    /*
+     * Das Sitzungs-Token gehoert an die Detailabfrage, nicht nur an die
+     * Vorschlaege: Erst sie schliesst die Sitzung ab, und erst dadurch
+     * werden die vorausgegangenen Tastendruck-Anfragen kostenlos.
+     *
+     * Wird die Antwort aus dem Zwischenspeicher bedient, geht gar keine
+     * Anfrage hinaus -- dann bleibt die Sitzung offen und die
+     * Vorschlaege werden einzeln berechnet. Das ist der guenstigere der
+     * beiden Faelle und deshalb kein Problem.
+     */
+    const suffix = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : "";
+    const p = await callGet(`places/v1/places/${placeId}${suffix}`);
     return map(p ? [p] : []);
   });
   return result[0] ?? null;
@@ -293,8 +279,12 @@ export async function suggestPlaces(
   input: string,
   lat?: number,
   lng?: number,
+  sessionToken?: string,
 ): Promise<PlaceSuggestion[]> {
   const body: Record<string, unknown> = { input, languageCode: "en" };
+  // Ohne Token kostet jeder Tastendruck einzeln; mit Token zaehlt die
+  // ganze Suche samt abschliessender Detailabfrage als eine Sitzung.
+  if (sessionToken) body["sessionToken"] = sessionToken;
   if (typeof lat === "number" && typeof lng === "number") {
     body["locationBias"] = {
       circle: { center: { latitude: lat, longitude: lng }, radius: 30000 },
