@@ -91,7 +91,13 @@ const mapSession: {
   camera: { lat: number; lng: number; zoom: number } | null;
   mode: "discover" | "mine" | null;
   centeredOnUser: boolean;
-} = { camera: null, mode: null, centeredOnUser: false };
+  /*
+   * Auch der Filter gehoert hierher: Wer auf "Cafes" stellt, einen Pin
+   * antippt und zurueckkommt, stand sonst wieder vor allen Orten --
+   * und musste die Auswahl bei jedem Ort neu treffen.
+   */
+  filter: Category | null;
+} = { camera: null, mode: null, centeredOnUser: false, filter: null };
 
 const AREA_TYPES = new Set([
   "locality",
@@ -174,7 +180,7 @@ function MapPage() {
   const [searchCandidates, setSearchCandidates] = useState<MapPlace[] | null>(null);
   const [mode, setMode] = useState<"discover" | "mine">(mapSession.mode ?? "discover");
   // Filter nach Art des Ortes -- null heisst "alles zeigen".
-  const [filter, setFilter] = useState<Category | null>(null);
+  const [filter, setFilter] = useState<Category | null>(mapSession.filter);
   // Die Trefferliste zum aktuellen Ausschnitt.
   const [listOpen, setListOpen] = useState(false);
   // Der eigene Standort als Zustand (nicht nur als Marker), damit
@@ -915,7 +921,14 @@ function MapPage() {
           Das Bauteil liegt in CategoryFilter.tsx und steht genauso ueber
           den Karten von Profilen und Ordnern.
         */}
-        <CategoryFilterBar items={visiblePins} value={filter} onChange={setFilter} />
+        <CategoryFilterBar
+          items={visiblePins}
+          value={filter}
+          onChange={(next) => {
+            mapSession.filter = next;
+            setFilter(next);
+          }}
+        />
       </div>
 
       {/*

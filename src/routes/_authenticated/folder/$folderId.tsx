@@ -258,7 +258,12 @@ function FolderPage() {
                   text="These reviews are for places without a saved location, so they can't be placed on the map."
                 />
               ) : (
-                <PinMap pins={mapPlaces} heading={folder.name} className="h-[62vh]" />
+                <PinMap
+                  pins={mapPlaces}
+                  heading={folder.name}
+                  mapKey={`folder:${folderId}`}
+                  className="h-[62vh]"
+                />
               )
             ) : (
               reviews.map((r) => <ReviewCard key={r.id} review={r} />)

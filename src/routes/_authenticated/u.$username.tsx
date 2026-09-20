@@ -481,6 +481,7 @@ function ProfilePage() {
               ) : (
                 <PinMap
                   pins={mapPlaces!}
+                  mapKey={`profile:${profile.id}`}
                   heading={`${profile.display_name || profile.username}'s places`}
                   className="h-[62vh]"
                 />
