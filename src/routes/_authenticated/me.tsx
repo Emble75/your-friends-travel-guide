@@ -678,6 +678,23 @@ function MePage() {
           >
             <LogOut size={16} className="mr-2" /> Sign out
           </Button>
+
+          {/*
+            Datenschutz und Nutzungsbedingungen waren aus der
+            angemeldeten App heraus ueberhaupt nicht erreichbar -- sie
+            standen einzig neben dem Zustimmungshaken der Registrierung
+            und verschwanden damit nach dem ersten Tag fuer immer. Hier
+            sucht man sie, und Apple erwartet sie an dieser Stelle.
+          */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <Link to="/legal/privacy" className="underline underline-offset-2">
+              Privacy Policy
+            </Link>
+            <Link to="/legal/terms" className="underline underline-offset-2">
+              Terms of Service
+            </Link>
+          </div>
+
           <p className="mt-4 text-xs text-muted-foreground">
             Deleting your account permanently removes all your reviews, photos, and follows. This
             can't be undone.
