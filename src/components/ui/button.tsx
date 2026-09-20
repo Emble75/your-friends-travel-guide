@@ -29,7 +29,14 @@ const buttonVariants = cva(
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        /*
+         * Haarlinie auch hier, aus demselben Grund wie oben: Das Grau
+         * der Sekundaerknoepfe steht auf dem Seitengrund bei 1.05:1 --
+         * praktisch dieselbe Flaeche. Ohne Rand sahen sie dort aus wie
+         * deaktiviert; mit Rand sind es Knoepfe.
+         */
+        secondary:
+          "border border-border bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
