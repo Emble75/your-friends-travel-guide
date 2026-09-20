@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { List, LocateFixed } from "lucide-react";
 import { toast } from "sonner";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CategoryFilterBar } from "./CategoryFilter";
 import { PlaceList, type PlaceListItem } from "./PlaceList";
+import { PlaceSheet, type SheetTarget } from "./PlaceSheet";
 
 /*
  * Die Karte einer PERSON oder eines ORDNERS -- nicht die der Welt.
@@ -31,14 +31,21 @@ import { PlaceList, type PlaceListItem } from "./PlaceList";
  *    beantwortet dieselbe Leiste und dieselbe Liste wie auf der
  *    Hauptkarte -- eine Geste, die man nicht zweimal lernen muss.
  *
- * 3. DER EIGENE STANDORT. Derselbe Knopf wie auf der Hauptkarte. Er
+ * 3. DIESELBE VORSCHAU WIE AUF DER HAUPTKARTE. Ein Tipp auf einen Pin
+ *    oeffnet das Panel von unten -- Note, Oeffnungszeit, Entfernung,
+ *    Merken -- und nicht sofort die ganze Ortsseite. Auf einer Karte
+ *    schaut man meist nur kurz nach und tippt dann den naechsten Pin
+ *    an; der Sprung auf eine eigene Seite unterbricht das jedes Mal
+ *    und baut beim Zurueckkommen die Karte neu auf.
+ *
+ * 4. DER EIGENE STANDORT. Derselbe Knopf wie auf der Hauptkarte. Er
  *    beantwortet auf einer fremden Karte die wichtigste Frage
  *    ueberhaupt: "Was davon ist da, wo ich gerade bin?" Ohne ihn muss
  *    man sich aus der Gesamtansicht von Hand in die eigene Stadt
  *    schieben. Danach sortiert auch die Liste nach Entfernung, ohne
  *    noch einmal nach dem Standort zu fragen.
  *
- * 4. RUHIGERE GRUNDKARTE. Zusaetzlich zu den Ortssymbolen sind auch
+ * 5. RUHIGERE GRUNDKARTE. Zusaetzlich zu den Ortssymbolen sind auch
  *    Nahverkehrssymbole aus. Was bleibt, sind Strassen, Wasser, Namen --
  *    genug zur Orientierung, wenig genug, dass die Pins die einzige
  *    Farbe im Bild sind.
@@ -98,7 +105,6 @@ export function PinMap({
   className?: string;
 }) {
   const { ready, error } = useGoogleMaps();
-  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -110,6 +116,7 @@ export function PinMap({
     () => mapMemory.get(mapKey)?.filter ?? null,
   );
   const [listOpen, setListOpen] = useState(false);
+  const [selected, setSelected] = useState<SheetTarget | null>(null);
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   /*
@@ -278,7 +285,7 @@ export function PinMap({
       });
       marker.addListener("click", () => {
         void tap();
-        navigate({ to: "/place/$placeId", params: { placeId: p.id } });
+        setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng });
       });
       return marker;
     });
@@ -297,7 +304,7 @@ export function PinMap({
       placed.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
       mapRef.current.fitBounds(box, 48);
     }
-  }, [ready, shown, placed, navigate]);
+  }, [ready, shown, placed]);
 
   // Beim Verlassen der Seite aufraeumen.
   useEffect(() => {
@@ -382,11 +389,24 @@ export function PinMap({
             summary={`${listed.length} ${listed.length === 1 ? "place" : "places"} in this view`}
             onPick={(item) => {
               setListOpen(false);
-              navigate({ to: "/place/$placeId", params: { placeId: item.id } });
+              // Wie auf der Hauptkarte: zum Ort hinschieben und die
+              // Vorschau oeffnen, statt die Karte zu verlassen.
+              if (item.lat != null && item.lng != null) {
+                mapRef.current?.panTo({ lat: item.lat, lng: item.lng });
+              }
+              setSelected({
+                kind: "local",
+                id: item.id,
+                name: item.name,
+                lat: item.lat ?? 0,
+                lng: item.lng ?? 0,
+              });
             }}
           />
         </SheetContent>
       </Sheet>
+
+      <PlaceSheet target={selected} onClose={() => setSelected(null)} myPos={myPos} />
     </div>
   );
 }
