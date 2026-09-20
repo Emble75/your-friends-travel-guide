@@ -2,17 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  Compass,
-  List,
-  Loader2,
-  LocateFixed,
-  MapPin,
-  MapPinned,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { List, Loader2, LocateFixed, MapPin, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { getPlaceById, searchMapPlaces, suggestMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace, PlaceSuggestion } from "@/lib/maps.server";
@@ -31,6 +21,22 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+/*
+ * Die Karte zeigt nur noch EINES: was der Freundeskreis hier bewertet
+ * hat, dazu die eigene Wunschliste.
+ *
+ * Der Umschalter "Discover | My Map" ist entfallen. Er stand auf jedem
+ * Kartenbildschirm ganz oben und kostete dauerhaft Platz fuer etwas,
+ * das selten gebraucht wurde -- und er war inkonsistent: Die Karte
+ * jeder ANDEREN Person liegt in ihrem Profil, nur die eigene lag hier
+ * hinter einem Schalter. Sie liegt jetzt ebenfalls im Profil, unter
+ * demselben Feed/Map-Umschalter wie bei allen anderen.
+ *
+ * Verloren geht dabei nichts Wesentliches: Die eigenen gemerkten Orte
+ * liegen als Lesezeichen-Pins ohnehin auf dieser Karte. Was im Profil
+ * dazukommt, sind die eigenen Bewertungen -- und die gehoeren dorthin,
+ * genau wie die von allen anderen.
+ */
 export const Route = createFileRoute("/_authenticated/map")({
   head: () => ({
     meta: [
@@ -81,7 +87,6 @@ const FLOATING =
  */
 const mapSession: {
   camera: { lat: number; lng: number; zoom: number } | null;
-  mode: "discover" | "mine" | null;
   centeredOnUser: boolean;
   /*
    * Auch der Filter gehoert hierher: Wer auf "Cafes" stellt, einen Pin
@@ -89,7 +94,7 @@ const mapSession: {
    * und musste die Auswahl bei jedem Ort neu treffen.
    */
   filter: Category | null;
-} = { camera: null, mode: null, centeredOnUser: false, filter: null };
+} = { camera: null, centeredOnUser: false, filter: null };
 
 const AREA_TYPES = new Set([
   "locality",
@@ -153,7 +158,6 @@ function MapPage() {
   const [selected, setSelected] = useState<SheetTarget | null>(null);
   const [query, setQuery] = useState("");
   const [searchCandidates, setSearchCandidates] = useState<MapPlace[] | null>(null);
-  const [mode, setMode] = useState<"discover" | "mine">(mapSession.mode ?? "discover");
   // Filter nach Art des Ortes -- null heisst "alles zeigen".
   const [filter, setFilter] = useState<Category | null>(mapSession.filter);
   // Die Trefferliste zum aktuellen Ausschnitt.
@@ -161,24 +165,6 @@ function MapPage() {
   // Der eigene Standort als Zustand (nicht nur als Marker), damit
   // Entfernungen in Liste und Ortspanel gerechnet werden koennen.
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
-  /*
-   * Der Moduswechsel laesst die Kamera in Ruhe.
-   *
-   * Frueher passte "My Map" die Ansicht auf ALLE eigenen Orte ein. Wer
-   * in Barcelona stand und umschaltete, wurde auf halb Europa
-   * herausgezogen, weil irgendwo noch Stockholm und Lissabon liegen --
-   * und musste sich jedes Mal zurueckarbeiten. Der Umschalter beantwortet
-   * die Frage "was liegt HIER von mir?", nicht "zeig mir mein Lebenswerk".
-   *
-   * Wer doch alles sehen will, bekommt es weiterhin -- aber auf
-   * Zuruf: Liegt im Bild kein einziger eigener Ort, erscheint dafuer
-   * ein Knopf (siehe fitAll).
-   */
-  function switchMode(next: "discover" | "mine") {
-    mapSession.mode = next;
-    setMode(next);
-  }
-
   const placeByIdFn = useServerFn(getPlaceById);
   const searchFn = useServerFn(searchMapPlaces);
   const suggestFn = useServerFn(suggestMapPlaces);
@@ -233,91 +219,6 @@ function MapPage() {
     }
   }
 
-  const { data: myPlaces } = useQuery({
-    queryKey: ["my-reviewed-places"],
-    enabled: mode === "mine",
-    queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const me = auth.user!.id;
-      const { data } = await supabase
-        .from("reviews")
-        .select("place_id, rating, places(id, name, lat, lng, category)")
-        .eq("user_id", me);
-      const seen = new Map<string, { total: number; count: number }>();
-      const byId = new Map<
-        string,
-        { name: string; lat: number; lng: number; category: Category }
-      >();
-      for (const r of data ?? []) {
-        const p = r.places as unknown as {
-          id: string;
-          name: string;
-          lat: number | null;
-          lng: number | null;
-          category: string;
-        } | null;
-        if (p && p.lat != null && p.lng != null) {
-          byId.set(p.id, {
-            name: p.name,
-            lat: p.lat,
-            lng: p.lng,
-            // Altbestand kann noch Googles Anzeigetext tragen, solange
-            // die Migration nicht gelaufen ist -- hier abgefangen, damit
-            // der Filter trotzdem vollstaendig bleibt.
-            category: normalizeCategory(p.category),
-          });
-          const entry = seen.get(p.id) ?? { total: 0, count: 0 };
-          entry.total += r.rating;
-          entry.count += 1;
-          seen.set(p.id, entry);
-        }
-      }
-      const result: Omit<Pin, "saved">[] = [];
-      for (const [id, place] of byId) {
-        const { total, count } = seen.get(id)!;
-        result.push({ id, ...place, rating: total / count, friends: count });
-      }
-      return result;
-    },
-  });
-
-  // "Meine Karte": eigene Wunschliste ("Will ich noch hin") mit dazu, damit
-  // die Karte einen vollstaendigen persoenlichen Ueberblick zeigt -- nicht
-  // nur bereits Bewertetes.
-  const { data: mySavedPlaces } = useQuery({
-    queryKey: ["my-saved-places-map"],
-    enabled: mode === "mine",
-    queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const me = auth.user!.id;
-      const { data } = await supabase
-        .from("saved_places")
-        .select("places(id, name, lat, lng, category)")
-        .eq("user_id", me);
-      const result: { id: string; name: string; lat: number; lng: number; category: Category }[] =
-        [];
-      for (const r of data ?? []) {
-        const p = r.places as unknown as {
-          id: string;
-          name: string;
-          lat: number | null;
-          lng: number | null;
-          category: string;
-        } | null;
-        if (p && p.lat != null && p.lng != null) {
-          result.push({
-            id: p.id,
-            name: p.name,
-            lat: p.lat,
-            lng: p.lng,
-            category: normalizeCategory(p.category),
-          });
-        }
-      }
-      return result;
-    },
-  });
-
   const boundsKey = bounds
     ? `${bounds.swLat.toFixed(3)},${bounds.swLng.toFixed(3)},${bounds.neLat.toFixed(3)},${bounds.neLng.toFixed(3)}`
     : null;
@@ -327,7 +228,7 @@ function MapPage() {
   // RLS auf reviews filtert bereits automatisch auf das, was ich sehen darf.
   const { data: reviewedInView, isFetching: reviewedLoading } = useQuery({
     queryKey: ["reviewed-in-view", boundsKey],
-    enabled: mode === "discover" && !!bounds,
+    enabled: !!bounds,
     queryFn: async () => {
       const { swLat, swLng, neLat, neLng } = bounds!;
       const { data: auth } = await supabase.auth.getUser();
@@ -390,7 +291,7 @@ function MapPage() {
   // "Will ich noch hin" im aktuell sichtbaren Kartenbereich.
   const { data: savedInView } = useQuery({
     queryKey: ["saved-in-view", boundsKey],
-    enabled: mode === "discover" && !!bounds,
+    enabled: !!bounds,
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id;
@@ -430,8 +331,8 @@ function MapPage() {
    * einmal darin und traegt beides.
    */
   const pins = useMemo<Pin[]>(() => {
-    const reviewed = mode === "mine" ? (myPlaces ?? []) : (reviewedInView ?? []);
-    const saved = mode === "mine" ? (mySavedPlaces ?? []) : (savedInView ?? []);
+    const reviewed = reviewedInView ?? [];
+    const saved = savedInView ?? [];
     const savedIds = new Set(saved.map((p) => p.id));
     const reviewedIds = new Set(reviewed.map((p) => p.id));
     const out: Pin[] = reviewed.map((p) => ({ ...p, saved: savedIds.has(p.id) }));
@@ -439,7 +340,7 @@ function MapPage() {
       if (!reviewedIds.has(p.id)) out.push({ ...p, friends: 0, saved: true });
     }
     return out;
-  }, [mode, myPlaces, mySavedPlaces, reviewedInView, savedInView]);
+  }, [reviewedInView, savedInView]);
 
   /*
    * Was davon im Bild liegt.
@@ -648,15 +549,6 @@ function MapPage() {
     });
   }, [ready, filteredPins]);
 
-  /** Auf Zuruf: die Ansicht auf alle eigenen Orte einpassen. */
-  const fitAll = useCallback(() => {
-    if (!mapRef.current || pins.length === 0) return;
-    void tap();
-    const box = new google.maps.LatLngBounds();
-    pins.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
-    mapRef.current.fitBounds(box, 60);
-  }, [pins]);
-
   const runSearch = useCallback(async () => {
     const q = query.trim();
     if (q.length < 2) {
@@ -750,50 +642,10 @@ function MapPage() {
           auch inhaltlich hingehoert (er zeigt an, dass die Orte fuer den
           sichtbaren Ausschnitt geladen werden).
         */}
-        <div
-          className={`pointer-events-auto grid grid-cols-2 gap-1 rounded-full p-1 ${FLOATING}`}
-          role="group"
-          aria-label="Map view"
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => switchMode("discover")}
-            aria-pressed={mode === "discover"}
-            // Aktiv in der weichen Markenfarbe statt in massivem Schwarz --
-            // dieselbe Sprache wie der aktive Reiter unten. Der schwarze
-            // Block lag als schweres Gewicht ueber der Karte.
-            className={`h-10 rounded-full px-3 text-sm font-semibold shadow-none ${
-              mode === "discover"
-                ? "bg-brand-soft text-brand hover:bg-brand-soft hover:text-brand"
-                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
-            }`}
-          >
-            <Compass size={17} />
-            Discover
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => switchMode("mine")}
-            aria-pressed={mode === "mine"}
-            className={`h-10 rounded-full px-3 text-sm font-semibold shadow-none ${
-              mode === "mine"
-                ? "bg-brand-soft text-brand hover:bg-brand-soft hover:text-brand"
-                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
-            }`}
-          >
-            <MapPinned size={17} />
-            My Map
-          </Button>
-        </div>
-
         {/*
-          Die Suche steht in BEIDEN Modi zur Verfuegung. Sie war frueher
-          auf "Discover" beschraenkt -- in "My Map" liess sich damit nicht
-          zu einer Stadt springen, obwohl die eigenen Orte ueber die halbe
-          Welt verteilt sein koennen. Die Suchtreffer liegen ohnehin in
-          einer eigenen Marker-Ablage und stoeren die Modus-Pins nicht.
+          Die Suche fuehrt zu einer Stadt oder direkt zu einem Ort. Die
+          Suchtreffer liegen in einer eigenen Marker-Ablage und stoeren
+          die Pins des Ausschnitts nicht.
         */}
         <div className="pointer-events-auto relative">
           <Search
@@ -820,7 +672,7 @@ function MapPage() {
               }
               if (e.key === "Escape") setSuggestOpen(false);
             }}
-            placeholder={mode === "mine" ? "Search a city or place" : "Search city or place"}
+            placeholder="Search city or place"
             className={`h-12 rounded-full pl-11 pr-11 ${FLOATING}`}
           />
 
@@ -854,7 +706,7 @@ function MapPage() {
           {/* Zeigt an, dass die Orte fuer den sichtbaren Ausschnitt noch
               geladen werden. Nur in "Discover" -- dort haengt die
               Pin-Anzeige am sichtbaren Bereich, in "My Map" nicht. */}
-          {mode === "discover" && reviewedLoading ? (
+          {reviewedLoading ? (
             <Loader2
               size={16}
               aria-label="Loading places"
@@ -964,28 +816,26 @@ function MapPage() {
         </Button>
       </div>
 
-      {mode === "discover" ? (
-        <Button
-          asChild
-          variant="ghost"
-          // Gleiche Hoehe wie der Standortknopf gegenueber: Die beiden
-          // sitzen auf einer Linie und lasen sich vorher als zwei
-          // verschiedene Dinge -- flache Pille gegen hohes Quadrat.
-          className={`absolute left-4 z-10 h-12 rounded-full px-4 text-sm ${FLOATING}`}
-          style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
-        >
-          <Link to="/new" search={{ create: true }}>
-            <Plus size={16} className="mr-1" /> Can't find it?
-          </Link>
-        </Button>
-      ) : null}
+      <Button
+        asChild
+        variant="ghost"
+        // Gleiche Hoehe wie der Standortknopf gegenueber: Die beiden
+        // sitzen auf einer Linie und lasen sich vorher als zwei
+        // verschiedene Dinge -- flache Pille gegen hohes Quadrat.
+        className={`absolute left-4 z-10 h-12 rounded-full px-4 text-sm ${FLOATING}`}
+        style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
+      >
+        <Link to="/new" search={{ create: true }}>
+          <Plus size={16} className="mr-1" /> Can't find it?
+        </Link>
+      </Button>
 
       <PlacesListSheet
         open={listOpen}
         onClose={() => setListOpen(false)}
         pins={listPins}
         myPos={myPos}
-        heading={mode === "mine" ? "Your places here" : "Your friends here"}
+        heading="Your friends here"
         onPick={(p) => {
           setListOpen(false);
           mapRef.current?.panTo({ lat: p.lat, lng: p.lng });

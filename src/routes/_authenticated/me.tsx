@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Map as MapIcon, Rows3 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,6 +20,7 @@ import { supabase } from "@/integrations/supabase/app-client";
 import { deleteOwnAccount } from "@/lib/account.functions";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { PlaceList, type PlaceListItem } from "@/components/turi/PlaceList";
+import { PinMap } from "@/components/turi/PinMap";
 import { normalizeCategory } from "@/lib/categories";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -54,6 +56,13 @@ import { isNative, share, takePhoto } from "@/lib/native";
 import { disablePush, enablePush, pushState, pushSupported, type PushState } from "@/lib/push";
 
 export const Route = createFileRoute("/_authenticated/me")({
+  /*
+   * Feed oder Karte -- in der Adresse, damit ein Abstecher auf eine
+   * Ortsseite die Ansicht nicht verwirft (wie bei fremden Profilen).
+   */
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(search["view"] === "map" ? { view: "map" as const } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "My Profile – Turi" },
@@ -74,6 +83,7 @@ type PendingRequest = {
 
 function MePage() {
   const navigate = useNavigate();
+  const { view = "feed" } = Route.useSearch();
   const queryClient = useQueryClient();
   const deleteAccountFn = useServerFn(deleteOwnAccount);
   const [editing, setEditing] = useState(false);
@@ -372,6 +382,53 @@ function MePage() {
 
   const { profile, reviews, pendingRequests, folders, sharedWithMe } = data;
 
+  /*
+   * Die eigene Karte: bewertete Orte UND die Wunschliste.
+   *
+   * Keine eigene Abfrage -- beides ist bereits geladen. Die Note am Pin
+   * ist bewusst die EIGENE (nicht die des Freundeskreises, wie in der
+   * Wunschliste darunter): Es ist die eigene Karte, sie zeigt, was man
+   * selbst vergeben hat. Ein Ort, der gemerkt und noch nicht bewertet
+   * ist, traegt das Lesezeichen -- genau wie auf der Hauptkarte.
+   */
+  const myMapPlaces: PlaceListItem[] = (() => {
+    const byId = new Map<string, PlaceListItem>();
+    const sums = new Map<string, { total: number; count: number }>();
+    for (const r of reviews) {
+      const p = r.places;
+      if (!p) continue;
+      const entry = sums.get(p.id) ?? { total: 0, count: 0 };
+      entry.total += r.rating;
+      entry.count += 1;
+      sums.set(p.id, entry);
+      byId.set(p.id, {
+        id: p.id,
+        name: p.name,
+        city: p.city,
+        category: normalizeCategory(p.category),
+        lat: p.lat,
+        lng: p.lng,
+        rating: entry.total / entry.count,
+        // Auf der eigenen Karte waere "1 friend" ueberall dasselbe.
+        friends: 0,
+        saved: false,
+      });
+    }
+    for (const saved of savedPlaces ?? []) {
+      const existing = byId.get(saved.id);
+      if (existing) {
+        byId.set(saved.id, { ...existing, saved: true });
+      } else {
+        // Gemerkt, aber noch nicht bewertet: ohne Note, mit Lesezeichen.
+        // rating wird WEGGELASSEN statt auf undefined gesetzt -- die
+        // strikte Typpruefung unterscheidet beides.
+        const { rating: _friendsRating, ...rest } = saved;
+        byId.set(saved.id, { ...rest, friends: 0, saved: true });
+      }
+    }
+    return Array.from(byId.values());
+  })();
+
   return (
     <>
       <div className="app-shell app-top space-y-4 pb-4">
@@ -586,6 +643,39 @@ function MePage() {
         ) : null}
 
         {/*
+          Feed oder Karte -- derselbe Umschalter wie auf fremden
+          Profilen.
+
+          Die eigene Karte lag frueher auf der Kartenseite hinter einem
+          Schalter "Discover | My Map". Das war inkonsistent: Die Karte
+          jeder anderen Person liegt in ihrem Profil, nur die eigene
+          woanders. Und der Schalter kostete auf JEDEM Kartenbildschirm
+          Platz fuer etwas, das selten gebraucht wird.
+        */}
+        <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/me", search: {}, replace: true })}
+            aria-pressed={view === "feed"}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+              view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
+            }`}
+          >
+            <Rows3 size={15} /> Feed
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/me", search: { view: "map" }, replace: true })}
+            aria-pressed={view === "map"}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+              view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
+            }`}
+          >
+            <MapIcon size={15} /> Map
+          </button>
+        </div>
+
+        {/*
           Sammlungen hinter Knoepfen statt als ausgebreitete Chip-Wolken.
           Ausgelegt nahmen sie dem Profil die Ordnung -- zwei umbrechende
           Bereiche uebereinander, bevor ueberhaupt eine Bewertung kam.
@@ -632,25 +722,43 @@ function MePage() {
         </div>
 
         <div ref={reviewsRef} className="scroll-mt-20 space-y-4">
-          {/* Bisher standen die Bewertungen voellig unbeschriftet unter den
-              Sammlungen -- man sah nicht, wo die Listen enden und die
-              eigenen Bewertungen anfangen. */}
-          {reviews.length > 0 ? (
-            <h2 className="turi-eyebrow">Your reviews ({reviews.length})</h2>
-          ) : null}
-          {reviews.length > 0 ? (
-            reviews.map((r) => <ReviewCard key={r.id} review={r} />)
+          {view === "map" ? (
+            myMapPlaces.filter((p) => p.lat != null && p.lng != null).length === 0 ? (
+              <EmptyState
+                icon={MapIcon}
+                title={reviews.length > 0 ? "Nothing to show on the map" : "No places yet"}
+                text={
+                  reviews.length > 0
+                    ? "These reviews are for places without a saved location, so they can't be placed on the map."
+                    : "Places you review or save will appear here."
+                }
+              />
+            ) : (
+              <PinMap pins={myMapPlaces} heading="Your places" mapKey="me" className="h-[62vh]" />
+            )
           ) : (
-            <EmptyState
-              icon={Star}
-              title="No reviews yet"
-              text="Review your first place — your friends will see it right away."
-              action={
-                <Button asChild className="rounded-2xl">
-                  <Link to="/new">Review a place</Link>
-                </Button>
-              }
-            />
+            <>
+              {/* Bisher standen die Bewertungen voellig unbeschriftet unter
+                  den Sammlungen -- man sah nicht, wo die Listen enden und
+                  die eigenen Bewertungen anfangen. */}
+              {reviews.length > 0 ? (
+                <h2 className="turi-eyebrow">Your reviews ({reviews.length})</h2>
+              ) : null}
+              {reviews.length > 0 ? (
+                reviews.map((r) => <ReviewCard key={r.id} review={r} />)
+              ) : (
+                <EmptyState
+                  icon={Star}
+                  title="No reviews yet"
+                  text="Review your first place — your friends will see it right away."
+                  action={
+                    <Button asChild className="rounded-2xl">
+                      <Link to="/new">Review a place</Link>
+                    </Button>
+                  }
+                />
+              )}
+            </>
           )}
         </div>
 
