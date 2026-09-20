@@ -54,6 +54,20 @@ export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
         Args: { name: string };
         Returns: boolean;
       };
+      // suggested_feed: der zweite Feed-Reiter. Gibt fertige
+      // Bewertungs-Objekte heraus (Json), weil die Sichtbarkeitsregel
+      // der Tabelle fremde Bewertungen ausdruecklich nicht durchlaesst --
+      // siehe Migration 20260922120000_suggested_feed.sql.
+      suggested_feed: {
+        Args: {
+          p_limit?: number;
+          p_before?: string | null;
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_radius_km?: number;
+        };
+        Returns: Json[];
+      };
     };
     Tables: Omit<GenTables, "follows" | "places" | "profiles" | "reviews"> & {
       follows: WithColumns<

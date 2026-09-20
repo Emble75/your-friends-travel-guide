@@ -81,6 +81,42 @@ export async function currentPosition(): Promise<Coords | null> {
 }
 
 /**
+ * Der Standort, ABER nur wenn er ohne Nachfrage zu haben ist.
+ *
+ * Gedacht fuer Stellen, an denen der Ort das Ergebnis verbessert, aber
+ * nicht Zweck des Bildschirms ist -- etwa Vorschlaege im Feed. Dort
+ * ungefragt einen Standort-Dialog aufzuklappen, waere eine Zumutung:
+ * Man hat nach nichts gefragt, bekommt aber eine Systemabfrage, und
+ * wer sie ablehnt, kann sie nie wieder einblenden.
+ *
+ * Wurde die Berechtigung dagegen schon erteilt (auf der Karte etwa),
+ * ist die Ortung geschenkt. Ist sie es nicht, kommt null zurueck, und
+ * der Aufrufer macht ohne Ort weiter.
+ */
+export async function knownPosition(): Promise<Coords | null> {
+  if (isNative()) {
+    const { Geolocation } = await import("@capacitor/geolocation");
+    try {
+      const perm = await Geolocation.checkPermissions();
+      if (perm.location !== "granted" && perm.coarseLocation !== "granted") return null;
+    } catch {
+      return null;
+    }
+    return currentPosition();
+  }
+  // Im Browser beantwortet die Permissions-API dieselbe Frage, ohne zu
+  // fragen. Fehlt sie (aeltere Browser), lieber nichts tun.
+  if (typeof navigator === "undefined" || !navigator.permissions) return null;
+  try {
+    const status = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+    if (status.state !== "granted") return null;
+  } catch {
+    return null;
+  }
+  return currentPosition();
+}
+
+/**
  * Fortlaufende Ortung. Gibt eine Funktion zum Beenden zurueck -- die
  * MUSS beim Verlassen der Karte aufgerufen werden, sonst laeuft die
  * Ortung im Hintergrund weiter und zieht Akku.
