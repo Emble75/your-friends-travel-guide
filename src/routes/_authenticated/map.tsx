@@ -5,25 +5,18 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Bookmark,
   Compass,
-  Landmark,
+  List,
   Loader2,
   LocateFixed,
   MapPin,
   MapPinned,
-  Martini,
-  Mountain,
   Navigation,
   Plus,
   Search,
   Star,
-  Umbrella,
-  UtensilsCrossed,
-  Coffee,
-  BedDouble,
-  Building2,
-  List,
   Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getPlaceById, searchMapPlaces, suggestMapPlaces } from "@/lib/maps.functions";
@@ -33,6 +26,7 @@ import { ensureLocalPlace } from "@/lib/place-sync";
 import { currentLocationIcon, mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { CATEGORIES, type Category, normalizeCategory } from "@/lib/categories";
 import { openLabel, openState } from "@/lib/hours";
+import { CATEGORY_ICONS, CATEGORY_LABELS, PlaceList } from "@/components/turi/PlaceList";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { supabase } from "@/integrations/supabase/app-client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
@@ -77,37 +71,6 @@ const DEFAULT_CENTER = { lat: 41.9028, lng: 12.4964 };
  */
 const FLOATING =
   "border border-border bg-card/80 shadow-card backdrop-blur-xl backdrop-saturate-150";
-
-/*
- * Beschriftung und Zeichen der Filter.
- *
- * Mehrzahl, weil die Leiste Mengen filtert ("Cafes", nicht "Cafe").
- * "Nature" und "Other" bleiben unveraendert -- sie sind bereits
- * Sammelbegriffe.
- */
-const CATEGORY_LABELS: Record<Category, string> = {
-  Restaurant: "Restaurants",
-  Cafe: "Cafés",
-  Bar: "Bars",
-  Hotel: "Hotels",
-  Beach: "Beaches",
-  Museum: "Museums",
-  Landmark: "Landmarks",
-  Nature: "Nature",
-  Other: "Other",
-};
-
-const CATEGORY_ICONS: Record<Category, typeof Coffee> = {
-  Restaurant: UtensilsCrossed,
-  Cafe: Coffee,
-  Bar: Martini,
-  Hotel: BedDouble,
-  Beach: Umbrella,
-  Museum: Building2,
-  Landmark: Landmark,
-  Nature: Mountain,
-  Other: MapPin,
-};
 
 /*
  * Kartenzustand ueber einen Seitenwechsel hinweg merken.
@@ -1436,7 +1399,7 @@ function FilterChip({
 }: {
   label: string;
   count: number;
-  icon?: typeof Coffee;
+  icon?: LucideIcon;
   active: boolean;
   onClick: () => void;
 }) {
@@ -1470,8 +1433,10 @@ function FilterChip({
  * was das Beste davon ist -- dazu muesstest du jeden Pin einzeln
  * antippen. Bei dreissig Pins in einer fremden Stadt ist das der
  * Unterschied zwischen "ich habe eine Karte" und "ich weiss, wo ich
- * hingehe". Es sind dieselben Orte wie auf der Karte, derselbe Filter,
- * nur sortierbar und auf einen Blick vergleichbar.
+ * hingehe".
+ *
+ * Die Darstellung selbst steht in PlaceList und wird mit der
+ * Wunschliste geteilt.
  */
 function PlacesListSheet({
   open,
@@ -1488,103 +1453,21 @@ function PlacesListSheet({
   heading: string;
   onPick: (pin: Pin) => void;
 }) {
-  const [sort, setSort] = useState<"rating" | "distance">("rating");
-
-  const rows = useMemo(() => {
-    const withDistance = pins.map((p) => ({
-      pin: p,
-      meters: myPos ? metersBetween(myPos, p) : null,
-    }));
-    if (sort === "distance" && myPos) {
-      return withDistance.sort((a, b) => (a.meters ?? 0) - (b.meters ?? 0));
-    }
-    // Nach Note, gemerkte Orte ohne Bewertung ans Ende -- sie sind keine
-    // Empfehlung, sondern ein eigener Merkzettel.
-    return withDistance.sort((a, b) => (b.pin.rating ?? -1) - (a.pin.rating ?? -1));
-  }, [pins, myPos, sort]);
-
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="bottom"
         className="flex max-h-[78dvh] flex-col rounded-t-3xl border-0 p-0"
       >
-        <SheetHeader className="px-6 pb-3 pt-6 text-left">
-          <SheetTitle className="flex items-center gap-3 pr-8">
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-lg font-bold">{heading}</span>
-              <span className="turi-meta block text-xs font-normal text-muted-foreground">
-                {pins.length} {pins.length === 1 ? "place" : "places"} in this view
-              </span>
-            </span>
-            {myPos ? (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary p-1">
-                {(["rating", "distance"] as const).map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setSort(key)}
-                    aria-pressed={sort === key}
-                    className={`turi-tap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      sort === key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-                    }`}
-                  >
-                    {key === "rating" ? "Top rated" : "Nearest"}
-                  </button>
-                ))}
-              </span>
-            ) : null}
-          </SheetTitle>
+        <SheetHeader className="px-6 pb-2 pt-6 text-left">
+          <SheetTitle className="truncate pr-8 text-lg font-bold">{heading}</SheetTitle>
         </SheetHeader>
-
-        <ul className="min-h-0 flex-1 overflow-y-auto px-3 pb-8">
-          {rows.map(({ pin, meters }) => {
-            const Icon = CATEGORY_ICONS[pin.category];
-            return (
-              <li key={pin.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void tap();
-                    onPick(pin);
-                  }}
-                  className="turi-tap flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-secondary"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
-                    <Icon size={17} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{pin.name}</span>
-                    <span className="turi-meta block truncate text-xs text-muted-foreground">
-                      {[
-                        CATEGORY_LABELS[pin.category].replace(/s$/, ""),
-                        pin.friends > 0
-                          ? `${pin.friends} ${pin.friends === 1 ? "friend" : "friends"}`
-                          : "Want to go",
-                        meters !== null ? distanceLabel(meters) : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </span>
-                  {/*
-                    Dieselben zwei Zeichen wie auf der Karte -- schwarze
-                    Note und blaues Lesezeichen. Hier stehen sie neben
-                    ausgeschriebenem Text und erklaeren damit nebenbei,
-                    was die Pins draussen bedeuten.
-                  */}
-                  {pin.rating !== undefined ? (
-                    <span className="turi-meta shrink-0 rounded-md bg-map-pin px-1.5 py-0.5 text-xs font-bold text-white">
-                      {pin.rating.toFixed(1)}
-                    </span>
-                  ) : (
-                    <Bookmark size={16} className="shrink-0 text-map-accent" fill="currentColor" />
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <PlaceList
+          items={pins}
+          myPos={myPos}
+          summary={`${pins.length} ${pins.length === 1 ? "place" : "places"} in this view`}
+          onPick={(item) => onPick(item as Pin)}
+        />
       </SheetContent>
     </Sheet>
   );

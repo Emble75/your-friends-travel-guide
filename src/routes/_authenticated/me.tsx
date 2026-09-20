@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import { deleteOwnAccount } from "@/lib/account.functions";
 import { EmptyState } from "@/components/turi/EmptyState";
+import { PlaceList, type PlaceListItem } from "@/components/turi/PlaceList";
+import { normalizeCategory } from "@/lib/categories";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
@@ -166,6 +168,16 @@ function MePage() {
     },
   });
 
+  /*
+   * Die Wunschliste -- mit den Noten aus dem Freundeskreis.
+   *
+   * Vorher war sie eine blosse Aufzaehlung aus Lesezeichen und Stadt,
+   * in der Reihenfolge des Merkens. Bei vierzig Eintraegen ist das ein
+   * Friedhof: Man merkt sich Orte ueber Monate und will danach genau
+   * zwei Dinge wissen -- was davon ist das Beste, und was ist von hier
+   * aus in der Naehe. Beides braucht Daten, die die Liste bisher nicht
+   * geholt hat: Koordinaten und die Bewertungen der anderen.
+   */
   const { data: savedPlaces } = useQuery({
     queryKey: ["my-saved-places"],
     queryFn: async () => {
@@ -173,12 +185,55 @@ function MePage() {
       const me = auth.user!.id;
       const { data, error } = await supabase
         .from("saved_places")
-        .select("place_id, places(id, name, city)")
+        .select("place_id, places(id, name, city, category, lat, lng)")
         .eq("user_id", me)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      type Place = { id: string; name: string; city: string };
-      return (data ?? []).map((s) => s.places as unknown as Place).filter(Boolean);
+      type Place = {
+        id: string;
+        name: string;
+        city: string;
+        category: string;
+        lat: number | null;
+        lng: number | null;
+      };
+      const places = (data ?? []).map((s) => s.places as unknown as Place).filter(Boolean);
+
+      // Die Noten in EINER Abfrage fuer alle gemerkten Orte. Die eigene
+      // bleibt aussen vor -- die Wunschliste soll zeigen, was ANDERE
+      // davon halten. RLS liefert ohnehin nur den sichtbaren Kreis.
+      const sums = new Map<string, { total: number; count: number }>();
+      if (places.length > 0) {
+        const { data: rows } = await supabase
+          .from("reviews")
+          .select("place_id, rating")
+          .in(
+            "place_id",
+            places.map((p) => p.id),
+          )
+          .neq("user_id", me);
+        for (const r of rows ?? []) {
+          const entry = sums.get(r.place_id) ?? { total: 0, count: 0 };
+          entry.total += r.rating;
+          entry.count += 1;
+          sums.set(r.place_id, entry);
+        }
+      }
+
+      return places.map((p): PlaceListItem => {
+        const sum = sums.get(p.id);
+        return {
+          id: p.id,
+          name: p.name,
+          city: p.city,
+          category: normalizeCategory(p.category),
+          lat: p.lat,
+          lng: p.lng,
+          friends: sum?.count ?? 0,
+          saved: true,
+          ...(sum ? { rating: sum.total / sum.count } : {}),
+        };
+      });
     },
   });
 
@@ -664,7 +719,13 @@ function MePage() {
           <SheetHeader className="text-left">
             <SheetTitle>{collection === "folders" ? "Folders" : "Want to go"}</SheetTitle>
           </SheetHeader>
-          <div className="mt-2 max-h-[55vh] space-y-1 overflow-y-auto px-1">
+          <div
+            className={
+              collection === "saved" && (savedPlaces ?? []).length > 0
+                ? "mt-2 flex max-h-[58vh] min-h-0 flex-col overflow-hidden"
+                : "mt-2 max-h-[55vh] space-y-1 overflow-y-auto px-1"
+            }
+          >
             {collection === "folders" ? (
               folders.length + sharedWithMe.length === 0 ? (
                 <p className="px-2 py-6 text-center text-sm text-muted-foreground">
@@ -706,19 +767,21 @@ function MePage() {
                 Nothing saved yet. Tap the bookmark on a place to keep it here.
               </p>
             ) : (
-              (savedPlaces ?? []).map((p) => (
-                <Link
-                  key={p.id}
-                  to="/place/$placeId"
-                  params={{ placeId: p.id }}
-                  onClick={() => setCollection(null)}
-                  className="turi-tap flex items-center gap-3 rounded-2xl p-3 hover:bg-secondary"
-                >
-                  <Bookmark size={16} className="shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
-                  <span className="turi-meta shrink-0 text-xs text-muted-foreground">{p.city}</span>
-                </Link>
-              ))
+              /*
+                Dieselbe Darstellung wie die Liste auf der Karte:
+                sortierbar nach Note oder Entfernung. Es ist dieselbe
+                Frage -- "welcher dieser Orte ist jetzt der richtige?" --
+                und sie wurde hier bisher anders beantwortet als dort.
+              */
+              <PlaceList
+                items={savedPlaces ?? []}
+                showCity
+                summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
+                onPick={(item) => {
+                  setCollection(null);
+                  navigate({ to: "/place/$placeId", params: { placeId: item.id } });
+                }}
+              />
             )}
           </div>
         </SheetContent>

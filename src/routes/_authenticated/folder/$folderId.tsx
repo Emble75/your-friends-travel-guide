@@ -1,7 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ExternalLink, Folder, Share2, Star, Trash2, UserMinus, UserPlus } from "lucide-react";
+import {
+  ExternalLink,
+  Folder,
+  Map as MapIcon,
+  Rows3,
+  Share2,
+  Star,
+  Trash2,
+  UserMinus,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import { getAppUrl, getErrorMessage } from "@/lib/turi";
@@ -9,6 +19,7 @@ import { share } from "@/lib/native";
 import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
+import { PlacesMiniMap, type MiniMapPlace } from "@/components/turi/PlacesMiniMap";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +49,7 @@ function FolderPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [shareOpen, setShareOpen] = useState(false);
+  const [view, setView] = useState<"feed" | "map">("feed");
 
   const { data, isLoading } = useQuery({
     queryKey: ["trip-folder", folderId],
@@ -100,6 +112,37 @@ function FolderPage() {
 
   const { folder, isOwn, reviews } = data;
 
+  /*
+   * Die Orte des Ordners fuer die Karte.
+   *
+   * Bewusst OHNE eigene Abfrage: Die Bewertungen sind bereits geladen
+   * und tragen ihren Ort mitsamt Koordinaten. Ein Ordner ist eine Reise
+   * -- als Liste sieht man, was man geschrieben hat, als Karte sieht
+   * man die Reise selbst. Das war bisher der fehlende halbe Teil.
+   *
+   * Mehrere Bewertungen zum selben Ort ergeben einen Pin mit dem
+   * Durchschnitt; Orte ohne Koordinaten (von Hand angelegt) koennen
+   * nicht auf die Karte und werden unten benannt.
+   */
+  const mapPlaces: MiniMapPlace[] = (() => {
+    const byId = new Map<string, { name: string; lat: number; lng: number }>();
+    const sums = new Map<string, { total: number; count: number }>();
+    for (const r of reviews) {
+      const p = r.places;
+      if (!p || p.lat == null || p.lng == null) continue;
+      byId.set(p.id, { name: p.name, lat: p.lat, lng: p.lng });
+      const entry = sums.get(p.id) ?? { total: 0, count: 0 };
+      entry.total += r.rating;
+      entry.count += 1;
+      sums.set(p.id, entry);
+    }
+    return Array.from(byId.entries()).map(([id, place]) => ({
+      id,
+      ...place,
+      rating: sums.get(id)!.total / sums.get(id)!.count,
+    }));
+  })();
+
   return (
     <>
       <AppHeader title={folder.name} showBack fallbackTo="/me" />
@@ -141,14 +184,53 @@ function FolderPage() {
           </div>
         ) : null}
 
-        {reviews.length > 0 ? (
-          reviews.map((r) => <ReviewCard key={r.id} review={r} />)
-        ) : (
+        {reviews.length === 0 ? (
           <EmptyState
             icon={Star}
             title="Still empty"
             text="Reviews from this folder will appear here."
           />
+        ) : (
+          <>
+            {/* Derselbe Umschalter wie auf Profilseiten -- gleiche Geste,
+                gleiches Aussehen, gleiche Stelle. */}
+            <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+              <button
+                type="button"
+                onClick={() => setView("feed")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+                  view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
+                }`}
+              >
+                <Rows3 size={15} /> Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("map")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+                  view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
+                }`}
+              >
+                <MapIcon size={15} /> Map
+              </button>
+            </div>
+
+            {view === "map" ? (
+              mapPlaces.length === 0 ? (
+                <EmptyState
+                  icon={MapIcon}
+                  title="Nothing to show on the map"
+                  text="These reviews are for places without a saved location, so they can't be placed on the map."
+                />
+              ) : (
+                <div className="h-[60vh] overflow-hidden rounded-3xl border border-border shadow-card">
+                  <PlacesMiniMap places={mapPlaces} />
+                </div>
+              )
+            ) : (
+              reviews.map((r) => <ReviewCard key={r.id} review={r} />)
+            )}
+          </>
         )}
       </div>
 
