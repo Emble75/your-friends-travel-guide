@@ -51,6 +51,26 @@ function AuthPage() {
   const captchaRequired = Boolean(import.meta.env["VITE_TURNSTILE_SITE_KEY"]);
 
   /*
+   * Wer bereits angemeldet ist, hat hier nichts zu suchen.
+   *
+   * Frueher konnte man auf dieser Seite landen, obwohl die Sitzung
+   * stand -- etwa ueber einen alten Verweis oder ein Lesezeichen. Man
+   * sah dann ein Anmeldeformular und hielt sich fuer ausgeloggt,
+   * obwohl nichts verloren war. Die Weiterleitung ersetzt den Eintrag
+   * in der Historie (replace), damit der Zurueck-Knopf nicht gleich
+   * wieder hierher fuehrt.
+   */
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) navigate({ to: "/map", replace: true });
+    });
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
+
+  /*
    * Eigene Pruefung statt der eingebauten Browser-Meldung.
    *
    * Das Formular traegt weiterhin required/minLength/pattern -- die

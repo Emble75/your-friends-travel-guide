@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/turi/AppHeader";
 
 export const Route = createFileRoute("/legal/terms")({
@@ -12,12 +11,19 @@ export const Route = createFileRoute("/legal/terms")({
 function TermsPage() {
   return (
     <>
-      <AppHeader title="Terms of Service" />
-      <div className="app-shell space-y-5 py-6 text-sm leading-relaxed text-foreground/90">
-        <Link to="/auth" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <ArrowLeft size={14} /> Back
-        </Link>
+      {/*
+        Zurueck fuehrt dorthin, wo man herkam -- und nur ersatzweise auf
+        die Startseite, falls jemand den Link direkt geoeffnet hat.
 
+        Hier stand frueher ein fester Verweis auf die ANMELDESEITE. Das
+        stammte aus der Zeit, als diese Seiten nur aus dem
+        Registrierungsformular erreichbar waren. Seit sie auch im Profil
+        stehen, war das ein Fehler mit unangenehmer Wirkung: Wer sie aus
+        seinem Konto heraus oeffnete und "Back" tippte, landete auf dem
+        Anmeldeformular und hielt sich fuer ausgeloggt.
+      */}
+      <AppHeader title="Terms of Service" showBack fallbackTo="/" />
+      <div className="app-shell space-y-5 py-6 text-sm leading-relaxed text-foreground/90">
         <div>
           <h1 className="text-xl font-bold">Terms of Service</h1>
           <p className="mt-1 text-xs text-muted-foreground">Last updated: 23 August 2026</p>
