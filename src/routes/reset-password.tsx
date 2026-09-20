@@ -82,17 +82,14 @@ function ResetPasswordPage() {
     <main className="flex min-h-screen flex-col justify-center bg-background">
       <div className="app-shell py-10">
         <div className="flex flex-col items-center text-center">
-          <TuriMark className="size-20 text-[5rem]" />
+          <TuriMark className="size-20" />
           <h1 className="mt-5 text-3xl font-bold">New password</h1>
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
             Set a new password for your account.
           </p>
         </div>
 
-        <form
-          onSubmit={onSubmit}
-          className="mt-8 space-y-4 turi-card p-5"
-        >
+        <form onSubmit={onSubmit} className="mt-8 space-y-4 turi-card p-5">
           <div className="space-y-1.5">
             <Label htmlFor="password">New password</Label>
             <Input
