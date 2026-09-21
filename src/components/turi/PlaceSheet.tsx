@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, Navigation, Star, Users } from "lucide-react";
+import { Bookmark, ChevronUp, Navigation, Star, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import type { MapPlace } from "@/lib/maps.server";
@@ -34,7 +34,15 @@ import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard
  * Flaeche, die man beim Tippen versehentlich wegwischt, waere das
  * aergerlich. Lesen im Panel, Schreiben auf einer Seite.
  */
-const PEEK = 0.34;
+/*
+ * Die kleine Hoehe steht in PIXELN, nicht als Anteil des Bildschirms.
+ *
+ * Mit 34 % war sie auf manchen Geraeten zu niedrig: Die beiden Knoepfe
+ * wurden mittendurch abgeschnitten. Ein Anteil raet, wie hoch der
+ * Inhalt ist -- dieser Inhalt hat aber eine feste Hoehe (Kopf, Note,
+ * Knopfreihe), und die passt in 330 Pixel auf jedem Geraet.
+ */
+const PEEK = "330px";
 const FULL = 0.92;
 
 /*
@@ -370,13 +378,17 @@ export function PlaceSheet({
             oben.
           */}
           {avg !== null ? (
-            <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
+            <button
+              type="button"
+              onClick={() => !expanded && setSnap(FULL)}
+              className="turi-tap flex w-full items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left"
+            >
               <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
               <Stars value={avg} size={16} />
               <span className="ml-auto text-xs text-muted-foreground">
                 {reviews.length} from your circle
               </span>
-            </div>
+            </button>
           ) : (
             <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
               <Users size={18} className="text-primary" />
@@ -401,15 +413,30 @@ export function PlaceSheet({
             >
               <Star size={18} className="mr-1" /> Review
             </Button>
-            {reviews.length > 0 && !expanded ? (
-              <Button
-                variant="secondary"
-                onClick={() => setSnap(FULL)}
-                className="h-12 flex-1 rounded-2xl"
-              >
-                All reviews
-              </Button>
-            ) : null}
+            {/*
+              Der zweite Knopf bleibt immer stehen und wechselt nur die
+              Aufschrift. Vorher verschwand er beim Hochziehen -- die
+              Reihe sprang dann um, und man hatte das Gefuehl, etwas
+              falsch gemacht zu haben.
+
+              Der Pfeil nach oben ist die einzige Stelle, die sagt:
+              "hier geht es weiter nach oben". Ohne ihn war nicht zu
+              erraten, dass sich das Panel ziehen laesst.
+            */}
+            <Button
+              disabled={busy}
+              variant="secondary"
+              onClick={() => (expanded || reviews.length === 0 ? go("place") : setSnap(FULL))}
+              className="h-12 flex-1 rounded-2xl"
+            >
+              {expanded || reviews.length === 0 ? (
+                "Place page"
+              ) : (
+                <>
+                  <ChevronUp size={18} className="mr-1" /> All reviews
+                </>
+              )}
+            </Button>
           </div>
 
           {/*
