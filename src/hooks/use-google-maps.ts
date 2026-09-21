@@ -15,8 +15,20 @@ function loadMaps() {
   loadPromise = new Promise<void>((resolve, reject) => {
     if (typeof window === "undefined") return;
     if (window.google?.maps) return resolve();
-    const key = import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
-    const channel = import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID"];
+    /*
+     * Eigener Schluessel zuerst, Lovables Connector-Schluessel nur als
+     * Rueckfall. So laesst sich auf den eigenen Google-Cloud-Zugang
+     * umstellen, ohne dass zwischendurch die Karte ausfaellt: erst
+     * VITE_GOOGLE_MAPS_BROWSER_KEY in .env eintragen, bauen, fertig.
+     *
+     * Die Kanal-Kennung ist Lovables Abrechnungs-Merkmal und gehoert
+     * deshalb nur an Lovables Schluessel.
+     */
+    const ownKey = import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"];
+    const key = ownKey || import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
+    const channel = ownKey
+      ? undefined
+      : import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID"];
     if (!key) return reject(new Error("Missing maps API key"));
     window.__turiMapsReady = () => resolve();
     const script = document.createElement("script");
