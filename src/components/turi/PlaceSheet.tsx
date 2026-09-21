@@ -83,6 +83,10 @@ export function PlaceSheet({
   const [busy, setBusy] = useState(false);
   const [snap, setSnap] = useState<string | number | null>(PEEK);
   // Gleicher Schluessel wie in ReviewCard -- der Wert wird geteilt.
+  // Ob das Panel hochgezogen ist -- entscheidet ueber Ziehsperre und
+  // Schliessverhalten.
+  const expanded = snap === FULL;
+
   const { data: me } = useQuery({
     queryKey: ["current-user-id"],
     queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
@@ -306,7 +310,24 @@ export function PlaceSheet({
       onOpenChange={(open) => !open && onClose()}
       snapPoints={[PEEK, FULL]}
       activeSnapPoint={snap}
-      setActiveSnapPoint={setSnap}
+      /*
+       * Ein Wisch nach unten schliesst -- auch aus der vollen Hoehe.
+       *
+       * Standardmaessig faehrt das Panel erst eine Stufe herunter und
+       * erst der zweite Wisch schliesst es. Zwei Bewegungen fuer "weg
+       * damit" sind eine zu viel; wer den Ort wieder klein sehen will,
+       * tippt den Pin erneut an.
+       *
+       * Der Griff greift nur bei ZIEHEN: Beim Oeffnen setzen wir die
+       * kleine Hoehe selbst (siehe Effekt oben), nicht ueber diesen Weg.
+       */
+      setActiveSnapPoint={(next) => {
+        if (snap === FULL && next === PEEK) {
+          onClose();
+          return;
+        }
+        setSnap(next);
+      }}
       // Der Hintergrund darf NICHT zurueckskalieren: Dahinter liegt die
       // Karte, und eine schrumpfende Karte sieht aus wie ein Fehler.
       shouldScaleBackground={false}
@@ -370,20 +391,20 @@ export function PlaceSheet({
         */}
         <div
           /*
-           * data-vaul-no-drag: In diesem Bereich wird NICHT gezogen,
-           * hier wird nur gescrollt.
+           * Ziehsperre NUR im hochgefahrenen Zustand.
            *
-           * Vorher entschied die Scrollposition darueber: Wer durch die
-           * Bewertungen nach oben wischte und dabei oben ankam, zog mit
-           * derselben Bewegung ungewollt das ganze Panel herunter. Die
-           * Grenze zwischen "scrollen" und "schliessen" lag damit mitten
-           * in einer einzigen Geste.
+           * Oben gibt es etwas zu scrollen, und dort war die Grenze
+           * zwischen "scrollen" und "schliessen" das Problem: Wer nach
+           * oben wischte und am Listenanfang ankam, zog mit derselben
+           * Bewegung das Panel herunter.
            *
-           * Zum Schliessen bleiben der Griff oben, die Kopfzeile und ein
-           * Tipp neben das Panel -- alles Stellen, an denen man nicht
-           * liest.
+           * In der kleinen Hoehe gibt es nichts zu scrollen -- dort
+           * MUSS die Flaeche ziehbar bleiben, sonst bekommt man das
+           * Panel nicht mehr weg. Genau das war nach der ersten Fassung
+           * der Fall: Die Sperre galt immer, und der Inhalt bedeckte
+           * fast die ganze kleine Hoehe.
            */
-          data-vaul-no-drag
+          {...(expanded ? { "data-vaul-no-drag": "" } : {})}
           className="mx-auto min-h-0 w-full max-w-md flex-1 space-y-3 overflow-y-auto overscroll-contain px-6"
           style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
         >
