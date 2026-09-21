@@ -57,7 +57,13 @@ import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard
  * sieht, dass da noch etwas ist, und zieht.
  */
 const PEEK = "460px";
-const FULL = 0.92;
+/*
+ * 96 statt 92 Prozent: Bei zwei Bewertungen mit Fotos reichte die
+ * Hoehe nicht, die zweite Karte blieb angeschnitten. Die vier Prozent
+ * sind auf einem Telefon rund dreissig Pixel -- genug, damit die
+ * letzte Karte vollstaendig steht.
+ */
+const FULL = 0.96;
 
 export type SheetTarget =
   | { kind: "google"; place: MapPlace }
@@ -76,6 +82,12 @@ export function PlaceSheet({
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [snap, setSnap] = useState<string | number | null>(PEEK);
+  // Gleicher Schluessel wie in ReviewCard -- der Wert wird geteilt.
+  const { data: me } = useQuery({
+    queryKey: ["current-user-id"],
+    queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
+    staleTime: 5 * 60_000,
+  });
 
   /*
    * Ein Panel, zwei Herkuenfte. Ein eigener Pin bringt seine Datenbank-id
@@ -107,15 +119,24 @@ export function PlaceSheet({
       if (!local)
         return { localId: null, place: null, reviews: [], isSaved: false, myRating: null };
       const [{ data: reviews }, savedRes, placeRes, mineRes] = await Promise.all([
-        // Ohne die eigene Bewertung: dieses Panel ist durchgehend als
-        // "from your circle" beschriftet, die eigene Meinung gehoert
-        // nicht hinein -- weder in die Liste noch in den Durchschnitt.
-        // Die vollstaendige Ansicht ("All reviews") zeigt sie separat.
+        /*
+         * ALLE Bewertungen, auch die eigene.
+         *
+         * Frueher war die eigene ausgeschlossen, mit der Begruendung:
+         * Der Kern der App ist, was ANDERE denken. Das stimmt fuer den
+         * Durchschnitt -- aber nicht fuer die Liste. Auf der eigenen
+         * Karte steht der Pin ja genau fuer die eigene Bewertung, und
+         * das Panel meldete dazu "keine Bewertungen" und zeigte weder
+         * Text noch Fotos.
+         *
+         * Getrennt wird jetzt erst bei der Anzeige: eigene oben, die des
+         * Kreises darunter, und der Durchschnitt zaehlt weiterhin nur
+         * den Kreis.
+         */
         supabase
           .from("reviews")
           .select(reviewSelect)
           .eq("place_id", local.id)
-          .neq("user_id", me ?? "")
           .order("created_at", { ascending: false }),
         me
           ? supabase
@@ -197,7 +218,11 @@ export function PlaceSheet({
       ? distanceLabel(metersBetween(myPos, { lat: header.lat, lng: header.lng }))
       : null;
 
-  const reviews = (data?.reviews ?? []) as unknown as ReviewWithRelations[];
+  const allReviews = (data?.reviews ?? []) as unknown as ReviewWithRelations[];
+  const myReview = allReviews.find((r) => r.user_id === me) ?? null;
+  // Der Durchschnitt zaehlt weiterhin NUR den Kreis: Die eigene Note
+  // wuerde die Empfehlung der anderen verfaelschen.
+  const reviews = allReviews.filter((r) => r.user_id !== me);
 
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
 
@@ -286,7 +311,7 @@ export function PlaceSheet({
       // Karte, und eine schrumpfende Karte sieht aus wie ein Fehler.
       shouldScaleBackground={false}
     >
-      <DrawerContent className="h-[92dvh] rounded-t-3xl border-0 bg-card">
+      <DrawerContent className="h-[96dvh] rounded-t-3xl border-0 bg-card">
         {/*
           Auf dem Telefon aendert die Breitenbegrenzung nichts; auf einem
           breiten Bildschirm verhindert sie, dass Titel und Knoepfe an
@@ -335,7 +360,18 @@ export function PlaceSheet({
           </DrawerTitle>
         </DrawerHeader>
 
-        <div className="mx-auto min-h-0 w-full max-w-md flex-1 space-y-3 overflow-y-auto px-6 pb-8">
+        {/*
+          overscroll-contain: Ohne das zieht eine Wischbewegung, die am
+          Ende der Liste ankommt, gleich das ganze Panel mit nach unten --
+          das Scrollen fuehlte sich dadurch unberechenbar an.
+
+          Der Fussabstand rechnet die sichere Zone unten mit, sonst steckt
+          die letzte Bewertung halb hinter dem Rand des Telefons.
+        */}
+        <div
+          className="mx-auto min-h-0 w-full max-w-md flex-1 space-y-3 overflow-y-auto overscroll-contain px-6"
+          style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
+        >
           {distance ? (
             <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
           ) : null}
@@ -366,11 +402,22 @@ export function PlaceSheet({
             hier, und der angeschnittene erste Eintrag sagt, dass man
             ziehen kann.
           */}
-          {reviews.length > 0 ? (
+          {myReview || reviews.length > 0 ? (
             <div className="space-y-4 pt-1">
-              {reviews.map((r) => (
-                <ReviewCard key={r.id} review={r} showPlace={false} />
-              ))}
+              {myReview ? (
+                <>
+                  <h2 className="turi-eyebrow px-1">Your review</h2>
+                  <ReviewCard review={myReview} showPlace={false} />
+                </>
+              ) : null}
+              {reviews.length > 0 ? (
+                <>
+                  {myReview ? <h2 className="turi-eyebrow px-1">From your circle</h2> : null}
+                  {reviews.map((r) => (
+                    <ReviewCard key={r.id} review={r} showPlace={false} />
+                  ))}
+                </>
+              ) : null}
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-5">
