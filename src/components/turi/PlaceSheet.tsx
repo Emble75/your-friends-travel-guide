@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, ChevronUp, Navigation, Star, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +10,7 @@ import { directionsUrl, getErrorMessage, signedUrls } from "@/lib/turi";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Stars } from "./Stars";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard";
 
@@ -41,48 +42,6 @@ import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard
  * Inhalt ist -- dieser Inhalt hat aber eine feste Hoehe (Kopf, Note,
  * Knopfreihe), und die passt in 330 Pixel auf jedem Geraet.
  */
-/*
- * Die kleine Hoehe -- zwei Werte, je nachdem ob es Fotos gibt.
- *
- * 300 Pixel waren zu knapp: Der "Review"-Knopf stand nur zur Haelfte
- * im Bild. Eine Handlungsaufforderung, die man anschneidet, sieht aus
- * wie ein Fehler.
- *
- * Mit Fotos ist die Hoehe so gewaehlt, dass der Knopf VOLLSTAENDIG
- * steht und der Fotostreifen darunter zu etwa zwei Dritteln
- * hereinragt. Dieses Anschneiden ist Absicht und das Gegenteil des
- * Fehlers oben: Es sagt "hier geht es weiter", ohne ein Wort zu
- * brauchen.
- */
-const PEEK_BARE = "330px";
-const PEEK_PHOTOS = "410px";
-const FULL = 0.92;
-
-/*
- * Die Vorschau zu einem Ort -- das Panel, das von unten hereinfaehrt.
- *
- * Sie stand lange nur in der Hauptkarte. Auf den Karten von Profilen
- * und Ordnern fuehrte ein Tipp auf einen Pin dagegen sofort auf die
- * vollstaendige Ortsseite -- also weg von der Karte, mit Neuaufbau beim
- * Zurueckkommen. Auf einer Karte will man aber meist nur kurz
- * nachsehen ("was ist das, wie ist es bewertet, hat es offen?") und
- * dann den naechsten Pin antippen. Genau dafuer ist diese Vorschau da,
- * und deshalb steht sie jetzt an einer Stelle fuer alle Karten.
- */
-
-/*
- * Woher der Ort im unteren Panel stammt.
- *
- * "google": ein Symbol aus Googles eigener Karte oder ein Suchtreffer --
- * der Ort existiert bei uns vielleicht noch gar nicht und wird erst beim
- * Bewerten oder Merken angelegt (ensureLocalPlace).
- *
- * "local": einer unserer eigenen Pins. Der Ort steht bereits in unserer
- * Datenbank, seine id ist bekannt. Wichtig: ueber die Google-Kennung
- * darf hier NICHT nachgeschlagen werden -- von Hand angelegte Orte
- * ("Can't find it?") haben keine, und genau die wuerden sonst wieder
- * durchs Raster fallen.
- */
 export type SheetTarget =
   | { kind: "google"; place: MapPlace }
   | { kind: "local"; id: string; name: string; lat: number; lng: number };
@@ -96,21 +55,9 @@ export function PlaceSheet({
   onClose: () => void;
   myPos: { lat: number; lng: number } | null;
 }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
-  const [snap, setSnap] = useState<number | string | null>(PEEK_BARE);
-  /*
-   * "view" zeigt den Ort, "review" das Formular -- im SELBEN Panel.
-   *
-   * Ein zweites Panel darueber waere die naheliegende Loesung gewesen,
-   * fuehrt aber zu uebereinandergestapelten Flaechen, die man einzeln
-   * wegwischen muss. Der Wechsel des Inhalts fuehlt sich an wie das
-   * Hochziehen: Es bleibt dieselbe Flaeche, sie zeigt nur etwas
-   * anderes.
-   */
-  const [mode, setMode] = useState<"view" | "review">("view");
-  const [localId, setLocalId] = useState<string | null>(null);
-  const expanded = snap === FULL;
 
   /*
    * Ein Panel, zwei Herkuenfte. Ein eigener Pin bringt seine Datenbank-id
@@ -254,7 +201,6 @@ export function PlaceSheet({
     queryFn: () => signedUrls("review-photos", photoPaths),
   });
 
-  const peek = photoPaths.length > 0 ? PEEK_PHOTOS : PEEK_BARE;
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
 
   /*
@@ -267,31 +213,27 @@ export function PlaceSheet({
     return target.kind === "local" ? target.id : await ensureLocalPlace(target.place);
   }
 
-  function close() {
-    setSnap(PEEK_BARE);
-    setMode("view");
-    onClose();
-  }
-
   /*
-   * Ins Formular wechseln -- ohne die Karte zu verlassen.
+   * Auf eine eigene Flaeche wechseln -- alle Bewertungen lesen oder
+   * selbst eine schreiben.
    *
-   * Der Ort muss dafuer in unserer Datenbank stehen. Bei einem
-   * Google-Symbol ist er das noch nicht; er wird hier angelegt, waehrend
-   * das Panel schon hochfaehrt.
+   * ZUERST schliessen, dann nachschlagen und wechseln: Waehrend das
+   * Panel offen ist, sperrt es die Klicks dahinter, und bei einem Ort,
+   * den es bei uns noch nicht gibt, legt resolveLocalId ihn zuerst an.
+   * Stand das davor, blieb das Panel nach dem Tippen einen Moment
+   * stehen -- genau das las sich wie ein aufspringendes Fenster.
    */
-  async function startReview() {
+  async function go(to: "place" | "review") {
     if (!target) return;
     setBusy(true);
-    setSnap(FULL);
+    onClose();
     try {
       const id = await resolveLocalId();
       if (!id) return;
-      setLocalId(id);
-      setMode("review");
+      if (to === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
+      else navigate({ to: "/new", search: { placeId: id } });
     } catch (e) {
       toast.error(getErrorMessage(e, "Could not open place"));
-      setSnap(PEEK_BARE);
     } finally {
       setBusy(false);
     }
@@ -327,176 +269,154 @@ export function PlaceSheet({
   }
 
   return (
-    <Drawer
-      open={!!target}
-      onOpenChange={(open) => !open && close()}
-      snapPoints={[peek, FULL]}
-      activeSnapPoint={snap}
-      setActiveSnapPoint={setSnap}
-      // Der Hintergrund soll NICHT zurueckskalieren: Dahinter liegt die
-      // Karte, und eine schrumpfende Karte sieht aus wie ein Fehler.
-      shouldScaleBackground={false}
-    >
-      <DrawerContent className="h-[92dvh] rounded-t-3xl border-0 bg-card">
+    <Sheet open={!!target} onOpenChange={(open) => !open && onClose()}>
+      {/*
+        ZURUECK ZUR EINFACHEN VORSCHAU.
+        
+        Zwischendurch war das hier ein ziehbares Panel mit zwei Hoehen:
+        angetippt ein Ausschnitt, hochgezogen die Bewertungen. Die Idee
+        war richtig -- so machen es Apple und Google Maps --, die
+        Ausfuehrung nicht: Das Panel oeffnete sich auf voller Hoehe statt
+        auf dem Ausschnitt, und auf breiten Bildschirmen zog sich alles
+        auseinander. Ein Bauteil, das man nicht verlaesslich bekommt,
+        ist schlechter als eines, das weniger kann.
+
+        Was aus dem Versuch bleibt und gut war: der Fotostreifen der
+        Freunde, die Formular-Kopfzeile beim Bewerten und die weichen
+        Seitenuebergaenge. Die Vorschau selbst ist wieder das, was sie
+        war -- kurz, ruhig, mit zwei klaren Wegen nach vorn.
+      */}
+      <SheetContent side="bottom" className="rounded-t-3xl border-0 pb-8">
         {/*
-          Kopf neu gefasst: Name und Adresse tragen die Zeile, die beiden
-          Nebenhandlungen sitzen als runde Symbolknoepfe rechts daneben.
-          Vorher waren beide breite Balken untereinander -- "Take me there"
-          bekam damit dasselbe Gewicht wie das Bewerten, obwohl es aus der
-          App HERAUS fuehrt. Das gehoert nicht in die erste Reihe.
+          Auf dem Telefon aendert das nichts; auf einem breiten
+          Bildschirm verhindert es, dass Titel und Knoepfe an die
+          gegenueberliegenden Raender wandern und die Zeile zerreisst.
         */}
-        <DrawerHeader className="shrink-0 text-left">
-          {/*
-            pr-8 haelt die Ecke fuer das Schliessen-X frei. Ohne das
-            ueberlappten beide: das X sitzt 16px vom Rand, der Inhalt
-            beginnt bei 24px -- der Merken-Knopf lag damit teilweise
-            darunter, und beide waren schwer zu treffen.
-          */}
-          <DrawerTitle className="flex items-center gap-3">
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-lg font-bold">{header?.name}</span>
-              <span className="turi-meta block truncate text-xs font-normal text-muted-foreground">
-                {header?.subtitle}
+        <div className="mx-auto w-full max-w-md">
+          <SheetHeader className="text-left">
+            {/*
+              pr-8 haelt die Ecke fuer das Schliessen-X frei -- sonst
+              liegt der Merken-Knopf teilweise darunter, und beide sind
+              schwer zu treffen.
+            */}
+            <SheetTitle className="flex items-center gap-3 pr-8">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-lg font-bold">{header?.name}</span>
+                <span className="turi-meta block truncate text-xs font-normal text-muted-foreground">
+                  {header?.subtitle}
+                </span>
               </span>
-            </span>
 
-            <button
-              type="button"
-              onClick={toggleSave}
-              disabled={busy}
-              aria-label={data?.isSaved ? "Remove from want to go" : "Add to want to go"}
-              aria-pressed={!!data?.isSaved}
-              className={`turi-tap flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                data?.isSaved
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground"
-              }`}
-            >
-              <Bookmark size={18} fill={data?.isSaved ? "currentColor" : "none"} />
-            </button>
-
-            {header ? (
-              <a
-                href={directionsUrl({
-                  name: header.name,
-                  lat: header.lat,
-                  lng: header.lng,
-                  googlePlaceId: header.googlePlaceId,
-                })}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Directions in Google Maps"
-                className="turi-tap flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+              <button
+                type="button"
+                onClick={toggleSave}
+                disabled={busy}
+                aria-label={data?.isSaved ? "Remove from want to go" : "Add to want to go"}
+                aria-pressed={!!data?.isSaved}
+                className={`turi-tap flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                  data?.isSaved
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground"
+                }`}
               >
-                <Navigation size={18} />
-              </a>
-            ) : null}
-          </DrawerTitle>
-        </DrawerHeader>
+                <Bookmark size={18} fill={data?.isSaved ? "currentColor" : "none"} />
+              </button>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-8">
-          {/*
-            Die beiden praktischen Fragen zuerst: Hat es offen, und wie
-            weit ist es? Sie entscheiden, ob man ueberhaupt weiterliest --
-            eine 4,8 nuetzt nichts, wenn der Laden seit zwei Stunden zu
-            ist. Fehlt eine der Angaben (kein Standort erlaubt, keine
-            Zeiten hinterlegt), faellt sie still weg.
-          */}
-          {distance ? (
-            <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
-          ) : null}
-
-          {/*
-            In der kleinen Hoehe NUR der Durchschnitt. Angerissene
-            Bewertungskarten waeren beides halb: zu wenig zum Lesen, zu
-            viel fuer einen Blick. Die ganzen stehen eine Hoehe weiter
-            oben.
-          */}
-          {avg !== null ? (
-            <button
-              type="button"
-              onClick={() => !expanded && setSnap(FULL)}
-              className="turi-tap flex w-full items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left"
-            >
-              <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
-              <Stars value={avg} size={16} />
-              <span className="ml-auto text-xs text-muted-foreground">
-                {reviews.length} from your circle
-              </span>
-              {!expanded ? (
-                <ChevronUp size={16} className="shrink-0 text-muted-foreground" />
+              {header ? (
+                <a
+                  href={directionsUrl({
+                    name: header.name,
+                    lat: header.lat,
+                    lng: header.lng,
+                    googlePlaceId: header.googlePlaceId,
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Directions in Google Maps"
+                  className="turi-tap flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+                >
+                  <Navigation size={18} />
+                </a>
               ) : null}
-            </button>
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
-              <Users size={18} className="text-primary" />
-              {/*
-                Die eigene Note wird hier benannt, statt sie zu verschweigen:
-                auf "My Map" zeigt der Pin genau sie, und ein Panel, das
-                daneben "keine Bewertungen" meldet, widerspraeche dem Pin.
-              */}
-              <p className="text-xs text-muted-foreground">
-                {data?.myRating != null
-                  ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
-                  : "No reviews from friends for this place yet."}
-              </p>
-            </div>
-          )}
+            </SheetTitle>
+          </SheetHeader>
 
-          {/*
-            Nur noch EIN Knopf. Vorher standen hier zwei, und der zweite
-            wechselte beim Hochziehen die Aufschrift -- das war Unruhe
-            fuer eine Handlung, die man ohnehin ueber die Notenflaeche
-            oder den Ziehgriff erreicht. Die Bewertungen holt man sich
-            durch Hochziehen, nicht durch einen Knopf.
-          */}
-          <div className="flex gap-2 pt-1">
-            <Button disabled={busy} onClick={startReview} className="h-12 flex-1 rounded-2xl">
-              <Star size={18} className="mr-1" /> Review
-            </Button>
-          </div>
+          <div className="mt-4 space-y-3">
+            {distance ? (
+              <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
+            ) : null}
 
-          {/*
-            Der Fotostreifen steht UNTER dem Knopf, nicht darueber: Die
-            Handlung soll vollstaendig im Bild stehen, die Fotos duerfen
-            angeschnitten sein. Ein Tipp darauf faehrt das Panel hoch,
-            wo die Bilder in ihren Bewertungen stehen.
-          */}
-          {photoPaths.length > 0 && !expanded ? (
-            <div className="-mx-4 overflow-x-auto px-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex w-max gap-2">
-                {photoPaths.map((path, i) => (
-                  <button
-                    key={path}
-                    type="button"
-                    onClick={() => setSnap(FULL)}
-                    aria-label="Show all reviews"
-                    className="turi-tap size-28 shrink-0 overflow-hidden rounded-2xl bg-muted"
-                  >
-                    {photoUrls?.[i] ? (
-                      <img src={photoUrls[i]!} alt="" className="size-full object-cover" />
-                    ) : null}
-                  </button>
-                ))}
+            {avg !== null ? (
+              <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
+                <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
+                <Stars value={avg} size={16} />
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {reviews.length} from your circle
+                </span>
               </div>
-            </div>
-          ) : null}
+            ) : (
+              <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
+                <Users size={18} className="text-primary" />
+                {/*
+                  Die eigene Note wird benannt, statt sie zu verschweigen:
+                  Auf der eigenen Karte zeigt der Pin genau sie, und ein
+                  Panel, das daneben "keine Bewertungen" meldet,
+                  widerspraeche dem Pin.
+                */}
+                <p className="text-xs text-muted-foreground">
+                  {data?.myRating != null
+                    ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
+                    : "No reviews from friends for this place yet."}
+                </p>
+              </div>
+            )}
 
-          {/*
-            Die Bewertungen werden erst geladen und gezeichnet, wenn das
-            Panel oben steht -- in der kleinen Hoehe waeren es Fotos, die
-            niemand sieht.
-          */}
-          {expanded ? (
-            <div className="space-y-4 pt-2">
-              <h2 className="turi-eyebrow px-1">From your circle</h2>
-              {reviews.map((r) => (
-                <ReviewCard key={r.id} review={r} showPlace={false} />
-              ))}
+            {/*
+              Die Fotos der Freunde -- der eigentliche Grund, warum man
+              einen Ort antippt. Sie kosten keine eigene Abfrage: Die
+              Bewertungen bringen ihre Bilder mit, es fehlten nur die
+              Zugriffslinks.
+            */}
+            {photoPaths.length > 0 ? (
+              <div className="-mx-6 overflow-x-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex w-max gap-2">
+                  {photoPaths.map((path, i) => (
+                    <button
+                      key={path}
+                      type="button"
+                      onClick={() => go("place")}
+                      aria-label="Show all reviews"
+                      className="turi-tap size-24 shrink-0 overflow-hidden rounded-2xl bg-muted"
+                    >
+                      {photoUrls?.[i] ? (
+                        <img src={photoUrls[i]!} alt="" className="size-full object-cover" />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                disabled={busy}
+                onClick={() => go("review")}
+                className="h-12 flex-1 rounded-2xl"
+              >
+                <Star size={18} className="mr-1" /> Review
+              </Button>
+              <Button
+                disabled={busy}
+                variant="secondary"
+                onClick={() => go("place")}
+                className="h-12 flex-1 rounded-2xl"
+              >
+                All reviews
+              </Button>
             </div>
-          ) : null}
+          </div>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </SheetContent>
+    </Sheet>
   );
 }
