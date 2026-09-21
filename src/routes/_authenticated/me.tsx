@@ -21,7 +21,6 @@ import { deleteOwnAccount } from "@/lib/account.functions";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { PlaceList, type PlaceListItem } from "@/components/turi/PlaceList";
 import { PinMap } from "@/components/turi/PinMap";
-import { PlaceSheet, type SheetTarget } from "@/components/turi/PlaceSheet";
 import { normalizeCategory } from "@/lib/categories";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -125,14 +124,6 @@ function MePage() {
   // Welche Sammlung gerade aufgeklappt ist (Ordner oder Wunschliste) --
   // aus der Adresse, siehe validateSearch oben.
   const collection = list ?? null;
-  /*
-   * Ein Ort aus der Wunschliste oeffnet dieselbe Vorschau wie auf der
-   * Karte -- Note, Entfernung, die Bewertungen der Freunde, "Review".
-   * Vorher sprang man von hier direkt auf die Ortsseite, waehrend
-   * ueberall sonst das Panel erscheint. Zwei Antworten auf dieselbe
-   * Geste sind eine Stolperstelle.
-   */
-  const [selectedPlace, setSelectedPlace] = useState<SheetTarget | null>(null);
 
   /*
    * Oeffnen legt einen Eintrag in der Historie an, Schliessen ersetzt
@@ -1058,25 +1049,24 @@ function MePage() {
                   items={savedPlaces ?? []}
                   showCity
                   summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
+                  /*
+                    Hier fuehrt der Weg auf die ORTSSEITE, nicht in die
+                    Vorschau.
+
+                    Eine Zeit lang oeffnete sich hier dasselbe Panel wie
+                    auf der Karte, mit dem Gedanken: dieselbe Geste soll
+                    ueberall dasselbe tun. In der Praxis war es
+                    verwirrend -- ein Panel schwebt ueber dem, wo man
+                    herkommt, und dahinter lag das Profil, das mit dem
+                    Ort nichts zu tun hat. Auf der Karte stimmt dieses
+                    Bild (der Ort liegt ja dort hinten), in einer Liste
+                    nicht.
+
+                    Dass die offene Liste in der Adresse steht, macht den
+                    Weg zurueck sauber: Er fuehrt wieder genau hierher.
+                  */
                   onPick={(item) => {
-                    // Erst die Liste schliessen, dann die Vorschau
-                    // oeffnen -- zwei uebereinanderliegende Flaechen
-                    // muesste man einzeln wegwischen.
-                    setCollection(null);
-                    if (item.lat != null && item.lng != null) {
-                      setSelectedPlace({
-                        kind: "local",
-                        id: item.id,
-                        name: item.name,
-                        lat: item.lat,
-                        lng: item.lng,
-                      });
-                    } else {
-                      // Ohne Koordinaten haette die Vorschau keine
-                      // Entfernung und keinen Routen-Knopf -- dann
-                      // lieber gleich die ganze Ortsseite.
-                      navigate({ to: "/place/$placeId", params: { placeId: item.id } });
-                    }
+                    navigate({ to: "/place/$placeId", params: { placeId: item.id } });
                   }}
                 />
               </>
@@ -1084,8 +1074,6 @@ function MePage() {
           </div>
         </SheetContent>
       </Sheet>
-
-      <PlaceSheet target={selectedPlace} onClose={() => setSelectedPlace(null)} myPos={null} />
 
       <FollowListSheet
         userId={profile.id}
