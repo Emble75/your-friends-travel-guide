@@ -6,6 +6,7 @@ import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { runtimeEnv } from "@/lib/runtime-env";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -19,7 +20,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     if (init?.headers) {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get("Authorization") === `Bearer ${supabaseKey}`) {
+    if (
+      isNewSupabaseApiKey(supabaseKey) &&
+      headers.get("Authorization") === `Bearer ${supabaseKey}`
+    ) {
       headers.delete("Authorization");
     }
     headers.set("apikey", supabaseKey);
@@ -29,9 +33,11 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 export const requireAppSupabaseAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
-    const SUPABASE_URL = process.env["APP_SUPABASE_URL"] ?? process.env["SUPABASE_URL"];
-    const SUPABASE_PUBLISHABLE_KEY =
-      process.env["APP_SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"];
+    const SUPABASE_URL = runtimeEnv("APP_SUPABASE_URL", "SUPABASE_URL");
+    const SUPABASE_PUBLISHABLE_KEY = runtimeEnv(
+      "APP_SUPABASE_PUBLISHABLE_KEY",
+      "SUPABASE_PUBLISHABLE_KEY",
+    );
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       throw new Error("Missing APP_SUPABASE_URL / APP_SUPABASE_PUBLISHABLE_KEY");

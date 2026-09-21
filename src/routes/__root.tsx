@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/app-client";
 import { navHistory } from "@/lib/nav-history";
 import { isNative } from "@/lib/native";
 import { onPushOpened } from "@/lib/push";
+import { runtimeEnv } from "@/lib/runtime-env";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -121,14 +122,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function getPublicSupabaseConfigServerSide(): { url: string; publishableKey: string } | null {
-  // Laeuft nur server-seitig (SSR/Node), wo process.env zur LAUFZEIT (nicht
-  // zur Build-Zeit) korrekt gesetzt ist -- anders als der zur Build-Zeit
-  // eingebackene import.meta.env, der bei Lovable die auto-generierten,
-  // oft veralteten Werte enthaelt.
-  if (typeof process === "undefined" || !process.env) return null;
-  const url = process.env["APP_SUPABASE_URL"] ?? process.env["SUPABASE_URL"];
-  const publishableKey =
-    process.env["APP_SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"];
+  // Liest die zur LAUFZEIT gesetzten Werte des Servers -- anders als der
+  // zur Bauzeit eingebackene import.meta.env, der die auto-generierten,
+  // oft veralteten Werte enthaelt. runtimeEnv deckt dabei beide Welten ab:
+  // process.env (Node) und die Cloudflare-Bindings.
+  const url = runtimeEnv("APP_SUPABASE_URL", "SUPABASE_URL");
+  const publishableKey = runtimeEnv("APP_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_PUBLISHABLE_KEY");
   if (!url || !publishableKey) return null;
   return { url, publishableKey };
 }

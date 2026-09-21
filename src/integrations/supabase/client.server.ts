@@ -4,6 +4,7 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { runtimeEnv } from "@/lib/runtime-env";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -33,13 +34,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env["APP_SUPABASE_URL"] ?? process.env["SUPABASE_URL"];
+  const SUPABASE_URL = runtimeEnv("APP_SUPABASE_URL", "SUPABASE_URL");
   // Lovable blockiert Secret-Namen mit dem Praefix "SUPABASE_" (reserviert fuer
   // die eigene Cloud-Integration). Fuer die veroeffentlichte App nutzen wir
   // deshalb APP_SUPABASE_SERVICE_ROLE_KEY; lokal (.env) bleibt der
   // urspruengliche Name als Fallback nutzbar.
-  const SUPABASE_SERVICE_ROLE_KEY =
-    process.env["APP_SUPABASE_SERVICE_ROLE_KEY"] ?? process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const SUPABASE_SERVICE_ROLE_KEY = runtimeEnv(
+    "APP_SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  );
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [

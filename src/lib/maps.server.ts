@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { runtimeEnv } from "@/lib/runtime-env";
 
 /*
  * Zwei Wege zu Googles Places-API -- der direkte gewinnt, wenn er
@@ -21,7 +22,7 @@ const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 const GOOGLE_URL = "https://places.googleapis.com";
 
 function directKey() {
-  return process.env["GOOGLE_PLACES_API_KEY"];
+  return runtimeEnv("GOOGLE_PLACES_API_KEY");
 }
 
 /*
@@ -127,8 +128,8 @@ function headers(fieldMask: string = FIELD_MASK) {
   const direct = directKey();
   if (direct) return { ...common, "X-Goog-Api-Key": direct };
 
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  const connectionKey = process.env["GOOGLE_MAPS_API_KEY"];
+  const lovableKey = runtimeEnv("LOVABLE_API_KEY");
+  const connectionKey = runtimeEnv("GOOGLE_MAPS_API_KEY");
   if (!lovableKey || !connectionKey) {
     throw new Error(
       "Places API is not configured. Set GOOGLE_PLACES_API_KEY, or LOVABLE_API_KEY together with GOOGLE_MAPS_API_KEY.",

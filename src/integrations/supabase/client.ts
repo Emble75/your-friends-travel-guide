@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import { brokeredPreviewStorage } from "./previewAuthStorage";
+import { runtimeEnv } from "@/lib/runtime-env";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -40,20 +41,19 @@ function createSupabaseClient() {
   // Reihenfolge, robust gegen Lovables Build-Zeit-vs-Laufzeit-Problem:
   // 1) Vom Server zur Laufzeit injizierte Werte (siehe __root.tsx) -- korrekt
   //    auch wenn Secrets beim Build nicht verfuegbar waren.
-  // 2) process.env direkt (SSR-Kontext, laeuft server-seitig).
+  // 2) Die Laufzeit-Umgebung des Servers (process.env bzw. die
+  //    Cloudflare-Bindings, siehe runtimeEnv).
   // 3) import.meta.env als letzter Fallback (rein clientseitiger Build/Preview
   //    ohne SSR, z. B. lokales `vite build`).
   const injected = typeof window !== "undefined" ? window.__SUPABASE_CONFIG__ : undefined;
   const SUPABASE_URL =
     injected?.url ||
-    (typeof process !== "undefined" ? process.env["APP_SUPABASE_URL"] : undefined) ||
-    (typeof process !== "undefined" ? process.env["SUPABASE_URL"] : undefined) ||
+    runtimeEnv("APP_SUPABASE_URL", "SUPABASE_URL") ||
     import.meta.env["APP_SUPABASE_URL"] ||
     import.meta.env["VITE_SUPABASE_URL"];
   const SUPABASE_PUBLISHABLE_KEY =
     injected?.publishableKey ||
-    (typeof process !== "undefined" ? process.env["APP_SUPABASE_PUBLISHABLE_KEY"] : undefined) ||
-    (typeof process !== "undefined" ? process.env["SUPABASE_PUBLISHABLE_KEY"] : undefined) ||
+    runtimeEnv("APP_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_PUBLISHABLE_KEY") ||
     import.meta.env["APP_SUPABASE_PUBLISHABLE_KEY"] ||
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
 
