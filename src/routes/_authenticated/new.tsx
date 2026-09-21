@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { CATEGORIES, getErrorMessage } from "@/lib/turi";
 import { createReview } from "@/lib/create-review";
+import { deviceLanguage } from "@/lib/device-language";
 import { isNative, takePhoto } from "@/lib/native";
 import { searchMapPlaces } from "@/lib/maps.functions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -226,7 +227,9 @@ function NewReviewPage() {
   async function lookupCoords(name: string, city: string) {
     for (const query of [`${name}, ${city}`, city]) {
       try {
-        const hits = await searchFn({ data: { query } });
+        const hits = await searchFn({
+          data: { query, ...(deviceLanguage() ? { language: deviceLanguage()! } : {}) },
+        });
         const hit = hits[0];
         if (hit) return { lat: hit.lat, lng: hit.lng };
       } catch {

@@ -10,12 +10,19 @@ export const searchMapPlaces = createServerFn({ method: "POST" })
         query: z.string().trim().min(2).max(120),
         lat: z.number().min(-90).max(90).optional(),
         lng: z.number().min(-180).max(180).optional(),
+        // Sprache des Geraets -- ohne sie sucht Google auf Englisch,
+        // und "Roma" findet dann Roma in Texas statt Rom.
+        language: z
+          .string()
+          .trim()
+          .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$/)
+          .optional(),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
     const { searchPlacesText } = await import("./maps.server");
-    return searchPlacesText(data.query, data.lat, data.lng);
+    return searchPlacesText(data.query, data.lat, data.lng, data.language);
   });
 
 export const getPlaceById = createServerFn({ method: "POST" })
@@ -51,10 +58,15 @@ export const suggestMapPlaces = createServerFn({ method: "POST" })
          * jeder Tastendruck einzeln.
          */
         sessionToken: z.string().trim().min(8).max(64).optional(),
+        language: z
+          .string()
+          .trim()
+          .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$/)
+          .optional(),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
     const { suggestPlaces } = await import("./maps.server");
-    return suggestPlaces(data.input, data.lat, data.lng, data.sessionToken);
+    return suggestPlaces(data.input, data.lat, data.lng, data.sessionToken, data.language);
   });

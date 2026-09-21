@@ -193,13 +193,38 @@ async function callGet(path: string): Promise<GooglePlace | null> {
   return (await response.json()) as GooglePlace;
 }
 
-export async function searchPlacesText(query: string, lat?: number, lng?: number) {
+/*
+ * Die Sprache der Anfrage.
+ *
+ * Sie stand fest auf "en" -- und das war ein echter Fehler, kein
+ * Schoenheitsfleck: Auf Englisch heisst die Stadt "Rome". Wer "Roma"
+ * tippte, bekam deshalb Roma in Texas, weil DER Ort auf Englisch genau
+ * so heisst. Dasselbe gilt fuer Koeln/Cologne, Wien/Vienna,
+ * Firenze/Florence und jede andere Stadt mit eigenem englischen Namen.
+ *
+ * Jetzt fragt die App in der Sprache des Geraets. Unbekanntes oder
+ * Unsinniges faellt auf Englisch zurueck.
+ */
+function languageOf(language?: string) {
+  if (language && /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$/.test(language)) return language;
+  return "en";
+}
+
+export async function searchPlacesText(
+  query: string,
+  lat?: number,
+  lng?: number,
+  language?: string,
+) {
+  const languageCode = languageOf(language);
   const normalizedQuery = query.trim().toLowerCase();
   const locationPart =
     typeof lat === "number" && typeof lng === "number"
       ? `${gridCoord(lat)}:${gridCoord(lng)}`
       : "global";
-  const cacheKey = `text:${normalizedQuery}:${locationPart}`;
+  // Die Sprache gehoert IN den Schluessel: Sonst bekaeme der naechste
+  // Nutzer die Antwort in einer fremden Sprache aus dem Speicher.
+  const cacheKey = `text:${languageCode}:${normalizedQuery}:${locationPart}`;
 
   return withCache(
     cacheKey,
@@ -207,7 +232,7 @@ export async function searchPlacesText(query: string, lat?: number, lng?: number
       const body: Record<string, unknown> = {
         textQuery: query,
         maxResultCount: 15,
-        languageCode: "en",
+        languageCode,
       };
       if (typeof lat === "number" && typeof lng === "number") {
         body["locationBias"] = {
@@ -277,8 +302,10 @@ export async function suggestPlaces(
   lat?: number,
   lng?: number,
   sessionToken?: string,
+  language?: string,
 ): Promise<PlaceSuggestion[]> {
-  const body: Record<string, unknown> = { input, languageCode: "en" };
+  // Siehe languageOf(): "Roma" darf nicht in Texas landen.
+  const body: Record<string, unknown> = { input, languageCode: languageOf(language) };
   // Ohne Token kostet jeder Tastendruck einzeln; mit Token zaehlt die
   // ganze Suche samt abschliessender Detailabfrage als eine Sitzung.
   if (sessionToken) body["sessionToken"] = sessionToken;

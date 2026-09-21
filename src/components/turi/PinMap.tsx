@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { searchMapPlaces } from "@/lib/maps.functions";
 import { looksLikeArea, zoomForPlace } from "@/lib/map-area";
 import { getErrorMessage } from "@/lib/turi";
+import { deviceLanguage } from "@/lib/device-language";
 import { List, LocateFixed, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
@@ -108,6 +109,12 @@ const QUIET_STYLE: google.maps.MapTypeStyle[] = [
   // Karte Struktur, ihre Namen konkurrieren aber mit unseren Pins.
   { featureType: "poi.park", elementType: "geometry", stylers: [{ visibility: "on" }] },
 ];
+
+/** Kurzform, damit die Sprache nur mitgeht, wenn es eine gibt. */
+function langArg() {
+  const language = deviceLanguage();
+  return language ? { language } : {};
+}
 
 export function PinMap({
   pins,
@@ -399,7 +406,7 @@ export function PinMap({
        * einem gemeinsamen Schluessel im Zwischenspeicher. "Roma" wird
        * damit fuer alle Nutzer nur einmal bei Google angefragt.
        */
-      const results = await searchFn({ data: { query: q } });
+      const results = await searchFn({ data: { query: q, ...langArg() } });
       /*
        * Unter den Treffern zuerst eine Stadt oder Region suchen. Google
        * liefert zu "Roma" auch Restaurants und Strassen; gemeint ist bei

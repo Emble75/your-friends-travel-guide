@@ -13,6 +13,7 @@ import { PlaceList } from "@/components/turi/PlaceList";
 import { PlaceSheet, type SheetTarget } from "@/components/turi/PlaceSheet";
 import { CategoryFilterBar } from "@/components/turi/CategoryFilter";
 import { looksLikeArea } from "@/lib/map-area";
+import { deviceLanguage } from "@/lib/device-language";
 import { metersBetween } from "@/lib/geo";
 import { supabase } from "@/integrations/supabase/app-client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
@@ -199,6 +200,7 @@ function MapPage() {
         lat: centerRef.current.lat,
         lng: centerRef.current.lng,
         sessionToken: searchSession(),
+        ...(deviceLanguage() ? { language: deviceLanguage()! } : {}),
       },
     })
       .then((r) => active && setSuggestions(r))
@@ -566,7 +568,14 @@ function MapPage() {
       return;
     }
     try {
-      const results = await searchFn({ data: { query: q, lat: center.lat, lng: center.lng } });
+      const results = await searchFn({
+        data: {
+          query: q,
+          lat: center.lat,
+          lng: center.lng,
+          ...(deviceLanguage() ? { language: deviceLanguage()! } : {}),
+        },
+      });
       const top = results[0];
       if (!top || !mapRef.current) {
         toast.info("Nothing found");
