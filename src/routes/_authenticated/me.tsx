@@ -1051,24 +1051,18 @@ function MePage() {
                   showCity
                   summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
                   /*
-                    Hier fuehrt der Weg auf die ORTSSEITE, nicht in die
-                    Vorschau.
+                    Bewusst OHNE onPick: Die Zeilen sind nicht antippbar.
 
-                    Eine Zeit lang oeffnete sich hier dasselbe Panel wie
-                    auf der Karte, mit dem Gedanken: dieselbe Geste soll
-                    ueberall dasselbe tun. In der Praxis war es
-                    verwirrend -- ein Panel schwebt ueber dem, wo man
-                    herkommt, und dahinter lag das Profil, das mit dem
-                    Ort nichts zu tun hat. Auf der Karte stimmt dieses
-                    Bild (der Ort liegt ja dort hinten), in einer Liste
-                    nicht.
-
-                    Dass die offene Liste in der Adresse steht, macht den
-                    Weg zurueck sauber: Er fuehrt wieder genau hierher.
+                    Zwei Fassungen lagen hier schon -- erst das Panel der
+                    Karte, dann die Ortsseite. Beide waren ein Umweg: Die
+                    Liste sagt mit Name, Art, Stadt und Note bereits
+                    alles, was man ueber einen gemerkten Ort wissen will,
+                    und der Hinweis darueber sagt, dass sie auch auf der
+                    eigenen Karte stehen. Was tatsaechlich fehlte, war
+                    nicht mehr Information, sondern die eine Handlung:
+                    hinfahren. Die steht jetzt als Wegweiser in der Zeile.
                   */
-                  onPick={(item) => {
-                    navigate({ to: "/place/$placeId", params: { placeId: item.id } });
-                  }}
+                  showDirections
                 />
               </>
             )}

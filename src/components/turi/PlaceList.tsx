@@ -8,6 +8,7 @@ import {
   MapPin,
   Martini,
   Mountain,
+  Navigation,
   Umbrella,
   UtensilsCrossed,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 import { type Category } from "@/lib/categories";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { currentPosition, tap } from "@/lib/native";
+import { directionsUrl } from "@/lib/turi";
 
 /*
  * Orte als Liste -- eine Darstellung fuer die ganze App.
@@ -85,6 +87,7 @@ export function PlaceList({
   summary,
   onPick,
   showCity = false,
+  showDirections = false,
 }: {
   items: PlaceListItem[];
   /**
@@ -95,8 +98,23 @@ export function PlaceList({
    */
   myPos?: { lat: number; lng: number } | null;
   summary?: string;
-  onPick: (item: PlaceListItem) => void;
+  /*
+   * Fehlt der Rueckruf, ist die Zeile bewusst NICHT antippbar.
+   *
+   * In der Wunschliste ist das so gewollt: Die Liste beantwortet die
+   * Frage "was habe ich mir gemerkt" bereits vollstaendig, und der
+   * Hinweis darueber sagt, dass die Orte auch auf der eigenen Karte
+   * stehen. Ein Tippen, das auf eine Ortsseite fuehrt, von der man
+   * wieder zurueckmuss, ist dort ein Umweg ohne Gewinn.
+   */
+  onPick?: (item: PlaceListItem) => void;
   showCity?: boolean;
+  /*
+   * Zeigt rechts ein Wegweiser-Zeichen, das den Ort in Google Maps zur
+   * Navigation oeffnet. Vor allem fuer Listen ohne Tippen gedacht --
+   * dort ist es die einzige Handlung, die die Zeile anbietet.
+   */
+  showDirections?: boolean;
 }) {
   const [sort, setSort] = useState<"rating" | "distance">("rating");
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(myPos ?? null);
@@ -180,39 +198,80 @@ export function PlaceList({
       <ul className="max-h-full overflow-y-auto pb-8">
         {rows.map(({ item, meters }) => {
           const Icon = CATEGORY_ICONS[item.category];
+          /*
+              Die Zeile ist ein Behaelter, nicht ein einziger Knopf.
+              Grund: Der Wegweiser ist ein eigener Link, und ein Link im
+              Knopf ist ungueltiges Markup -- der Browser zieht ihn heraus
+              und die Zeile bricht auseinander. Antippbar ist deshalb nur
+              der vordere Teil; die Zeichen rechts stehen daneben.
+            */
+          const body = (
+            <>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                <Icon size={17} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{item.name}</span>
+                <span className="turi-meta block truncate text-xs text-muted-foreground">
+                  {[
+                    categoryWord(item.category),
+                    showCity ? item.city : null,
+                    item.friends > 0
+                      ? `${item.friends} ${item.friends === 1 ? "friend" : "friends"}`
+                      : null,
+                    meters !== null ? distanceLabel(meters) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </span>
+            </>
+          );
           return (
             <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  void tap();
-                  onPick(item);
-                }}
-                className="turi-tap flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-secondary"
+              <div
+                className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${
+                  onPick ? "transition-colors hover:bg-secondary" : ""
+                }`}
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
-                  <Icon size={17} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{item.name}</span>
-                  <span className="turi-meta block truncate text-xs text-muted-foreground">
-                    {[
-                      categoryWord(item.category),
-                      showCity ? item.city : null,
-                      item.friends > 0
-                        ? `${item.friends} ${item.friends === 1 ? "friend" : "friends"}`
-                        : null,
-                      meters !== null ? distanceLabel(meters) : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                </span>
+                {onPick ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void tap();
+                      onPick(item);
+                    }}
+                    className="turi-tap flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>
+                )}
+
+                {showDirections ? (
+                  <a
+                    href={directionsUrl({
+                      name: item.name,
+                      city: item.city ?? null,
+                      lat: item.lat,
+                      lng: item.lng,
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => void tap()}
+                    aria-label={`Directions to ${item.name}`}
+                    className="turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-secondary"
+                  >
+                    <Navigation size={15} />
+                  </a>
+                ) : null}
+
                 {/*
-                  Dieselben zwei Zeichen wie auf der Karte -- schwarze Note
-                  und blaues Lesezeichen. Neben ausgeschriebenem Text
-                  erklaeren sie nebenbei, was die Pins draussen bedeuten.
-                */}
+                    Dieselben zwei Zeichen wie auf der Karte -- schwarze Note
+                    und blaues Lesezeichen. Neben ausgeschriebenem Text
+                    erklaeren sie nebenbei, was die Pins draussen bedeuten.
+                  */}
                 {item.rating !== undefined ? (
                   <span className="turi-meta shrink-0 rounded-md bg-map-pin px-1.5 py-0.5 text-xs font-bold text-white">
                     {item.rating.toFixed(1)}
@@ -220,7 +279,7 @@ export function PlaceList({
                 ) : item.saved ? (
                   <Bookmark size={16} className="shrink-0 text-map-accent" fill="currentColor" />
                 ) : null}
-              </button>
+              </div>
             </li>
           );
         })}
