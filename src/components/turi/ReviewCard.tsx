@@ -403,45 +403,7 @@ export function ReviewCard({
       ) : null}
 
       {paths.length > 0 ? (
-        /*
-         * Foto-Komposition statt gleichfoermigem Raster: ein einzelnes Bild
-         * bekommt ein Querformat (Orte sind selten quadratisch), zwei stehen
-         * nebeneinander, drei bilden ein Mosaik mit einem grossen Bild links.
-         */
-        <div
-          className={
-            paths.length === 1
-              ? "mt-3"
-              : paths.length === 2
-                ? "mt-3 grid grid-cols-2 gap-1.5"
-                : "mt-3 grid aspect-3/2 grid-cols-2 grid-rows-2 gap-1.5"
-          }
-        >
-          {(urls ?? paths.map(() => null)).slice(0, 3).map((url, i) => (
-            <div
-              key={i}
-              className={`overflow-hidden bg-muted ${
-                paths.length === 1
-                  ? "aspect-4/3 rounded-2xl"
-                  : paths.length === 2
-                    ? "aspect-square rounded-2xl"
-                    : i === 0
-                      ? "row-span-2 size-full rounded-l-2xl"
-                      : `size-full ${i === 1 ? "rounded-tr-2xl" : "rounded-br-2xl"}`
-              }`}
-            >
-              {url ? (
-                <img
-                  src={url}
-                  alt={`Photo ${i + 1} of ${place?.name ?? "place"}`}
-                  loading="lazy"
-                  decoding="async"
-                  className="size-full object-cover"
-                />
-              ) : null}
-            </div>
-          ))}
-        </div>
+        <PhotoStrip urls={urls ?? paths.map(() => null)} placeName={place?.name ?? "place"} />
       ) : null}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -557,3 +519,70 @@ export function ReviewCard({
 
 export const reviewSelect =
   "id, rating, text, created_at, user_id, trip_folder_id, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url), places(id, name, city, category, lat, lng, google_place_id), review_images(id, image_url, position)";
+
+/*
+ * Die Fotos einer Bewertung -- eines nach dem anderen, zum Wischen.
+ *
+ * Vorher war es eine Komposition: ein Bild gross, zwei nebeneinander,
+ * drei als Mosaik. Das sah aufgeraeumt aus, hatte aber zwei Nachteile,
+ * die beim Benutzen auffallen. Erstens sieht man von jedem einzelnen
+ * Bild nur einen Ausschnitt -- gerade bei Essen ist das der falsche
+ * Teil. Zweitens kennt jeder die andere Geste: ein Bild, wischen, das
+ * naechste. Eine Kollage muss man erst lesen.
+ *
+ * TECHNIK: Kein Karussell-Baustein, sondern waagerechtes Scrollen mit
+ * Einrastpunkten (snap). Das ist das, was das Betriebssystem ohnehin
+ * kann -- es fuehlt sich auf dem Telefon richtig an, braucht keine
+ * zusaetzliche Bibliothek und funktioniert auch, wenn JavaScript
+ * gerade beschaeftigt ist.
+ *
+ * Das Seitenverhaeltnis ist fest (4:3): Ohne das wuerde die Karte bei
+ * jedem Wischen die Hoehe wechseln, und der Feed darunter huepfte mit.
+ */
+function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: string }) {
+  const [index, setIndex] = useState(0);
+
+  return (
+    <div className="mt-3">
+      <div
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          // Aus der Scrollposition die Bildnummer ableiten -- genauer als
+          // ein Zaehler, der beim schnellen Wischen hinterherhinkt.
+          const next = Math.round(el.scrollLeft / Math.max(el.clientWidth, 1));
+          if (next !== index) setIndex(next);
+        }}
+        className="flex snap-x snap-mandatory overflow-x-auto rounded-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {urls.map((url, i) => (
+          <div key={i} className="aspect-4/3 w-full shrink-0 snap-center bg-muted">
+            {url ? (
+              <img
+                src={url}
+                alt={`Photo ${i + 1} of ${placeName}`}
+                loading="lazy"
+                decoding="async"
+                className="size-full object-cover"
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      {/* Punkte nur, wenn es etwas zu wischen gibt. */}
+      {urls.length > 1 ? (
+        <div className="mt-2 flex justify-center gap-1.5">
+          {urls.map((_, i) => (
+            <span
+              key={i}
+              aria-hidden="true"
+              className={`size-1.5 rounded-full transition-colors ${
+                i === index ? "bg-foreground" : "bg-border"
+              }`}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
