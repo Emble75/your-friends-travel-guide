@@ -73,10 +73,24 @@ export function PlaceSheet({
   target,
   onClose,
   myPos,
+  onlyUserId = null,
 }: {
   target: SheetTarget | null;
   onClose: () => void;
   myPos: { lat: number; lng: number } | null;
+  /*
+   * Auf der Karte EINER Person zeigt das Panel nur deren Bewertung.
+   *
+   * Ohne das widersprach sich die Ansicht: Der Pin trug die Note dieser
+   * Person (die Abfrage der Karte filtert auf ihre user_id), das Panel
+   * darunter listete aber alles, was der eigene Kreis zu dem Ort
+   * geschrieben hat -- inklusive der eigenen Bewertung. Auf "seiner"
+   * Karte gehoert seine Bewertung, sonst nichts.
+   *
+   * Auf der Discover-Karte bleibt es leer: Dort ist die Sammlung der
+   * Meinungen genau der Zweck.
+   */
+  onlyUserId?: string | null;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -105,7 +119,7 @@ export function PlaceSheet({
     : null;
 
   const { data } = useQuery({
-    queryKey: ["map-place-reviews", cacheKey],
+    queryKey: ["map-place-reviews", cacheKey, onlyUserId],
     enabled: !!target,
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
@@ -137,11 +151,12 @@ export function PlaceSheet({
          * Kreises darunter, und der Durchschnitt zaehlt weiterhin nur
          * den Kreis.
          */
-        supabase
-          .from("reviews")
-          .select(reviewSelect)
-          .eq("place_id", local.id)
-          .order("created_at", { ascending: false }),
+        (() => {
+          const q = supabase.from("reviews").select(reviewSelect).eq("place_id", local.id);
+          return (onlyUserId ? q.eq("user_id", onlyUserId) : q).order("created_at", {
+            ascending: false,
+          });
+        })(),
         me
           ? supabase
               .from("saved_places")
@@ -223,12 +238,33 @@ export function PlaceSheet({
       : null;
 
   const allReviews = (data?.reviews ?? []) as unknown as ReviewWithRelations[];
-  const myReview = allReviews.find((r) => r.user_id === me) ?? null;
-  // Der Durchschnitt zaehlt weiterhin NUR den Kreis: Die eigene Note
-  // wuerde die Empfehlung der anderen verfaelschen.
-  const reviews = allReviews.filter((r) => r.user_id !== me);
+  /*
+   * Auf einer Personenkarte gibt es nichts aufzuteilen -- es ist ohnehin
+   * nur eine Person. Die Trennung "eigene oben, Kreis darunter" gilt nur
+   * auf der Discover-Karte, wo beides zusammenkommt.
+   */
+  const solo = !!onlyUserId;
+  const myReview = solo ? null : (allReviews.find((r) => r.user_id === me) ?? null);
+  // Der Durchschnitt zaehlt auf der Discover-Karte NUR den Kreis: Die
+  // eigene Note wuerde die Empfehlung der anderen verfaelschen.
+  const reviews = solo ? allReviews : allReviews.filter((r) => r.user_id !== me);
 
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
+
+  /*
+   * Wessen Note im Kasten steht. Auf einer Personenkarte ist das ihr
+   * Name -- "3 from your circle" waere dort schlicht falsch.
+   */
+  const soloAuthor = solo
+    ? (allReviews[0]?.profiles?.display_name ?? allReviews[0]?.profiles?.username ?? null)
+    : null;
+  const ratingNote = solo
+    ? onlyUserId === me
+      ? "your rating"
+      : soloAuthor
+        ? `${soloAuthor}'s rating`
+        : "their rating"
+    : `${reviews.length} from your circle`;
 
   /*
    * Die Datenbank-id des Ortes. Ein eigener Pin kennt sie bereits; ein
@@ -416,9 +452,7 @@ export function PlaceSheet({
             <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
               <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
               <Stars value={avg} size={16} />
-              <span className="ml-auto text-xs text-muted-foreground">
-                {reviews.length} from your circle
-              </span>
+              <span className="ml-auto text-xs text-muted-foreground">{ratingNote}</span>
             </div>
           ) : null}
 
@@ -459,9 +493,11 @@ export function PlaceSheet({
             <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-5">
               <Users size={18} className="shrink-0 text-primary" />
               <p className="text-xs text-muted-foreground">
-                {data?.myRating != null
-                  ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
-                  : "No reviews from friends yet — be the first."}
+                {solo
+                  ? "No review to show for this place."
+                  : data?.myRating != null
+                    ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
+                    : "No reviews from friends yet — be the first."}
               </p>
             </div>
           )}

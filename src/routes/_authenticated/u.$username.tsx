@@ -564,6 +564,7 @@ function ProfilePage() {
                     mapKey={`profile:${profile.id}`}
                     heading={`${profile.display_name || profile.username}'s places`}
                     className={MAP_HEIGHT}
+                    onlyUserId={profile.id}
                   />
                 )}
               </div>

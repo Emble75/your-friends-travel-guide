@@ -342,6 +342,7 @@ function FolderPage() {
                     heading={folder.name}
                     mapKey={`folder:${folderId}`}
                     className={MAP_HEIGHT}
+                    onlyUserId={folder.owner_id}
                   />
                 </div>
               )

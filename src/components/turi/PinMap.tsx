@@ -121,6 +121,7 @@ export function PinMap({
   heading,
   mapKey,
   className,
+  onlyUserId = null,
 }: {
   pins: PlaceListItem[];
   /** Ueberschrift der Liste, z. B. "Toms places". */
@@ -132,6 +133,8 @@ export function PinMap({
    */
   mapKey: string;
   className?: string;
+  /** Wem diese Karte gehoert -- das Panel zeigt dann nur deren Bewertung. */
+  onlyUserId?: string | null;
 }) {
   const { ready, error } = useGoogleMaps();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -583,7 +586,12 @@ export function PinMap({
         </SheetContent>
       </Sheet>
 
-      <PlaceSheet target={selected} onClose={() => setSelected(null)} myPos={myPos} />
+      <PlaceSheet
+        target={selected}
+        onClose={() => setSelected(null)}
+        myPos={myPos}
+        onlyUserId={onlyUserId}
+      />
     </div>
   );
 }

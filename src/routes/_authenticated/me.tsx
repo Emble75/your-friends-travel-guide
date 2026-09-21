@@ -856,6 +856,7 @@ function MePage() {
                   heading="Your places"
                   mapKey="me"
                   className={MAP_HEIGHT}
+                  onlyUserId={profile.id}
                 />
               </div>
             )
