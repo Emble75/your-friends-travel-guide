@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, ChevronUp, Navigation, Star, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Stars } from "./Stars";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard";
+import { QuickReviewForm } from "./QuickReviewForm";
 
 /*
  * Zwei Hoehen statt zweier Seiten.
@@ -42,7 +42,7 @@ import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard
  * Inhalt ist -- dieser Inhalt hat aber eine feste Hoehe (Kopf, Note,
  * Knopfreihe), und die passt in 330 Pixel auf jedem Geraet.
  */
-const PEEK = "330px";
+const PEEK = "300px";
 const FULL = 0.92;
 
 /*
@@ -83,10 +83,20 @@ export function PlaceSheet({
   onClose: () => void;
   myPos: { lat: number; lng: number } | null;
 }) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [snap, setSnap] = useState<number | string | null>(PEEK);
+  /*
+   * "view" zeigt den Ort, "review" das Formular -- im SELBEN Panel.
+   *
+   * Ein zweites Panel darueber waere die naheliegende Loesung gewesen,
+   * fuehrt aber zu uebereinandergestapelten Flaechen, die man einzeln
+   * wegwischen muss. Der Wechsel des Inhalts fuehlt sich an wie das
+   * Hochziehen: Es bleibt dieselbe Flaeche, sie zeigt nur etwas
+   * anderes.
+   */
+  const [mode, setMode] = useState<"view" | "review">("view");
+  const [localId, setLocalId] = useState<string | null>(null);
   const expanded = snap === FULL;
 
   /*
@@ -224,39 +234,29 @@ export function PlaceSheet({
 
   function close() {
     setSnap(PEEK);
+    setMode("view");
     onClose();
   }
 
-  async function go(to: "place" | "review") {
+  /*
+   * Ins Formular wechseln -- ohne die Karte zu verlassen.
+   *
+   * Der Ort muss dafuer in unserer Datenbank stehen. Bei einem
+   * Google-Symbol ist er das noch nicht; er wird hier angelegt, waehrend
+   * das Panel schon hochfaehrt.
+   */
+  async function startReview() {
     if (!target) return;
     setBusy(true);
-
-    /*
-     * ZUERST schliessen, dann erst nachschlagen und wechseln.
-     *
-     * Zwei Gruende, und der zweite ist der, den man spuert:
-     *
-     * 1. Waehrend das Panel offen ist, sperrt es die Klicks auf der
-     *    Seite dahinter und raeumt das erst beim Schliessen wieder auf.
-     *    Wechselt man die Seite, ohne es zu schliessen, kann die Sperre
-     *    zurueckbleiben -- die neue Seite ist sichtbar, aber tot.
-     *
-     * 2. Bei einem Ort, den es bei uns noch nicht gibt, legt
-     *    resolveLocalId ihn zuerst an -- das ist eine Anfrage an die
-     *    Datenbank. Stand sie VOR dem Schliessen, blieb das Panel nach
-     *    dem Tippen einen Moment stehen, und danach sprang die Seite
-     *    um. Genau das las sich wie ein aufspringendes Fenster.
-     *    Jetzt faehrt das Panel sofort herunter, und die neue Seite
-     *    folgt, sobald sie kann.
-     */
-    close();
+    setSnap(FULL);
     try {
       const id = await resolveLocalId();
       if (!id) return;
-      if (to === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
-      else navigate({ to: "/new", search: { placeId: id } });
+      setLocalId(id);
+      setMode("review");
     } catch (e) {
       toast.error(getErrorMessage(e, "Could not open place"));
+      setSnap(PEEK);
     } finally {
       setBusy(false);
     }
@@ -360,106 +360,94 @@ export function PlaceSheet({
         </DrawerHeader>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-8">
-          {/*
+          {mode === "review" && localId ? (
+            <QuickReviewForm
+              placeId={localId}
+              placeName={header?.name ?? "this place"}
+              onDone={close}
+              onCancel={() => {
+                setMode("view");
+                setSnap(PEEK);
+              }}
+            />
+          ) : (
+            <>
+              {/*
             Die beiden praktischen Fragen zuerst: Hat es offen, und wie
             weit ist es? Sie entscheiden, ob man ueberhaupt weiterliest --
             eine 4,8 nuetzt nichts, wenn der Laden seit zwei Stunden zu
             ist. Fehlt eine der Angaben (kein Standort erlaubt, keine
             Zeiten hinterlegt), faellt sie still weg.
           */}
-          {distance ? (
-            <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
-          ) : null}
+              {distance ? (
+                <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
+              ) : null}
 
-          {/*
+              {/*
             In der kleinen Hoehe NUR der Durchschnitt. Angerissene
             Bewertungskarten waeren beides halb: zu wenig zum Lesen, zu
             viel fuer einen Blick. Die ganzen stehen eine Hoehe weiter
             oben.
           */}
-          {avg !== null ? (
-            <button
-              type="button"
-              onClick={() => !expanded && setSnap(FULL)}
-              className="turi-tap flex w-full items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left"
-            >
-              <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
-              <Stars value={avg} size={16} />
-              <span className="ml-auto text-xs text-muted-foreground">
-                {reviews.length} from your circle
-              </span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
-              <Users size={18} className="text-primary" />
-              {/*
+              {avg !== null ? (
+                <button
+                  type="button"
+                  onClick={() => !expanded && setSnap(FULL)}
+                  className="turi-tap flex w-full items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left"
+                >
+                  <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
+                  <Stars value={avg} size={16} />
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {reviews.length} from your circle
+                  </span>
+                  {!expanded ? (
+                    <ChevronUp size={16} className="shrink-0 text-muted-foreground" />
+                  ) : null}
+                </button>
+              ) : (
+                <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
+                  <Users size={18} className="text-primary" />
+                  {/*
                 Die eigene Note wird hier benannt, statt sie zu verschweigen:
                 auf "My Map" zeigt der Pin genau sie, und ein Panel, das
                 daneben "keine Bewertungen" meldet, widerspraeche dem Pin.
               */}
-              <p className="text-xs text-muted-foreground">
-                {data?.myRating != null
-                  ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
-                  : "No reviews from friends for this place yet."}
-              </p>
-            </div>
-          )}
-
-          <div className="flex gap-2 pt-1">
-            <Button
-              disabled={busy}
-              onClick={() => go("review")}
-              className="h-12 flex-1 rounded-2xl"
-            >
-              <Star size={18} className="mr-1" /> Review
-            </Button>
-            {/*
-              Der zweite Knopf bleibt immer stehen und wechselt nur die
-              Aufschrift. Vorher verschwand er beim Hochziehen -- die
-              Reihe sprang dann um, und man hatte das Gefuehl, etwas
-              falsch gemacht zu haben.
-
-              Der Pfeil nach oben ist die einzige Stelle, die sagt:
-              "hier geht es weiter nach oben". Ohne ihn war nicht zu
-              erraten, dass sich das Panel ziehen laesst.
-            */}
-            <Button
-              disabled={busy}
-              variant="secondary"
-              onClick={() => (expanded || reviews.length === 0 ? go("place") : setSnap(FULL))}
-              className="h-12 flex-1 rounded-2xl"
-            >
-              {expanded || reviews.length === 0 ? (
-                "Place page"
-              ) : (
-                <>
-                  <ChevronUp size={18} className="mr-1" /> All reviews
-                </>
+                  <p className="text-xs text-muted-foreground">
+                    {data?.myRating != null
+                      ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
+                      : "No reviews from friends for this place yet."}
+                  </p>
+                </div>
               )}
-            </Button>
-          </div>
 
-          {/*
+              {/*
+            Nur noch EIN Knopf. Vorher standen hier zwei, und der zweite
+            wechselte beim Hochziehen die Aufschrift -- das war Unruhe
+            fuer eine Handlung, die man ohnehin ueber die Notenflaeche
+            oder den Ziehgriff erreicht. Die Bewertungen holt man sich
+            durch Hochziehen, nicht durch einen Knopf.
+          */}
+              <div className="flex gap-2 pt-1">
+                <Button disabled={busy} onClick={startReview} className="h-12 flex-1 rounded-2xl">
+                  <Star size={18} className="mr-1" /> Review
+                </Button>
+              </div>
+
+              {/*
             Die Bewertungen werden erst geladen und gezeichnet, wenn das
             Panel oben steht -- in der kleinen Hoehe waeren es Fotos, die
             niemand sieht.
           */}
-          {expanded ? (
-            <div className="space-y-4 pt-2">
-              <h2 className="turi-eyebrow px-1">From your circle</h2>
-              {reviews.map((r) => (
-                <ReviewCard key={r.id} review={r} showPlace={false} />
-              ))}
-              <Button
-                disabled={busy}
-                variant="secondary"
-                onClick={() => go("place")}
-                className="h-12 w-full rounded-2xl"
-              >
-                Open place page
-              </Button>
-            </div>
-          ) : null}
+              {expanded ? (
+                <div className="space-y-4 pt-2">
+                  <h2 className="turi-eyebrow px-1">From your circle</h2>
+                  {reviews.map((r) => (
+                    <ReviewCard key={r.id} review={r} showPlace={false} />
+                  ))}
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </DrawerContent>
     </Drawer>

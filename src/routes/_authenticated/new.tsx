@@ -24,7 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CATEGORIES, compressImage, getErrorMessage } from "@/lib/turi";
+import { CATEGORIES, getErrorMessage } from "@/lib/turi";
+import { createReview } from "@/lib/create-review";
 import { isNative, takePhoto } from "@/lib/native";
 import { searchMapPlaces } from "@/lib/maps.functions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -286,33 +287,14 @@ function NewReviewPage() {
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user!.id;
       const resolvedFolderId = await resolveFolderChoice(folder, userId);
-      const { data: review, error } = await supabase
-        .from("reviews")
-        .insert({
-          user_id: userId,
-          place_id: place.id,
-          rating,
-          text: text.trim() || null,
-          trip_folder_id: resolvedFolderId,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      for (let i = 0; i < files.length; i++) {
-        const original = files[i]!;
-        const file = await compressImage(original, { maxDimension: 1600, quality: 0.8 });
-        const ext = file.name.split(".").pop() ?? "jpg";
-        const path = `${userId}/${review.id}-${i}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("review-photos")
-          .upload(path, file, { upsert: true });
-        if (upErr) throw upErr;
-        const { error: imgErr } = await supabase
-          .from("review_images")
-          .insert({ review_id: review.id, image_url: path, position: i });
-        if (imgErr) throw imgErr;
-      }
+      await createReview({
+        userId,
+        placeId: place.id,
+        rating,
+        text,
+        files,
+        folderId: resolvedFolderId,
+      });
 
       writeDraft(null);
       toast.success("Review saved");
