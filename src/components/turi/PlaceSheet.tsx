@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import type { MapPlace } from "@/lib/maps.server";
 import { ensureLocalPlace } from "@/lib/place-sync";
-import { directionsUrl, getErrorMessage } from "@/lib/turi";
+import { directionsUrl, getErrorMessage, signedUrls } from "@/lib/turi";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,21 @@ import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard
  * Inhalt ist -- dieser Inhalt hat aber eine feste Hoehe (Kopf, Note,
  * Knopfreihe), und die passt in 330 Pixel auf jedem Geraet.
  */
-const PEEK = "300px";
+/*
+ * Die kleine Hoehe -- zwei Werte, je nachdem ob es Fotos gibt.
+ *
+ * 300 Pixel waren zu knapp: Der "Review"-Knopf stand nur zur Haelfte
+ * im Bild. Eine Handlungsaufforderung, die man anschneidet, sieht aus
+ * wie ein Fehler.
+ *
+ * Mit Fotos ist die Hoehe so gewaehlt, dass der Knopf VOLLSTAENDIG
+ * steht und der Fotostreifen darunter zu etwa zwei Dritteln
+ * hereinragt. Dieses Anschneiden ist Absicht und das Gegenteil des
+ * Fehlers oben: Es sagt "hier geht es weiter", ohne ein Wort zu
+ * brauchen.
+ */
+const PEEK_BARE = "330px";
+const PEEK_PHOTOS = "410px";
 const FULL = 0.92;
 
 /*
@@ -84,7 +98,7 @@ export function PlaceSheet({
 }) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
-  const [snap, setSnap] = useState<number | string | null>(PEEK);
+  const [snap, setSnap] = useState<number | string | null>(PEEK_BARE);
   /*
    * "view" zeigt den Ort, "review" das Formular -- im SELBEN Panel.
    *
@@ -219,6 +233,28 @@ export function PlaceSheet({
       : null;
 
   const reviews = (data?.reviews ?? []) as unknown as ReviewWithRelations[];
+
+  /*
+   * Die Fotos des Freundeskreises -- der eigentliche Grund, warum man
+   * hier hinschaut.
+   *
+   * Sie kosten keine eigene Abfrage: Die Bewertungen bringen ihre
+   * Bilder bereits mit. Nur die Zugriffslinks muessen geholt werden,
+   * weil der Speicher nicht oeffentlich ist.
+   */
+  const photoPaths = reviews
+    .flatMap((r) => (r.review_images ?? []).slice().sort((a, b) => a.position - b.position))
+    .map((i) => i.image_url)
+    .slice(0, 12);
+
+  const { data: photoUrls } = useQuery({
+    queryKey: ["place-sheet-photos", photoPaths.join(",")],
+    enabled: photoPaths.length > 0,
+    staleTime: 30 * 60_000,
+    queryFn: () => signedUrls("review-photos", photoPaths),
+  });
+
+  const peek = photoPaths.length > 0 ? PEEK_PHOTOS : PEEK_BARE;
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
 
   /*
@@ -232,7 +268,7 @@ export function PlaceSheet({
   }
 
   function close() {
-    setSnap(PEEK);
+    setSnap(PEEK_BARE);
     setMode("view");
     onClose();
   }
@@ -255,7 +291,7 @@ export function PlaceSheet({
       setMode("review");
     } catch (e) {
       toast.error(getErrorMessage(e, "Could not open place"));
-      setSnap(PEEK);
+      setSnap(PEEK_BARE);
     } finally {
       setBusy(false);
     }
@@ -294,7 +330,7 @@ export function PlaceSheet({
     <Drawer
       open={!!target}
       onOpenChange={(open) => !open && close()}
-      snapPoints={[PEEK, FULL]}
+      snapPoints={[peek, FULL]}
       activeSnapPoint={snap}
       setActiveSnapPoint={setSnap}
       // Der Hintergrund soll NICHT zurueckskalieren: Dahinter liegt die
@@ -419,6 +455,32 @@ export function PlaceSheet({
               <Star size={18} className="mr-1" /> Review
             </Button>
           </div>
+
+          {/*
+            Der Fotostreifen steht UNTER dem Knopf, nicht darueber: Die
+            Handlung soll vollstaendig im Bild stehen, die Fotos duerfen
+            angeschnitten sein. Ein Tipp darauf faehrt das Panel hoch,
+            wo die Bilder in ihren Bewertungen stehen.
+          */}
+          {photoPaths.length > 0 && !expanded ? (
+            <div className="-mx-4 overflow-x-auto px-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex w-max gap-2">
+                {photoPaths.map((path, i) => (
+                  <button
+                    key={path}
+                    type="button"
+                    onClick={() => setSnap(FULL)}
+                    aria-label="Show all reviews"
+                    className="turi-tap size-28 shrink-0 overflow-hidden rounded-2xl bg-muted"
+                  >
+                    {photoUrls?.[i] ? (
+                      <img src={photoUrls[i]!} alt="" className="size-full object-cover" />
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/*
             Die Bewertungen werden erst geladen und gezeichnet, wenn das
