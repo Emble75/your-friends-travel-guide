@@ -302,7 +302,19 @@ function FolderPage() {
                   text="These reviews are for places without a saved location, so they can't be placed on the map."
                 />
               ) : (
-                <div ref={mapAnchorRef} className="scroll-mt-2">
+                <div
+                  ref={mapAnchorRef}
+                  /*
+                    Der Abstand entspricht genau der Hoehe der klebenden
+                    Kopfzeile (AppHeader: 3.5rem plus die sichere Zone
+                    oben). Ohne ihn scrollt die Karte bis an den
+                    Bildschirmrand -- und verschwindet damit zur Haelfte
+                    unter der Kopfzeile, samt ihrer oberen Ecken und dem
+                    Suchfeld. Das eigene Profil hat keine solche
+                    Kopfzeile und braucht den Abstand deshalb nicht.
+                  */
+                  className="scroll-mt-[calc(3.5rem+env(safe-area-inset-top))]"
+                >
                   <PinMap
                     pins={mapPlaces}
                     heading={folder.name}
