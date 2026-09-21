@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { ImagePlus, MapPin, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
-import { AppHeader } from "@/components/turi/AppHeader";
 import {
   FolderPicker,
   NO_FOLDER,
@@ -117,6 +116,9 @@ function NewReviewPage() {
   // unklar, woher der Text kommt, den man nicht gerade getippt hat.
   const [draftRestored, setDraftRestored] = useState(false);
   const draftChecked = useRef(false);
+  // Damit der Knopf in der Kopfzeile das Formular absenden kann, obwohl
+  // er ausserhalb davon steht.
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   /*
    * Einen vorhandenen Entwurf zurueckholen -- aber nur, wenn er zu dem
@@ -316,8 +318,46 @@ function NewReviewPage() {
     <>
       {/* Aufgabenseite: Titel und Ausweg sind hier nuetzlicher als der
           Markenschriftzug -- man kommt her, um genau eine Sache zu tun. */}
-      <AppHeader title="New review" showBack fallbackTo="/map" />
-      <form onSubmit={submit} className="app-shell space-y-5 py-4">
+      {/*
+        Kopfzeile eines FORMULARS, nicht einer Seite.
+        
+        Links "Cancel" statt eines Zurueck-Pfeils, rechts die
+        abschliessende Handlung -- so kennt man es von jedem Formular,
+        das sich auf dem Telefon oeffnet. Vorher stand hier ein
+        gewoehnlicher Zurueck-Pfeil, und der Bildschirm las sich wie
+        eine weitere Seite, auf die man versehentlich geraten ist.
+
+        Die Handlung steht jetzt OBEN statt unten: Wer fertig ist, muss
+        nicht erst an drei Fotofeldern und der Ordnerwahl vorbeiscrollen,
+        um sie zu finden.
+      */}
+      <header
+        className="sticky top-0 z-30 bg-background/90 backdrop-blur"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="app-shell flex h-14 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="turi-tap -ml-1 shrink-0 rounded-full px-2 py-1 text-sm font-medium text-muted-foreground"
+          >
+            Cancel
+          </button>
+          <h1 className="min-w-0 flex-1 truncate text-center font-display text-base font-extrabold tracking-tight">
+            New review
+          </h1>
+          <Button
+            type="button"
+            disabled={saving}
+            onClick={() => formRef.current?.requestSubmit()}
+            className="h-9 shrink-0 rounded-full px-4 text-sm"
+          >
+            {saving ? "Saving…" : "Publish"}
+          </Button>
+        </div>
+        <div className="brand-accent-line h-[2px] w-full opacity-70" />
+      </header>
+      <form ref={formRef} onSubmit={submit} className="app-shell space-y-5 py-4">
         {draftRestored ? (
           <div className="flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-3">
             <p className="turi-meta min-w-0 flex-1 text-xs text-muted-foreground">
@@ -496,9 +536,9 @@ function NewReviewPage() {
           <FolderPicker value={folder} onChange={setFolder} className="mt-2" />
         </section>
 
-        <Button type="submit" disabled={saving} className="h-13 w-full rounded-2xl py-4 text-base">
-          {saving ? "Saving…" : "Publish review"}
-        </Button>
+        {/* Die Handlung steht in der Kopfzeile. Ein zweiter Knopf hier
+            unten waere dieselbe Sache ein zweites Mal -- und der Ort, an
+            dem man sie zuletzt sucht. */}
       </form>
     </>
   );

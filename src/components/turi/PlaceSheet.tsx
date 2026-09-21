@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Stars } from "./Stars";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard";
-import { QuickReviewForm } from "./QuickReviewForm";
 
 /*
  * Zwei Hoehen statt zweier Seiten.
@@ -360,94 +359,80 @@ export function PlaceSheet({
         </DrawerHeader>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-8">
-          {mode === "review" && localId ? (
-            <QuickReviewForm
-              placeId={localId}
-              placeName={header?.name ?? "this place"}
-              onDone={close}
-              onCancel={() => {
-                setMode("view");
-                setSnap(PEEK);
-              }}
-            />
-          ) : (
-            <>
-              {/*
+          {/*
             Die beiden praktischen Fragen zuerst: Hat es offen, und wie
             weit ist es? Sie entscheiden, ob man ueberhaupt weiterliest --
             eine 4,8 nuetzt nichts, wenn der Laden seit zwei Stunden zu
             ist. Fehlt eine der Angaben (kein Standort erlaubt, keine
             Zeiten hinterlegt), faellt sie still weg.
           */}
-              {distance ? (
-                <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
-              ) : null}
+          {distance ? (
+            <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
+          ) : null}
 
-              {/*
+          {/*
             In der kleinen Hoehe NUR der Durchschnitt. Angerissene
             Bewertungskarten waeren beides halb: zu wenig zum Lesen, zu
             viel fuer einen Blick. Die ganzen stehen eine Hoehe weiter
             oben.
           */}
-              {avg !== null ? (
-                <button
-                  type="button"
-                  onClick={() => !expanded && setSnap(FULL)}
-                  className="turi-tap flex w-full items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left"
-                >
-                  <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
-                  <Stars value={avg} size={16} />
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {reviews.length} from your circle
-                  </span>
-                  {!expanded ? (
-                    <ChevronUp size={16} className="shrink-0 text-muted-foreground" />
-                  ) : null}
-                </button>
-              ) : (
-                <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
-                  <Users size={18} className="text-primary" />
-                  {/*
+          {avg !== null ? (
+            <button
+              type="button"
+              onClick={() => !expanded && setSnap(FULL)}
+              className="turi-tap flex w-full items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left"
+            >
+              <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
+              <Stars value={avg} size={16} />
+              <span className="ml-auto text-xs text-muted-foreground">
+                {reviews.length} from your circle
+              </span>
+              {!expanded ? (
+                <ChevronUp size={16} className="shrink-0 text-muted-foreground" />
+              ) : null}
+            </button>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-4">
+              <Users size={18} className="text-primary" />
+              {/*
                 Die eigene Note wird hier benannt, statt sie zu verschweigen:
                 auf "My Map" zeigt der Pin genau sie, und ein Panel, das
                 daneben "keine Bewertungen" meldet, widerspraeche dem Pin.
               */}
-                  <p className="text-xs text-muted-foreground">
-                    {data?.myRating != null
-                      ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
-                      : "No reviews from friends for this place yet."}
-                  </p>
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">
+                {data?.myRating != null
+                  ? `You rated this ${data.myRating.toFixed(1)}. No friends have reviewed it yet.`
+                  : "No reviews from friends for this place yet."}
+              </p>
+            </div>
+          )}
 
-              {/*
+          {/*
             Nur noch EIN Knopf. Vorher standen hier zwei, und der zweite
             wechselte beim Hochziehen die Aufschrift -- das war Unruhe
             fuer eine Handlung, die man ohnehin ueber die Notenflaeche
             oder den Ziehgriff erreicht. Die Bewertungen holt man sich
             durch Hochziehen, nicht durch einen Knopf.
           */}
-              <div className="flex gap-2 pt-1">
-                <Button disabled={busy} onClick={startReview} className="h-12 flex-1 rounded-2xl">
-                  <Star size={18} className="mr-1" /> Review
-                </Button>
-              </div>
+          <div className="flex gap-2 pt-1">
+            <Button disabled={busy} onClick={startReview} className="h-12 flex-1 rounded-2xl">
+              <Star size={18} className="mr-1" /> Review
+            </Button>
+          </div>
 
-              {/*
+          {/*
             Die Bewertungen werden erst geladen und gezeichnet, wenn das
             Panel oben steht -- in der kleinen Hoehe waeren es Fotos, die
             niemand sieht.
           */}
-              {expanded ? (
-                <div className="space-y-4 pt-2">
-                  <h2 className="turi-eyebrow px-1">From your circle</h2>
-                  {reviews.map((r) => (
-                    <ReviewCard key={r.id} review={r} showPlace={false} />
-                  ))}
-                </div>
-              ) : null}
-            </>
-          )}
+          {expanded ? (
+            <div className="space-y-4 pt-2">
+              <h2 className="turi-eyebrow px-1">From your circle</h2>
+              {reviews.map((r) => (
+                <ReviewCard key={r.id} review={r} showPlace={false} />
+              ))}
+            </div>
+          ) : null}
         </div>
       </DrawerContent>
     </Drawer>
