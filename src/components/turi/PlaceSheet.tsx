@@ -10,8 +10,32 @@ import { directionsUrl, getErrorMessage } from "@/lib/turi";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Stars } from "./Stars";
+import { ReviewCard, reviewSelect, type ReviewWithRelations } from "./ReviewCard";
+
+/*
+ * Zwei Hoehen statt zweier Seiten.
+ *
+ * Angetippt faehrt das Panel auf ein gutes Drittel -- Name, Note,
+ * Entfernung, Merken, Route. "All reviews" schiebt es auf 92 % hoch,
+ * wo die Bewertungen stehen. Oben bleibt ein Streifen Karte sichtbar:
+ * Er sagt, dass man die Karte nie verlassen hat, und ist zugleich die
+ * Flaeche zum Wegtippen.
+ *
+ * Vorher fuehrte "All reviews" auf eine eigene Seite. Damit verschwand
+ * die Karte, wurde beim Zurueckkommen neu aufgebaut -- und genau das
+ * las sich wie ein aufspringendes Fenster. Jetzt verschwindet nichts.
+ * Nebenbei spart es bei jedem solchen Blick einen Kartenaufruf bei
+ * Google.
+ *
+ * Was NICHT ins Panel wandert: das Schreiben einer Bewertung. Das ist
+ * ein Formular mit Sternen, Text, Fotos und Ordnerwahl -- in einer
+ * Flaeche, die man beim Tippen versehentlich wegwischt, waere das
+ * aergerlich. Lesen im Panel, Schreiben auf einer Seite.
+ */
+const PEEK = 0.34;
+const FULL = 0.92;
 
 /*
  * Die Vorschau zu einem Ort -- das Panel, das von unten hereinfaehrt.
@@ -54,6 +78,8 @@ export function PlaceSheet({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [snap, setSnap] = useState<number | string | null>(PEEK);
+  const expanded = snap === FULL;
 
   /*
    * Ein Panel, zwei Herkuenfte. Ein eigener Pin bringt seine Datenbank-id
@@ -91,9 +117,7 @@ export function PlaceSheet({
         // Die vollstaendige Ansicht ("All reviews") zeigt sie separat.
         supabase
           .from("reviews")
-          .select(
-            "id, rating, text, created_at, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url)",
-          )
+          .select(reviewSelect)
           .eq("place_id", local.id)
           .neq("user_id", me ?? "")
           .order("created_at", { ascending: false }),
@@ -177,7 +201,7 @@ export function PlaceSheet({
       ? distanceLabel(metersBetween(myPos, { lat: header.lat, lng: header.lng }))
       : null;
 
-  const reviews = data?.reviews ?? [];
+  const reviews = (data?.reviews ?? []) as unknown as ReviewWithRelations[];
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
 
   /*
@@ -188,6 +212,11 @@ export function PlaceSheet({
   async function resolveLocalId() {
     if (!target) return null;
     return target.kind === "local" ? target.id : await ensureLocalPlace(target.place);
+  }
+
+  function close() {
+    setSnap(PEEK);
+    onClose();
   }
 
   async function go(to: "place" | "review") {
@@ -212,7 +241,7 @@ export function PlaceSheet({
      *    Jetzt faehrt das Panel sofort herunter, und die neue Seite
      *    folgt, sobald sie kann.
      */
-    onClose();
+    close();
     try {
       const id = await resolveLocalId();
       if (!id) return;
@@ -255,8 +284,17 @@ export function PlaceSheet({
   }
 
   return (
-    <Sheet open={!!target} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="bottom" className="rounded-t-3xl border-0 pb-8">
+    <Drawer
+      open={!!target}
+      onOpenChange={(open) => !open && close()}
+      snapPoints={[PEEK, FULL]}
+      activeSnapPoint={snap}
+      setActiveSnapPoint={setSnap}
+      // Der Hintergrund soll NICHT zurueckskalieren: Dahinter liegt die
+      // Karte, und eine schrumpfende Karte sieht aus wie ein Fehler.
+      shouldScaleBackground={false}
+    >
+      <DrawerContent className="h-[92dvh] rounded-t-3xl border-0 bg-card">
         {/*
           Kopf neu gefasst: Name und Adresse tragen die Zeile, die beiden
           Nebenhandlungen sitzen als runde Symbolknoepfe rechts daneben.
@@ -264,14 +302,14 @@ export function PlaceSheet({
           bekam damit dasselbe Gewicht wie das Bewerten, obwohl es aus der
           App HERAUS fuehrt. Das gehoert nicht in die erste Reihe.
         */}
-        <SheetHeader className="text-left">
+        <DrawerHeader className="shrink-0 text-left">
           {/*
             pr-8 haelt die Ecke fuer das Schliessen-X frei. Ohne das
             ueberlappten beide: das X sitzt 16px vom Rand, der Inhalt
             beginnt bei 24px -- der Merken-Knopf lag damit teilweise
             darunter, und beide waren schwer zu treffen.
           */}
-          <SheetTitle className="flex items-center gap-3 pr-8">
+          <DrawerTitle className="flex items-center gap-3">
             <span className="min-w-0 flex-1">
               <span className="block truncate text-lg font-bold">{header?.name}</span>
               <span className="turi-meta block truncate text-xs font-normal text-muted-foreground">
@@ -310,10 +348,10 @@ export function PlaceSheet({
                 <Navigation size={18} />
               </a>
             ) : null}
-          </SheetTitle>
-        </SheetHeader>
+          </DrawerTitle>
+        </DrawerHeader>
 
-        <div className="mt-4 space-y-3 px-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-8">
           {/*
             Die beiden praktischen Fragen zuerst: Hat es offen, und wie
             weit ist es? Sie entscheiden, ob man ueberhaupt weiterliest --
@@ -326,12 +364,10 @@ export function PlaceSheet({
           ) : null}
 
           {/*
-            Bewusst NUR der Durchschnitt          {/*
-            Bewusst NUR der Durchschnitt, keine einzelnen Bewertungen.
-            Das Panel ist der schnelle Blick von der Karte aus -- die
-            Bewertungen selbst stehen vollstaendig hinter "All reviews".
-            Zwei angerissene Karten hier waren beides halb: zu wenig zum
-            Lesen, zu viel fuer einen Blick.
+            In der kleinen Hoehe NUR der Durchschnitt. Angerissene
+            Bewertungskarten waeren beides halb: zu wenig zum Lesen, zu
+            viel fuer einen Blick. Die ganzen stehen eine Hoehe weiter
+            oben.
           */}
           {avg !== null ? (
             <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
@@ -365,17 +401,40 @@ export function PlaceSheet({
             >
               <Star size={18} className="mr-1" /> Review
             </Button>
-            <Button
-              disabled={busy}
-              variant="secondary"
-              onClick={() => go("place")}
-              className="h-12 flex-1 rounded-2xl"
-            >
-              All reviews
-            </Button>
+            {reviews.length > 0 && !expanded ? (
+              <Button
+                variant="secondary"
+                onClick={() => setSnap(FULL)}
+                className="h-12 flex-1 rounded-2xl"
+              >
+                All reviews
+              </Button>
+            ) : null}
           </div>
+
+          {/*
+            Die Bewertungen werden erst geladen und gezeichnet, wenn das
+            Panel oben steht -- in der kleinen Hoehe waeren es Fotos, die
+            niemand sieht.
+          */}
+          {expanded ? (
+            <div className="space-y-4 pt-2">
+              <h2 className="turi-eyebrow px-1">From your circle</h2>
+              {reviews.map((r) => (
+                <ReviewCard key={r.id} review={r} showPlace={false} />
+              ))}
+              <Button
+                disabled={busy}
+                variant="secondary"
+                onClick={() => go("place")}
+                className="h-12 w-full rounded-2xl"
+              >
+                Open place page
+              </Button>
+            </div>
+          ) : null}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }
