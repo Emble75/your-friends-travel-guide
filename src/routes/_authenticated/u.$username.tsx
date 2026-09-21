@@ -205,25 +205,6 @@ function ProfilePage() {
     queryClient.invalidateQueries();
   }
 
-  /*
-   * Beim Wechsel auf "Map" zur Karte scrollen.
-   *
-   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
-   * Umschalten weiter das Profil und musste erst von Hand nach unten
-   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
-   */
-  useEffect(() => {
-    if (view !== "map") return;
-    const id = window.setTimeout(
-      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
-      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
-      // koennte.
-      60,
-    );
-    return () => window.clearTimeout(id);
-  }, [view]);
-
   const followStatus = clickedStatus ? clickedStatus.value : data?.followStatus;
 
   const canSeeReviews = data
@@ -283,6 +264,28 @@ function ProfilePage() {
       return result;
     },
   });
+
+  /*
+   * Beim Wechsel auf "Map" zur Karte scrollen.
+   *
+   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
+   * Umschalten weiter das Profil und musste erst von Hand nach unten
+   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
+   */
+  useEffect(() => {
+    if (view !== "map") return;
+    const id = window.setTimeout(
+      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
+      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
+      // koennte.
+      60,
+    );
+    return () => window.clearTimeout(id);
+    // mapLoading gehoert in die Abhaengigkeiten: Beim ersten Umschalten
+    // laufen Wechsel und Ladevorgang auseinander -- ohne dies bliebe es
+    // beim Platzhalter stehen.
+  }, [view, mapLoading]);
 
   if (isLoading) {
     return (
@@ -521,51 +524,49 @@ function ProfilePage() {
             </div>
 
             {view === "map" ? (
-              mapLoading ? (
-                <Skeleton className={`${MAP_HEIGHT} rounded-3xl`} />
-              ) : // Orte ohne gespeicherte Position koennen nicht auf die
-              // Karte. Gezaehlt wird deshalb, was tatsaechlich dort
-              // landen kann -- sonst stuende hier eine leere Karte ohne
-              // jede Erklaerung.
-              (mapPlaces ?? []).filter((p) => p.lat != null && p.lng != null).length === 0 ? (
-                /*
+              /*
+                Die Markierung sitzt auf DIESER Huelle, nicht auf der
+                Karte selbst.
+
+                Vorher trug sie die Karte -- und die gibt es beim ersten
+                Umschalten noch nicht: Solange die Orte laden, steht hier
+                ein Platzhalter. Das Scrollen fand also nichts, wohin es
+                haette springen koennen, und passierte erst beim zweiten
+                Mal, wenn die Daten schon im Speicher lagen.
+              */
+              <div ref={mapAnchorRef} className="scroll-mt-[calc(7rem+env(safe-area-inset-top))]">
+                {mapLoading ? (
+                  <Skeleton className={`${MAP_HEIGHT} rounded-3xl`} />
+                ) : // Orte ohne gespeicherte Position koennen nicht auf die
+                // Karte. Gezaehlt wird deshalb, was tatsaechlich dort
+                // landen kann -- sonst stuende hier eine leere Karte ohne
+                // jede Erklaerung.
+                (mapPlaces ?? []).filter((p) => p.lat != null && p.lng != null).length === 0 ? (
+                  /*
                   Ohne diesen Zweig stand hier eine leere Weltkarte: die
                   Karte laedt, zoomt aber auf nichts, und man raet, ob die
                   Person keine Orte hat oder etwas kaputt ist. Beide Faelle
                   werden jetzt benannt -- der zweite tritt auf, wenn ein Ort
                   von Hand angelegt wurde und keine Position hat.
                 */
-                <EmptyState
-                  icon={MapIcon}
-                  title={reviews.length > 0 ? "Nothing to show on the map" : "No places yet"}
-                  text={
-                    reviews.length > 0
-                      ? "These reviews are for places without a saved location, so they can't be placed on the map."
-                      : "Reviewed places will appear here."
-                  }
-                />
-              ) : (
-                <div
-                  ref={mapAnchorRef}
-                  /*
-                    Der Abstand entspricht genau der Hoehe der klebenden
-                    Kopfzeile (AppHeader: 3.5rem plus die sichere Zone
-                    oben). Ohne ihn scrollt die Karte bis an den
-                    Bildschirmrand -- und verschwindet damit zur Haelfte
-                    unter der Kopfzeile, samt ihrer oberen Ecken und dem
-                    Suchfeld. Das eigene Profil hat keine solche
-                    Kopfzeile und braucht den Abstand deshalb nicht.
-                  */
-                  className="scroll-mt-[calc(7rem+env(safe-area-inset-top))]"
-                >
+                  <EmptyState
+                    icon={MapIcon}
+                    title={reviews.length > 0 ? "Nothing to show on the map" : "No places yet"}
+                    text={
+                      reviews.length > 0
+                        ? "These reviews are for places without a saved location, so they can't be placed on the map."
+                        : "Reviewed places will appear here."
+                    }
+                  />
+                ) : (
                   <PinMap
                     pins={mapPlaces!}
                     mapKey={`profile:${profile.id}`}
                     heading={`${profile.display_name || profile.username}'s places`}
                     className={MAP_HEIGHT}
                   />
-                </div>
-              )
+                )}
+              </div>
             ) : reviews.length > 0 ? (
               reviews.map((r) => <ReviewCard key={r.id} review={r} />)
             ) : (
