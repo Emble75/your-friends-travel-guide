@@ -369,6 +369,21 @@ export function PlaceSheet({
           die letzte Bewertung halb hinter dem Rand des Telefons.
         */}
         <div
+          /*
+           * data-vaul-no-drag: In diesem Bereich wird NICHT gezogen,
+           * hier wird nur gescrollt.
+           *
+           * Vorher entschied die Scrollposition darueber: Wer durch die
+           * Bewertungen nach oben wischte und dabei oben ankam, zog mit
+           * derselben Bewegung ungewollt das ganze Panel herunter. Die
+           * Grenze zwischen "scrollen" und "schliessen" lag damit mitten
+           * in einer einzigen Geste.
+           *
+           * Zum Schliessen bleiben der Griff oben, die Kopfzeile und ein
+           * Tipp neben das Panel -- alles Stellen, an denen man nicht
+           * liest.
+           */
+          data-vaul-no-drag
           className="mx-auto min-h-0 w-full max-w-md flex-1 space-y-3 overflow-y-auto overscroll-contain px-6"
           style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
         >
