@@ -419,6 +419,13 @@ function ProfilePage() {
           />
         ) : (
           <>
+            {/*
+            resetScroll: false und viewTransition: false -- ein
+            Reiterwechsel ist KEIN Seitenwechsel. Ohne beides sprang die
+            Seite bei jedem Umschalten nach oben und blendete dabei ueber,
+            als wuerde sie neu geladen: Wer ein Stueck gescrollt hatte, um
+            die Karte anzusehen, stand danach wieder ganz oben.
+            */}
             <div className="flex gap-1 rounded-2xl bg-secondary p-1">
               <button
                 type="button"
@@ -428,6 +435,8 @@ function ProfilePage() {
                     params: { username },
                     search: {},
                     replace: true,
+                    resetScroll: false,
+                    viewTransition: false,
                   })
                 }
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
@@ -444,6 +453,8 @@ function ProfilePage() {
                     params: { username },
                     search: { view: "map" },
                     replace: true,
+                    resetScroll: false,
+                    viewTransition: false,
                   })
                 }
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${

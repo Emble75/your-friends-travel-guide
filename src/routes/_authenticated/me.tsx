@@ -21,6 +21,7 @@ import { deleteOwnAccount } from "@/lib/account.functions";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { PlaceList, type PlaceListItem } from "@/components/turi/PlaceList";
 import { PinMap } from "@/components/turi/PinMap";
+import { PlaceSheet, type SheetTarget } from "@/components/turi/PlaceSheet";
 import { normalizeCategory } from "@/lib/categories";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
@@ -95,6 +96,14 @@ function MePage() {
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
   // Welche Sammlung gerade aufgeklappt ist (Ordner oder Wunschliste).
   const [collection, setCollection] = useState<"folders" | "saved" | null>(null);
+  /*
+   * Ein Ort aus der Wunschliste oeffnet dieselbe Vorschau wie auf der
+   * Karte -- Note, Entfernung, die Bewertungen der Freunde, "Review".
+   * Vorher sprang man von hier direkt auf die Ortsseite, waehrend
+   * ueberall sonst das Panel erscheint. Zwei Antworten auf dieselbe
+   * Geste sind eine Stolperstelle.
+   */
+  const [selectedPlace, setSelectedPlace] = useState<SheetTarget | null>(null);
   const [profileColor, setProfileColor] = useState<ProfileColor>("blue");
   // Sprungziel fuer die Zahl "Reviews" -- auf einem vollen Profil liegt die
   // Bewertungsliste sonst weit unterhalb aller Sammlungen.
@@ -655,10 +664,25 @@ function MePage() {
           woanders. Und der Schalter kostete auf JEDEM Kartenbildschirm
           Platz fuer etwas, das selten gebraucht wird.
         */}
+        {/*
+        resetScroll: false und viewTransition: false -- ein
+        Reiterwechsel ist KEIN Seitenwechsel. Ohne beides sprang die
+        Seite bei jedem Umschalten nach oben und blendete dabei ueber,
+        als wuerde sie neu geladen: Wer ein Stueck gescrollt hatte, um
+        die Karte anzusehen, stand danach wieder ganz oben.
+        */}
         <div className="flex gap-1 rounded-2xl bg-secondary p-1">
           <button
             type="button"
-            onClick={() => navigate({ to: "/me", search: {}, replace: true })}
+            onClick={() =>
+              navigate({
+                to: "/me",
+                search: {},
+                replace: true,
+                resetScroll: false,
+                viewTransition: false,
+              })
+            }
             aria-pressed={view === "feed"}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
               view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
@@ -668,7 +692,15 @@ function MePage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate({ to: "/me", search: { view: "map" }, replace: true })}
+            onClick={() =>
+              navigate({
+                to: "/me",
+                search: { view: "map" },
+                replace: true,
+                resetScroll: false,
+                viewTransition: false,
+              })
+            }
             aria-pressed={view === "map"}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
               view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
@@ -918,8 +950,24 @@ function MePage() {
                   showCity
                   summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
                   onPick={(item) => {
+                    // Erst die Liste schliessen, dann die Vorschau
+                    // oeffnen -- zwei uebereinanderliegende Flaechen
+                    // muesste man einzeln wegwischen.
                     setCollection(null);
-                    navigate({ to: "/place/$placeId", params: { placeId: item.id } });
+                    if (item.lat != null && item.lng != null) {
+                      setSelectedPlace({
+                        kind: "local",
+                        id: item.id,
+                        name: item.name,
+                        lat: item.lat,
+                        lng: item.lng,
+                      });
+                    } else {
+                      // Ohne Koordinaten haette die Vorschau keine
+                      // Entfernung und keinen Routen-Knopf -- dann
+                      // lieber gleich die ganze Ortsseite.
+                      navigate({ to: "/place/$placeId", params: { placeId: item.id } });
+                    }
                   }}
                 />
               </>
@@ -927,6 +975,8 @@ function MePage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <PlaceSheet target={selectedPlace} onClose={() => setSelectedPlace(null)} myPos={null} />
 
       <FollowListSheet
         userId={profile.id}

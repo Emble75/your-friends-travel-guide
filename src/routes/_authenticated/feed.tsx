@@ -57,12 +57,25 @@ function FeedPage() {
         Kern der App ist, was die eigenen Leute denken -- Vorschlaege
         sind die Ergaenzung, nicht der Ausgangspunkt.
       */}
+      {/*
+      resetScroll: false und viewTransition: false -- ein
+      Reiterwechsel ist KEIN Seitenwechsel. Ohne beides sprang die
+      Seite bei jedem Umschalten nach oben und blendete dabei ueber,
+      als wuerde sie neu geladen: Wer ein Stueck gescrollt hatte, um
+      die Karte anzusehen, stand danach wieder ganz oben.
+      */}
       <div className="flex gap-1 rounded-2xl bg-secondary p-1">
         <button
           type="button"
           onClick={() => {
             void tap();
-            navigate({ to: "/feed", search: {}, replace: true });
+            navigate({
+              to: "/feed",
+              search: {},
+              replace: true,
+              resetScroll: false,
+              viewTransition: false,
+            });
           }}
           aria-pressed={tab === "friends"}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
@@ -75,7 +88,13 @@ function FeedPage() {
           type="button"
           onClick={() => {
             void tap();
-            navigate({ to: "/feed", search: { tab: "suggested" }, replace: true });
+            navigate({
+              to: "/feed",
+              search: { tab: "suggested" },
+              replace: true,
+              resetScroll: false,
+              viewTransition: false,
+            });
           }}
           aria-pressed={tab === "suggested"}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
