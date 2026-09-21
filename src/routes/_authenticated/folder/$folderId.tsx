@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ExternalLink,
   Folder,
@@ -72,6 +72,7 @@ const MAP_HEIGHT = "h-[82dvh]";
 function FolderPage() {
   const { folderId } = Route.useParams();
   const { view = "feed" } = Route.useSearch();
+  const mapAnchorRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [shareOpen, setShareOpen] = useState(false);
@@ -97,6 +98,25 @@ function FolderPage() {
       };
     },
   });
+
+  /*
+   * Beim Wechsel auf "Map" zur Karte scrollen.
+   *
+   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
+   * Umschalten weiter das Profil und musste erst von Hand nach unten
+   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
+   */
+  useEffect(() => {
+    if (view !== "map") return;
+    const id = window.setTimeout(
+      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
+      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
+      // koennte.
+      60,
+    );
+    return () => window.clearTimeout(id);
+  }, [view]);
 
   async function deleteFolder() {
     const { error } = await supabase.from("trip_folders").delete().eq("id", folderId);
@@ -282,12 +302,14 @@ function FolderPage() {
                   text="These reviews are for places without a saved location, so they can't be placed on the map."
                 />
               ) : (
-                <PinMap
-                  pins={mapPlaces}
-                  heading={folder.name}
-                  mapKey={`folder:${folderId}`}
-                  className={MAP_HEIGHT}
-                />
+                <div ref={mapAnchorRef} className="scroll-mt-2">
+                  <PinMap
+                    pins={mapPlaces}
+                    heading={folder.name}
+                    mapKey={`folder:${folderId}`}
+                    className={MAP_HEIGHT}
+                  />
+                </div>
               )
             ) : (
               reviews.map((r) => <ReviewCard key={r.id} review={r} />)

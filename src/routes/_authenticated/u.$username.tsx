@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Clock,
@@ -92,6 +92,7 @@ const MAP_HEIGHT = "h-[82dvh]";
 function ProfilePage() {
   const { username } = Route.useParams();
   const { view = "feed" } = Route.useSearch();
+  const mapAnchorRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
@@ -198,6 +199,25 @@ function ProfilePage() {
     toast.success(`@${data.profile.username} blocked`);
     queryClient.invalidateQueries();
   }
+
+  /*
+   * Beim Wechsel auf "Map" zur Karte scrollen.
+   *
+   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
+   * Umschalten weiter das Profil und musste erst von Hand nach unten
+   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
+   */
+  useEffect(() => {
+    if (view !== "map") return;
+    const id = window.setTimeout(
+      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
+      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
+      // koennte.
+      60,
+    );
+    return () => window.clearTimeout(id);
+  }, [view]);
 
   const followStatus = clickedStatus ? clickedStatus.value : data?.followStatus;
 
@@ -503,12 +523,14 @@ function ProfilePage() {
                   }
                 />
               ) : (
-                <PinMap
-                  pins={mapPlaces!}
-                  mapKey={`profile:${profile.id}`}
-                  heading={`${profile.display_name || profile.username}'s places`}
-                  className={MAP_HEIGHT}
-                />
+                <div ref={mapAnchorRef} className="scroll-mt-2">
+                  <PinMap
+                    pins={mapPlaces!}
+                    mapKey={`profile:${profile.id}`}
+                    heading={`${profile.display_name || profile.username}'s places`}
+                    className={MAP_HEIGHT}
+                  />
+                </div>
               )
             ) : reviews.length > 0 ? (
               reviews.map((r) => <ReviewCard key={r.id} review={r} />)

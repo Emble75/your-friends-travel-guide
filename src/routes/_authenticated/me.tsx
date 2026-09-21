@@ -63,6 +63,17 @@ export const Route = createFileRoute("/_authenticated/me")({
    */
   validateSearch: (search: Record<string, unknown>) => ({
     ...(search["view"] === "map" ? { view: "map" as const } : {}),
+    /*
+     * Welche Sammlung offen ist, steht ebenfalls in der Adresse.
+     *
+     * Vorher war das ein blosser Zustand der Seite: Wer aus der
+     * Wunschliste einen Ort oeffnete und zurueckkam, stand wieder vor
+     * dem Profil -- die Liste war zu. Genau derselbe Fehler wie beim
+     * Feed/Karte-Umschalter, an derselben Stelle behoben.
+     */
+    ...(search["list"] === "folders" || search["list"] === "saved"
+      ? { list: search["list"] as "folders" | "saved" }
+      : {}),
   }),
   head: () => ({
     meta: [
@@ -97,7 +108,8 @@ const MAP_HEIGHT = "h-[82dvh]";
 
 function MePage() {
   const navigate = useNavigate();
-  const { view = "feed" } = Route.useSearch();
+  const { view = "feed", list } = Route.useSearch();
+  const mapAnchorRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const deleteAccountFn = useServerFn(deleteOwnAccount);
   const [editing, setEditing] = useState(false);
@@ -107,8 +119,9 @@ function MePage() {
   const [followListOpen, setFollowListOpen] = useState<"followers" | "following" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
-  // Welche Sammlung gerade aufgeklappt ist (Ordner oder Wunschliste).
-  const [collection, setCollection] = useState<"folders" | "saved" | null>(null);
+  // Welche Sammlung gerade aufgeklappt ist (Ordner oder Wunschliste) --
+  // aus der Adresse, siehe validateSearch oben.
+  const collection = list ?? null;
   /*
    * Ein Ort aus der Wunschliste oeffnet dieselbe Vorschau wie auf der
    * Karte -- Note, Entfernung, die Bewertungen der Freunde, "Review".
@@ -117,6 +130,25 @@ function MePage() {
    * Geste sind eine Stolperstelle.
    */
   const [selectedPlace, setSelectedPlace] = useState<SheetTarget | null>(null);
+
+  /*
+   * Oeffnen legt einen Eintrag in der Historie an, Schliessen ersetzt
+   * ihn. Dadurch schliesst der Zurueck-Knopf die Liste (statt aus dem
+   * Profil zu fuehren), und sie ist wieder da, wenn man von einem Ort
+   * zurueckkommt -- ohne dass sich Eintraege anhaeufen.
+   */
+  function setCollection(next: "folders" | "saved" | null) {
+    navigate({
+      to: "/me",
+      search: {
+        ...(view === "map" ? { view: "map" as const } : {}),
+        ...(next ? { list: next } : {}),
+      },
+      resetScroll: false,
+      viewTransition: false,
+      ...(next ? {} : { replace: true }),
+    });
+  }
   const [profileColor, setProfileColor] = useState<ProfileColor>("blue");
   // Sprungziel fuer die Zahl "Reviews" -- auf einem vollen Profil liegt die
   // Bewertungsliste sonst weit unterhalb aller Sammlungen.
@@ -268,6 +300,25 @@ function MePage() {
       });
     },
   });
+
+  /*
+   * Beim Wechsel auf "Map" zur Karte scrollen.
+   *
+   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
+   * Umschalten weiter das Profil und musste erst von Hand nach unten
+   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
+   */
+  useEffect(() => {
+    if (view !== "map") return;
+    const id = window.setTimeout(
+      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
+      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
+      // koennte.
+      60,
+    );
+    return () => window.clearTimeout(id);
+  }, [view]);
 
   async function respondToRequest(followerId: string, accept: boolean) {
     // Verhindert doppeltes Antworten bei schnellem Doppelklick, waehrend
@@ -782,7 +833,14 @@ function MePage() {
                 }
               />
             ) : (
-              <PinMap pins={myMapPlaces} heading="Your places" mapKey="me" className={MAP_HEIGHT} />
+              <div ref={mapAnchorRef} className="scroll-mt-2">
+                <PinMap
+                  pins={myMapPlaces}
+                  heading="Your places"
+                  mapKey="me"
+                  className={MAP_HEIGHT}
+                />
+              </div>
             )
           ) : (
             <>
