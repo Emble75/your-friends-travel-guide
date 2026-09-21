@@ -67,6 +67,9 @@ export const Route = createFileRoute("/_authenticated/folder/$folderId")({
  * erkennbar bleibt, WESSEN Karte man ansieht; scrollt man ein Stueck,
  * fuellt sie praktisch den Bildschirm.
  */
+/** Wo der Reiter-Umschalter kleben bleibt: direkt unter der Kopfzeile. */
+const STICKY_TOP = "calc(3.5rem + env(safe-area-inset-top))";
+
 const MAP_HEIGHT = "h-[82dvh]";
 
 function FolderPage() {
@@ -255,43 +258,60 @@ function FolderPage() {
             als wuerde sie neu geladen: Wer ein Stueck gescrollt hatte, um
             die Karte anzusehen, stand danach wieder ganz oben.
             */}
-            <div className="flex gap-1 rounded-2xl bg-secondary p-1">
-              <button
-                type="button"
-                onClick={() =>
-                  navigate({
-                    to: "/folder/$folderId",
-                    params: { folderId },
-                    search: {},
-                    replace: true,
-                    resetScroll: false,
-                    viewTransition: false,
-                  })
-                }
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                  view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
-                }`}
-              >
-                <Rows3 size={15} /> Feed
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  navigate({
-                    to: "/folder/$folderId",
-                    params: { folderId },
-                    search: { view: "map" },
-                    replace: true,
-                    resetScroll: false,
-                    viewTransition: false,
-                  })
-                }
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                  view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
-                }`}
-              >
-                <MapIcon size={15} /> Map
-              </button>
+            {/*
+                      KLEBT OBEN, solange die Karte sichtbar ist.
+
+                      Beim Umschalten auf "Map" scrollt die Seite zur Karte -- der
+                      Umschalter waere damit nach oben aus dem Bild gewandert, und
+                      der Weg zurueck zum Feed haette ein Zurueckscrollen verlangt.
+                      Jetzt bleibt er stehen.
+
+                      Die Randabstaende (-mx-4 px-4) ziehen den milchigen Streifen
+                      ueber die volle Breite: Ohne sie schiebt sich der Inhalt in den
+                      16 Pixel Seitenrand daran vorbei.
+                    */}
+            <div
+              className="sticky z-20 -mx-4 bg-background/95 px-4 py-2 backdrop-blur"
+              style={{ top: STICKY_TOP }}
+            >
+              <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate({
+                      to: "/folder/$folderId",
+                      params: { folderId },
+                      search: {},
+                      replace: true,
+                      resetScroll: false,
+                      viewTransition: false,
+                    })
+                  }
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+                    view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
+                  }`}
+                >
+                  <Rows3 size={15} /> Feed
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate({
+                      to: "/folder/$folderId",
+                      params: { folderId },
+                      search: { view: "map" },
+                      replace: true,
+                      resetScroll: false,
+                      viewTransition: false,
+                    })
+                  }
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
+                    view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
+                  }`}
+                >
+                  <MapIcon size={15} /> Map
+                </button>
+              </div>
             </div>
 
             {view === "map" ? (
@@ -313,7 +333,7 @@ function FolderPage() {
                     Suchfeld. Das eigene Profil hat keine solche
                     Kopfzeile und braucht den Abstand deshalb nicht.
                   */
-                  className="scroll-mt-[calc(3.5rem+env(safe-area-inset-top))]"
+                  className="scroll-mt-[calc(7rem+env(safe-area-inset-top))]"
                 >
                   <PinMap
                     pins={mapPlaces}
