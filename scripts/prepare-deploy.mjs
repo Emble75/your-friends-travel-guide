@@ -18,6 +18,25 @@ const config = JSON.parse(readFileSync(path, "utf8"));
 config.name = "turi";
 
 /*
+ * Das Datum, auf das sich die Cloudflare-Laufzeit festlegt.
+ *
+ * Nitro traegt hier automatisch HEUTE ein -- nach lokaler Zeit. In
+ * Mitteleuropa ist es ab Mitternacht bereits der naechste Tag, waehrend
+ * Cloudflare noch auf UTC steht und den Deploy ablehnt: "Can't set
+ * compatibility date in the future".
+ *
+ * Unabhaengig davon ist ein mitwanderndes Datum ohnehin unerwuenscht:
+ * Es bestimmt, wie sich die Laufzeit verhaelt. Wandert es bei jedem
+ * Bauen mit, kann sich das Verhalten der veroeffentlichten App
+ * aendern, ohne dass jemand etwas am Code getan hat -- und der naechste
+ * Fehler waere nicht reproduzierbar.
+ *
+ * Deshalb fest eingetragen. Zum Anheben: Datum aendern, veroeffentlichen,
+ * App durchklicken -- eine bewusste Entscheidung, kein Nebeneffekt.
+ */
+config.compatibility_date = "2026-09-21";
+
+/*
  * Die eigene Domain. "custom_domain" heisst: Cloudflare legt den
  * DNS-Eintrag selbst an und pflegt das Zertifikat -- deshalb muss dort
  * kein A-Eintrag von Hand stehen (ein vorhandener Platzhalter wird
