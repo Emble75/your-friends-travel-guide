@@ -779,46 +779,52 @@ function MePage() {
           Ausgelegt nahmen sie dem Profil die Ordnung -- zwei umbrechende
           Bereiche uebereinander, bevor ueberhaupt eine Bewertung kam.
           Der Inhalt bleibt einen Fingertipp entfernt.
+
+          Als weisse Karten-Knoepfe statt grauer Sekundaer-Knoepfe: Grau
+          auf Grau sah aus wie deaktiviert.
+
+          NUR IM FEED-REITER. In der Kartenansicht standen sie zwischen
+          Umschalter und Karte und schoben die Karte aus dem Bild --
+          ausgerechnet dort, wo sie den ganzen Platz bekommen soll. Sie
+          gehoeren ohnehin zum Feed-Teil des Profils: Beides sind Listen,
+          die Karte ist die Karte.
         */}
-        {/*
-          Sammlungen als weisse Karten-Knoepfe statt grauer Sekundaer-Buttons:
-          Grau auf Grau sah aus wie deaktiviert. Die Karten heben sich vom
-          Seitenhintergrund ab, der Chevron zeigt "hier geht es weiter".
-        */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
-            onClick={() => setCollection("folders")}
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
-              <Folder size={16} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold">Folders</span>
-              <span className="turi-meta block text-xs text-muted-foreground">
-                {folders.length + sharedWithMe.length}
+        {view === "feed" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
+              onClick={() => setCollection("folders")}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                <Folder size={16} />
               </span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
-          </button>
-          <button
-            type="button"
-            className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
-            onClick={() => setCollection("saved")}
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
-              <Bookmark size={16} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold">Want to go</span>
-              <span className="turi-meta block text-xs text-muted-foreground">
-                {savedPlaces?.length ?? 0}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">Folders</span>
+                <span className="turi-meta block text-xs text-muted-foreground">
+                  {folders.length + sharedWithMe.length}
+                </span>
               </span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
-          </button>
-        </div>
+              <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+            </button>
+            <button
+              type="button"
+              className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
+              onClick={() => setCollection("saved")}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                <Bookmark size={16} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">Want to go</span>
+                <span className="turi-meta block text-xs text-muted-foreground">
+                  {savedPlaces?.length ?? 0}
+                </span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+            </button>
+          </div>
+        ) : null}
 
         <div ref={reviewsRef} className="scroll-mt-20 space-y-4">
           {view === "map" ? (
@@ -869,80 +875,92 @@ function MePage() {
         </div>
 
         {/*
-          Kontoverwaltung ans Ende, optisch ruhig. Vorher war das Loeschen
-          eine dauerhaft sichtbare, rot umrandete Karte auf gleicher Stufe
-          wie "Ordner" -- eine unwiderrufliche Aktion sollte auffindbar
-          sein, aber nicht staendig um Aufmerksamkeit buhlen. Der Abmelden-
-          Knopf steht hier zusaetzlich, weil er im Kopfbereich nur als
-          Symbol ohne Beschriftung existiert.
+          NUR IM FEED-REITER -- wie die Sammlungen darueber.
+
+          In der Kartenansicht landete man beim Weiterscrollen unter der
+          Karte im Abmelden- und Loeschen-Bereich. Das hat dort nichts
+          zu suchen, und es machte das eigene Profil in der Kartenansicht
+          zu etwas anderem als jedes fremde: Dort steht unter der Karte
+          nichts. Jetzt sind beide gleich aufgebaut -- Profilkarte,
+          Umschalter, Karte.
+
+          Zur Karte selbst: Kontoverwaltung steht bewusst ganz am Ende
+          und optisch ruhig. Frueher war das Loeschen eine dauerhaft
+          sichtbare, rot umrandete Karte auf gleicher Stufe wie "Ordner"
+          -- eine unwiderrufliche Handlung soll auffindbar sein, aber
+          nicht staendig um Aufmerksamkeit buhlen. Der Abmelden-Knopf
+          steht dort zusaetzlich, weil er im Kopfbereich nur als Symbol
+          ohne Beschriftung existiert.
         */}
-        <section className="turi-card p-5">
-          <h2 className="turi-eyebrow">Account</h2>
+        {view === "feed" ? (
+          <section className="turi-card p-5">
+            <h2 className="turi-eyebrow">Account</h2>
 
-          <PushSetting />
+            <PushSetting />
 
-          <Button
-            variant="secondary"
-            className="mt-3 h-11 w-full justify-start rounded-2xl"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              queryClient.clear();
-              navigate({ to: "/auth" });
-            }}
-          >
-            <LogOut size={16} className="mr-2" /> Sign out
-          </Button>
+            <Button
+              variant="secondary"
+              className="mt-3 h-11 w-full justify-start rounded-2xl"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                queryClient.clear();
+                navigate({ to: "/auth" });
+              }}
+            >
+              <LogOut size={16} className="mr-2" /> Sign out
+            </Button>
 
-          {/*
+            {/*
             Datenschutz und Nutzungsbedingungen waren aus der
             angemeldeten App heraus ueberhaupt nicht erreichbar -- sie
             standen einzig neben dem Zustimmungshaken der Registrierung
             und verschwanden damit nach dem ersten Tag fuer immer. Hier
             sucht man sie, und Apple erwartet sie an dieser Stelle.
           */}
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <Link to="/legal/privacy" className="underline underline-offset-2">
-              Privacy Policy
-            </Link>
-            <Link to="/legal/terms" className="underline underline-offset-2">
-              Terms of Service
-            </Link>
-          </div>
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <Link to="/legal/privacy" className="underline underline-offset-2">
+                Privacy Policy
+              </Link>
+              <Link to="/legal/terms" className="underline underline-offset-2">
+                Terms of Service
+              </Link>
+            </div>
 
-          <p className="mt-4 text-xs text-muted-foreground">
-            Deleting your account permanently removes all your reviews, photos, and follows. This
-            can't be undone.
-          </p>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                className="mt-2 h-11 w-full justify-start rounded-2xl text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 size={16} className="mr-2" /> Delete account
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-3xl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Really delete your account?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  All your reviews, photos, followers, and requests will be permanently deleted.
-                  This can't be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={deleteAccount}
-                  disabled={deleting}
-                  className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            <p className="mt-4 text-xs text-muted-foreground">
+              Deleting your account permanently removes all your reviews, photos, and follows. This
+              can't be undone.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="mt-2 h-11 w-full justify-start rounded-2xl text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
-                  {deleting ? "Deleting…" : "Permanently delete"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </section>
+                  <Trash2 size={16} className="mr-2" /> Delete account
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-3xl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Really delete your account?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    All your reviews, photos, followers, and requests will be permanently deleted.
+                    This can't be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={deleteAccount}
+                    disabled={deleting}
+                    className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? "Deleting…" : "Permanently delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </section>
+        ) : null}
       </div>
 
       <Sheet open={collection !== null} onOpenChange={(open) => !open && setCollection(null)}>
