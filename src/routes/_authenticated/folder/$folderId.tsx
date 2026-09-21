@@ -56,21 +56,23 @@ export const Route = createFileRoute("/_authenticated/folder/$folderId")({
   component: FolderPage,
 });
 
-/*
- * Die Hoehe der Karte auf Profil- und Ordnerseiten.
- *
- * Vorher 62 % der Bildschirmhoehe -- zu wenig: Man sah einen Ausschnitt
- * wie durch ein Fenster, und bei mehr als einer Handvoll Pins musste man
- * staendig schieben. Eine Karte braucht Flaeche, um als Karte zu wirken.
- *
- * 82 % lassen oben gerade noch einen Rest der Profilkarte stehen, damit
- * erkennbar bleibt, WESSEN Karte man ansieht; scrollt man ein Stueck,
- * fuellt sie praktisch den Bildschirm.
- */
 /** Wo der Reiter-Umschalter kleben bleibt: direkt unter der Kopfzeile. */
 const STICKY_TOP = "calc(3.5rem + env(safe-area-inset-top))";
 
-const MAP_HEIGHT = "h-[82dvh]";
+/*
+ * Die Hoehe der Karte -- ausgerechnet, nicht geschaetzt.
+ *
+ * Auf dieser Seite steht mehr ueber der Karte als auf dem eigenen
+ * Profil: die klebende Kopfzeile (3.5rem plus sichere Zone) UND der
+ * klebende Umschalter (3.75rem mit seinem Streifen). Eine feste Zahl
+ * wie "82 % der Bildschirmhoehe" schob die Karte deshalb unten aus dem
+ * Bild -- sie verschwand hinter der Navigationsleiste.
+ *
+ * Jetzt bleibt genau das uebrig, was zwischen beiden Enden frei ist;
+ * das halbe rem am Schluss ist Luft, damit die Karte die Leiste nicht
+ * beruehrt.
+ */
+const MAP_HEIGHT = "h-[calc(100dvh-7.25rem-env(safe-area-inset-top)-var(--bottom-nav-h)-0.5rem)]";
 
 function FolderPage() {
   const { folderId } = Route.useParams();
