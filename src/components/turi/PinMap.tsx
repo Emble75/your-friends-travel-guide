@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useServerFn } from "@tanstack/react-start";
+import { searchMapPlaces } from "@/lib/maps.functions";
+import { zoomForPlace } from "@/lib/map-area";
+import { getErrorMessage } from "@/lib/turi";
 import { List, LocateFixed, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
@@ -33,13 +37,18 @@ import { PlaceSheet, type SheetTarget } from "./PlaceSheet";
  *    beantwortet dieselbe Leiste und dieselbe Liste wie auf der
  *    Hauptkarte -- eine Geste, die man nicht zweimal lernen muss.
  *
- * 3. SUCHE IN IHREN ORTEN -- nicht in Googles Weltbestand. Getippt wird
- *    gegen Name und Stadt der Pins, die Karte springt auf die Treffer.
- *    Das ist hier die richtige Frage ("hat Tom etwas in Lissabon?"),
- *    und es hat zwei angenehme Nebenwirkungen: Es kostet nichts, weil
- *    keine Anfrage an Google geht, und ein leeres Ergebnis ist selbst
- *    eine Antwort -- "Tom hat dort nichts" -- statt einer Kamerafahrt
- *    in eine leere Gegend.
+ * 3. SUCHE IN IHREN ORTEN -- zuerst. Getippt wird gegen Name und Stadt
+ *    der Pins, die Karte springt auf die Treffer. Das ist hier die
+ *    richtige erste Frage ("hat Tom etwas in Lissabon?"), sie kostet
+ *    nichts und antwortet sofort.
+ *
+ *    FINDET SICH NICHTS, ist die Suche damit aber nicht zu Ende: Wer
+ *    "Stockholm" tippt, will nach Stockholm -- auch wenn die Person
+ *    dort nichts hat. Dann faehrt die Karte auf Zuruf trotzdem hin
+ *    ("Go there anyway"). Bewusst auf Zuruf und nicht von selbst: Diese
+ *    Suche geht an Google und kostet, waehrend die erste umsonst ist.
+ *    Ein Tastendruck soll das nicht ausloesen, ein bewusster Tipp
+ *    schon.
  *
  * 4. DIESELBE VORSCHAU WIE AUF DER HAUPTKARTE. Ein Tipp auf einen Pin
  *    oeffnet das Panel von unten -- Note, Oeffnungszeit, Entfernung,
@@ -131,6 +140,8 @@ export function PinMap({
   const [listOpen, setListOpen] = useState(false);
   const [selected, setSelected] = useState<SheetTarget | null>(null);
   const [query, setQuery] = useState("");
+  const [jumping, setJumping] = useState(false);
+  const searchFn = useServerFn(searchMapPlaces);
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   /*
@@ -358,6 +369,46 @@ export function PinMap({
     fittedRef.current = true;
   }, [ready, debouncedTerm, placed]);
 
+  /*
+   * Dorthin fahren, wo die Person nichts hat.
+   *
+   * Nutzt dieselbe Ortssuche wie die Hauptkarte. Sie ist die teuerste
+   * Abfrage im Haus -- aber sie laeuft nur auf ausdruecklichen Wunsch,
+   * und ihre Antwort liegt 60 Tage im gemeinsamen Zwischenspeicher.
+   * Staedtenamen sind eine kleine, sich staendig wiederholende Menge;
+   * "Stockholm" wird nach dem ersten Mal fuer alle aus dem Speicher
+   * bedient.
+   */
+  async function jumpAnywhere() {
+    const map = mapRef.current;
+    const q = query.trim();
+    if (!map || q.length < 2 || jumping) return;
+    void tap();
+    setJumping(true);
+    try {
+      const c = map.getCenter();
+      const results = await searchFn({
+        data: {
+          query: q,
+          ...(c ? { lat: c.lat(), lng: c.lng() } : {}),
+        },
+      });
+      const top = results[0];
+      if (!top) {
+        toast.info("Nothing found");
+        return;
+      }
+      // Ab hier bestimmt der Nutzer den Ausschnitt, nicht mehr die Daten.
+      fittedRef.current = true;
+      map.panTo({ lat: top.lat, lng: top.lng });
+      map.setZoom(zoomForPlace(top));
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Search failed"));
+    } finally {
+      setJumping(false);
+    }
+  }
+
   // Beim Verlassen der Seite aufraeumen.
   useEffect(() => {
     const marker = meMarkerRef;
@@ -394,6 +445,12 @@ export function PinMap({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            // Die Eingabetaste bedeutet "jetzt hin": Liegt ein eigener
+            // Treffer vor, ist die Karte ohnehin schon dort -- sonst
+            // uebernimmt die Ortssuche.
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && queried.length === 0) void jumpAnywhere();
+            }}
             placeholder="Search these places"
             aria-label="Search these places"
             className={`h-11 rounded-full pl-10 pr-10 ${FLOATING}`}
@@ -412,11 +469,28 @@ export function PinMap({
 
         <CategoryFilterBar items={visible} value={filter} onChange={setFilter} />
 
+        {/*
+          Der Hinweis ist zugleich der Ausweg. Frueher stand hier nur
+          eine Absage -- richtig, aber eine Sackgasse: Wer "Stockholm"
+          tippt, will nach Stockholm, auch wenn die Person dort nichts
+          hat.
+        */}
         {term && queried.length === 0 ? (
           <div
-            className={`pointer-events-auto w-fit rounded-full px-3 py-1.5 text-xs text-muted-foreground ${FLOATING}`}
+            className={`pointer-events-auto flex w-fit items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 ${FLOATING}`}
           >
-            Nothing here matches “{query.trim()}”
+            <span className="turi-meta text-xs text-muted-foreground">
+              Nothing here matches “{query.trim()}”
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={jumping}
+              onClick={jumpAnywhere}
+              className="h-7 rounded-full bg-brand-soft px-3 text-xs font-semibold text-brand hover:bg-brand-soft hover:text-brand"
+            >
+              {jumping ? "Going…" : "Go there anyway"}
+            </Button>
           </div>
         ) : null}
       </div>

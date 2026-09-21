@@ -470,6 +470,49 @@
  * an --primary: seit --primary blau ist, waere er sonst unbemerkt zu
  * einem zweiten Markenverlauf geworden.
  */
+/*
+ * Seitenuebergaenge.
+ *
+ * Die neue Seite schiebt sich von rechts herein und blendet dabei auf,
+ * die alte tritt leicht zurueck -- die Bewegung, die man von iOS kennt.
+ * Kurz gehalten (220 ms): Alles darueber fuehlt sich nach Warten an,
+ * nicht nach Fluss.
+ *
+ * WICHTIG -- die Karte ist ausgenommen: Sie zeichnet auf eine
+ * Leinwand, und ein Standbild davon waehrend des Uebergangs sieht aus
+ * wie ein Fehler. Sie blendet nur.
+ */
+::view-transition-old(root) {
+  animation: turi-page-out 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+::view-transition-new(root) {
+  animation: turi-page-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes turi-page-in {
+  from {
+    opacity: 0;
+    transform: translateX(3%);
+  }
+}
+
+@keyframes turi-page-out {
+  to {
+    opacity: 0;
+    transform: translateX(-1.5%);
+  }
+}
+
+/* Wer Bewegung im System abgeschaltet hat, bekommt nur die Blende. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 120ms;
+    transform: none;
+  }
+}
+
 @utility turi-gradient {
   background-image: linear-gradient(140deg, var(--foreground), oklch(0.32 0.009 262));
 }

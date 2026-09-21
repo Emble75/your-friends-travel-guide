@@ -193,17 +193,29 @@ export function PlaceSheet({
   async function go(to: "place" | "review") {
     if (!target) return;
     setBusy(true);
+
+    /*
+     * ZUERST schliessen, dann erst nachschlagen und wechseln.
+     *
+     * Zwei Gruende, und der zweite ist der, den man spuert:
+     *
+     * 1. Waehrend das Panel offen ist, sperrt es die Klicks auf der
+     *    Seite dahinter und raeumt das erst beim Schliessen wieder auf.
+     *    Wechselt man die Seite, ohne es zu schliessen, kann die Sperre
+     *    zurueckbleiben -- die neue Seite ist sichtbar, aber tot.
+     *
+     * 2. Bei einem Ort, den es bei uns noch nicht gibt, legt
+     *    resolveLocalId ihn zuerst an -- das ist eine Anfrage an die
+     *    Datenbank. Stand sie VOR dem Schliessen, blieb das Panel nach
+     *    dem Tippen einen Moment stehen, und danach sprang die Seite
+     *    um. Genau das las sich wie ein aufspringendes Fenster.
+     *    Jetzt faehrt das Panel sofort herunter, und die neue Seite
+     *    folgt, sobald sie kann.
+     */
+    onClose();
     try {
       const id = await resolveLocalId();
       if (!id) return;
-      /*
-       * Erst schliessen, dann wechseln. Waehrend das Panel offen ist,
-       * sperrt es die Klicks auf der Seite dahinter und raeumt das erst
-       * beim Schliessen wieder auf. Wechselt man die Seite, ohne es zu
-       * schliessen, kann diese Sperre zurueckbleiben -- die neue Seite
-       * ist dann sichtbar, aber nicht bedienbar.
-       */
-      onClose();
       if (to === "place") navigate({ to: "/place/$placeId", params: { placeId: id } });
       else navigate({ to: "/new", search: { placeId: id } });
     } catch (e) {

@@ -12,6 +12,7 @@ import { CATEGORIES, type Category, normalizeCategory } from "@/lib/categories";
 import { PlaceList } from "@/components/turi/PlaceList";
 import { PlaceSheet, type SheetTarget } from "@/components/turi/PlaceSheet";
 import { CategoryFilterBar } from "@/components/turi/CategoryFilter";
+import { looksLikeArea } from "@/lib/map-area";
 import { metersBetween } from "@/lib/geo";
 import { supabase } from "@/integrations/supabase/app-client";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
@@ -96,31 +97,6 @@ const mapSession: {
   filter: Category | null;
 } = { camera: null, centeredOnUser: false, filter: null };
 
-const AREA_TYPES = new Set([
-  "locality",
-  "sublocality",
-  "sublocality_level_1",
-  "administrative_area_level_1",
-  "administrative_area_level_2",
-  "administrative_area_level_3",
-  "country",
-  "postal_town",
-  "neighborhood",
-]);
-
-/*
- * Ein Ort, wie ihn die Karte braucht -- egal aus welcher Quelle.
- *
- * Vorher hatte jeder der vier Zweige (bewertet/gemerkt, jeweils
- * "Discover" und "My Map") seine eigene Form und seinen eigenen
- * Marker-Code. Filter und Liste haetten das vervierfacht. Jetzt laufen
- * alle Quellen in EINE Liste, und Marker, Filterleiste und Trefferliste
- * lesen aus derselben.
- *
- * rating ist die Durchschnittsnote aus dem eigenen Kreis (in "My Map"
- * die eigene), friends die Anzahl der Bewertungen dahinter. Fehlt beides,
- * ist es ein reiner Merk-Ort.
- */
 type Pin = {
   id: string;
   name: string;
@@ -598,20 +574,20 @@ function MapPage() {
       }
       setQuery("");
 
-      // Ohne erkannten Geschaefts-Typ ODER ohne genaue Adresse ist das
-      // vermutlich eine Stadt/Region (auch wenn ihr Typ nicht in unserer
-      // AREA_TYPES-Liste steht) -- dann nur hinzoomen, nicht automatisch
-      // oeffnen.
-      const looksLikeArea = !top.rawType || AREA_TYPES.has(top.rawType) || !top.address;
+      // Stadt/Region oder konkreter Ort? Die Unterscheidung steht in
+      // lib/map-area.ts und wird mit den Karten von Profilen und
+      // Ordnern geteilt -- zwei Kopien derselben Liste driften
+      // auseinander.
+      const isArea = looksLikeArea(top);
 
-      if (looksLikeArea || results.length === 1) {
+      if (isArea || results.length === 1) {
         // Stadt/Region oder eindeutiger Treffer: dorthin springen.
         const newCenter = { lat: top.lat, lng: top.lng };
         mapRef.current.panTo(newCenter);
         mapRef.current.setZoom(14);
         setCenter(newCenter);
         setSearchCandidates(null);
-        if (!looksLikeArea) setSelected({ kind: "google", place: top });
+        if (!isArea) setSelected({ kind: "google", place: top });
         return;
       }
 
