@@ -56,6 +56,19 @@ export const Route = createFileRoute("/_authenticated/folder/$folderId")({
   component: FolderPage,
 });
 
+/*
+ * Die Hoehe der Karte auf Profil- und Ordnerseiten.
+ *
+ * Vorher 62 % der Bildschirmhoehe -- zu wenig: Man sah einen Ausschnitt
+ * wie durch ein Fenster, und bei mehr als einer Handvoll Pins musste man
+ * staendig schieben. Eine Karte braucht Flaeche, um als Karte zu wirken.
+ *
+ * 82 % lassen oben gerade noch einen Rest der Profilkarte stehen, damit
+ * erkennbar bleibt, WESSEN Karte man ansieht; scrollt man ein Stueck,
+ * fuellt sie praktisch den Bildschirm.
+ */
+const MAP_HEIGHT = "h-[82dvh]";
+
 function FolderPage() {
   const { folderId } = Route.useParams();
   const { view = "feed" } = Route.useSearch();
@@ -273,7 +286,7 @@ function FolderPage() {
                   pins={mapPlaces}
                   heading={folder.name}
                   mapKey={`folder:${folderId}`}
-                  className="h-[62vh]"
+                  className={MAP_HEIGHT}
                 />
               )
             ) : (

@@ -76,6 +76,19 @@ export const Route = createFileRoute("/_authenticated/u/$username")({
   component: ProfilePage,
 });
 
+/*
+ * Die Hoehe der Karte auf Profil- und Ordnerseiten.
+ *
+ * Vorher 62 % der Bildschirmhoehe -- zu wenig: Man sah einen Ausschnitt
+ * wie durch ein Fenster, und bei mehr als einer Handvoll Pins musste man
+ * staendig schieben. Eine Karte braucht Flaeche, um als Karte zu wirken.
+ *
+ * 82 % lassen oben gerade noch einen Rest der Profilkarte stehen, damit
+ * erkennbar bleibt, WESSEN Karte man ansieht; scrollt man ein Stueck,
+ * fuellt sie praktisch den Bildschirm.
+ */
+const MAP_HEIGHT = "h-[82dvh]";
+
 function ProfilePage() {
   const { username } = Route.useParams();
   const { view = "feed" } = Route.useSearch();
@@ -467,7 +480,7 @@ function ProfilePage() {
 
             {view === "map" ? (
               mapLoading ? (
-                <Skeleton className="h-[62vh] rounded-3xl" />
+                <Skeleton className={`${MAP_HEIGHT} rounded-3xl`} />
               ) : // Orte ohne gespeicherte Position koennen nicht auf die
               // Karte. Gezaehlt wird deshalb, was tatsaechlich dort
               // landen kann -- sonst stuende hier eine leere Karte ohne
@@ -494,7 +507,7 @@ function ProfilePage() {
                   pins={mapPlaces!}
                   mapKey={`profile:${profile.id}`}
                   heading={`${profile.display_name || profile.username}'s places`}
-                  className="h-[62vh]"
+                  className={MAP_HEIGHT}
                 />
               )
             ) : reviews.length > 0 ? (

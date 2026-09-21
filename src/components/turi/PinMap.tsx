@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useServerFn } from "@tanstack/react-start";
 import { searchMapPlaces } from "@/lib/maps.functions";
-import { zoomForPlace } from "@/lib/map-area";
+import { looksLikeArea, zoomForPlace } from "@/lib/map-area";
 import { getErrorMessage } from "@/lib/turi";
 import { List, LocateFixed, Search, X } from "lucide-react";
 import { toast } from "sonner";
@@ -386,14 +386,26 @@ export function PinMap({
     void tap();
     setJumping(true);
     try {
-      const c = map.getCenter();
-      const results = await searchFn({
-        data: {
-          query: q,
-          ...(c ? { lat: c.lat(), lng: c.lng() } : {}),
-        },
-      });
-      const top = results[0];
+      /*
+       * BEWUSST OHNE Kartenmitte.
+       *
+       * Die Ortssuche gewichtet Treffer nach Naehe zum mitgegebenen
+       * Punkt. Wer auf einer Karte, die gerade Norditalien zeigt, "Roma"
+       * tippt, landete dadurch in einem "Roma" bei Treviso statt in Rom.
+       * Fuer "bring mich dorthin" ist die Naehe genau das falsche
+       * Kriterium -- man will ja WEG von hier.
+       *
+       * Nebenwirkung, die passt: Ohne Ortsbezug liegt die Antwort unter
+       * einem gemeinsamen Schluessel im Zwischenspeicher. "Roma" wird
+       * damit fuer alle Nutzer nur einmal bei Google angefragt.
+       */
+      const results = await searchFn({ data: { query: q } });
+      /*
+       * Unter den Treffern zuerst eine Stadt oder Region suchen. Google
+       * liefert zu "Roma" auch Restaurants und Strassen; gemeint ist bei
+       * dieser Frage fast immer das Gebiet.
+       */
+      const top = results.find(looksLikeArea) ?? results[0];
       if (!top) {
         toast.info("Nothing found");
         return;
