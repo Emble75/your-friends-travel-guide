@@ -24,10 +24,9 @@ function ResetPasswordPage() {
   /*
    * Diese Seite ist die zweite Haelfte der Passwort-Wiederherstellung:
    * Supabase schickt einen Link, der eine Sitzung herstellt, und hier
-   * wird das neue Passwort gesetzt. Der Mailversand ist derzeit nicht
-   * aktiviert (bewusste Entscheidung wegen der Grenzen des
-   * Standardmailers) -- die Seite ist also erreichbar, aber ohne
-   * gueltigen Link nicht benutzbar.
+   * wird das neue Passwort gesetzt. Der Link ist der einzige Weg
+   * hierher: Ohne ihn gibt es keine Sitzung, und die Seite ist zwar
+   * erreichbar, aber nicht benutzbar.
    *
    * Ohne Sitzung wuerde updateUser fehlschlagen und der Nutzer stuende
    * vor einem Formular, das nicht funktionieren kann. Deshalb wird der

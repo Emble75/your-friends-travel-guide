@@ -199,8 +199,35 @@ function AuthPage() {
     }
   }
 
-  function onForgotPassword() {
-    setResetSent(true);
+  /*
+   * Passwort vergessen -- jetzt automatisch statt per Handarbeit.
+   *
+   * Frueher stand hier nur der Hinweis, eine Mail an den Betreiber zu
+   * schreiben; abgeschaltet war der Versand wegen der engen Grenzen von
+   * Supabases Standardmailer. Das war nicht nur unbequem, sondern eine
+   * Luecke: Wer eine Mail schreiben kann, konnte ein fremdes Konto
+   * anfordern -- geprueft wurde nichts.
+   *
+   * Supabase schickt den Link jetzt selbst. Er fuehrt auf
+   * /reset-password, wo die zweite Haelfte schon lange fertig lag.
+   */
+  async function onForgotPassword() {
+    if (!email.trim()) {
+      toast.error("Please enter your email first");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${getAppUrl()}/reset-password`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Could not send the email"));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -216,16 +243,10 @@ function AuthPage() {
 
         {resetSent ? (
           <div className="mt-8 turi-card p-5 text-center">
-            <h2 className="text-lg font-semibold">Forgot your password?</h2>
+            <h2 className="text-lg font-semibold">Check your email</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Please send an email to{" "}
-              <a
-                href="mailto:info.turi.app@gmail.com"
-                className="font-medium text-primary underline"
-              >
-                info.turi.app@gmail.com
-              </a>{" "}
-              — we'll take care of it as soon as possible.
+              We sent a link to <span className="font-medium text-foreground">{email}</span>. Open
+              it to set a new password. If nothing arrives, look in your spam folder.
             </p>
             <Button
               variant="secondary"
@@ -326,8 +347,9 @@ function AuthPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={onForgotPassword}
-                  className="text-xs font-medium text-primary"
+                  onClick={() => void onForgotPassword()}
+                  disabled={loading}
+                  className="text-xs font-medium text-primary disabled:opacity-60"
                 >
                   Forgot password?
                 </button>
