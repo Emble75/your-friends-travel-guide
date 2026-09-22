@@ -368,7 +368,22 @@ export function PlaceSheet({
       // Karte, und eine schrumpfende Karte sieht aus wie ein Fehler.
       shouldScaleBackground={false}
     >
-      <DrawerContent className="h-[96dvh] rounded-t-3xl border-0 bg-card">
+      {/*
+        svh statt dvh -- und das ist auf dem Telefon der Unterschied
+        zwischen "laesst sich wegschieben" und "haengt".
+
+        dvh ist die AKTUELLE Hoehe des sichtbaren Bereichs. In Safari
+        wandert die: Beim Oeffnen der Seite ist die Adressleiste noch
+        gross, bei der ersten Wischbewegung klappt sie zusammen, und die
+        Hoehe waechst -- mitten in der Geste. Das Panel rechnet seine
+        Rastpunkte aber aus der Hoehe beim Oeffnen. Aendert sie sich
+        waehrend des Ziehens, landet die Bewegung woanders als der
+        Finger, und der Wisch verpufft.
+
+        svh ist die KLEINSTE Hoehe (Adressleiste ausgeklappt) und aendert
+        sich nie. Die Rechnung bleibt damit ueber die ganze Geste gueltig.
+      */}
+      <DrawerContent className="h-[96svh] rounded-t-3xl border-0 bg-card">
         {/*
           Auf dem Telefon aendert die Breitenbegrenzung nichts; auf einem
           breiten Bildschirm verhindert sie, dass Titel und Knoepfe an
@@ -441,7 +456,25 @@ export function PlaceSheet({
            * fast die ganze kleine Hoehe.
            */
           {...(expanded ? { "data-vaul-no-drag": "" } : {})}
-          className="mx-auto min-h-0 w-full max-w-md flex-1 space-y-3 overflow-y-auto overscroll-contain px-6"
+          /*
+           * Gescrollt wird NUR im hochgefahrenen Zustand.
+           *
+           * Vorher stand hier immer overflow-y-auto. In der kleinen
+           * Hoehe ragt die erste Bewertung absichtlich herein -- die
+           * Flaeche war also scrollbar, und Scrollen und Ziehen
+           * stritten sich um dieselbe Wischbewegung: Wer ein Stueck
+           * gescrollt hatte, schob mit dem naechsten Wisch nur wieder
+           * nach oben statt das Panel wegzuschieben. Erst der zweite
+           * oder dritte Versuch traf. Genau das war gemeint, als hier
+           * stand "in der kleinen Hoehe gibt es nichts zu scrollen" --
+           * nur stand es als Kommentar da und nicht im Code.
+           *
+           * Der Anschnitt bleibt: Er sagt weiterhin "hier ist mehr",
+           * und der Weg dorthin ist das Hochziehen.
+           */
+          className={`mx-auto min-h-0 w-full max-w-md flex-1 space-y-3 overscroll-contain px-6 ${
+            expanded ? "overflow-y-auto" : "overflow-hidden"
+          }`}
           style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
         >
           {distance ? (
