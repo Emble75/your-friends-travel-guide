@@ -68,6 +68,15 @@ export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
         };
         Returns: Json[];
       };
+      // public_profile_reviews: die Bewertungen eines OEFFENTLICHEN
+      // Kontos fuer dessen Profilseite. Gleiche Begruendung wie oben --
+      // ohne die Funktion stuende dort "No posts yet", obwohl derselbe
+      // Beitrag im Vorschlags-Reiter sichtbar ist. Siehe Migration
+      // 20260923090000_public_profile_reviews.sql.
+      public_profile_reviews: {
+        Args: { p_user_id: string };
+        Returns: Json[];
+      };
     };
     Tables: Omit<GenTables, "follows" | "places" | "profiles" | "reviews"> & {
       follows: WithColumns<

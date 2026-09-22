@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Clock,
@@ -142,11 +142,30 @@ function ProfilePage() {
           .select("*", { count: "exact", head: true })
           .eq("follower_id", profile.id)
           .eq("status", "accepted"),
-        supabase
-          .from("reviews")
-          .select(reviewSelect)
-          .eq("user_id", profile.id)
-          .order("created_at", { ascending: false }),
+        /*
+         * Zwei Wege zu denselben Zeilen -- je nachdem, was die
+         * RLS-Regeln durchlassen.
+         *
+         * Folgt man der Person, liefert die normale Abfrage alles. Folgt
+         * man nicht, greift is_visible_author und sie kommt leer zurueck
+         * -- auf dem Profil stand dann "No posts yet", obwohl derselbe
+         * Beitrag im Vorschlags-Reiter des Feeds sichtbar war.
+         *
+         * Fuer oeffentliche Konten gibt es deshalb public_profile_reviews:
+         * eng geschnitten, genau wie suggested_feed, damit die allgemeine
+         * Sichtbarkeitsregel unangetastet bleibt. Sonst stuenden fremde
+         * Bewertungen ploetzlich auch auf der Discover-Karte und in den
+         * Durchschnitten.
+         */
+        profile.is_private || profile.id === me
+          ? supabase
+              .from("reviews")
+              .select(reviewSelect)
+              .eq("user_id", profile.id)
+              .order("created_at", { ascending: false })
+          : supabase
+              .rpc("public_profile_reviews", { p_user_id: profile.id })
+              .then((res) => ({ ...res, data: (res.data ?? []) as unknown[] })),
         supabase
           .from("blocks")
           .select("blocked_id")
@@ -211,59 +230,57 @@ function ProfilePage() {
     ? !data.profile.is_private || followStatus === "accepted" || data.isMe
     : false;
 
-  const { data: mapPlaces, isLoading: mapLoading } = useQuery({
-    queryKey: ["profile-map-places", data?.profile.id],
-    enabled: view === "map" && !!data?.profile && canSeeReviews,
-    queryFn: async () => {
-      // RLS auf reviews filtert automatisch auf das, was ich bei dieser
-      // Person sehen darf (gleiche Sichtbarkeit wie im Feed).
-      const { data: rows } = await supabase
-        .from("reviews")
-        .select("place_id, rating, places(id, name, city, lat, lng, category)")
-        .eq("user_id", data!.profile.id);
-      type Row = {
-        id: string;
-        name: string;
-        city: string | null;
-        category: string;
-        lat: number | null;
-        lng: number | null;
-      };
-      const byId = new Map<string, Row>();
-      const sums = new Map<string, { total: number; count: number }>();
-      for (const r of rows ?? []) {
-        const p = r.places as unknown as Row | null;
-        if (!p) continue;
-        byId.set(p.id, p);
-        const entry = sums.get(p.id) ?? { total: 0, count: 0 };
-        entry.total += r.rating;
-        entry.count += 1;
-        sums.set(p.id, entry);
-      }
-      const result: PlaceListItem[] = [];
-      for (const [id, place] of byId) {
-        const { total, count } = sums.get(id)!;
-        result.push({
-          id,
-          name: place.name,
-          city: place.city,
-          category: normalizeCategory(place.category),
-          lat: place.lat,
-          lng: place.lng,
-          rating: total / count,
-          /*
-           * Bewusst 0: Die Zeile unter dem Namen wuerde sonst "1 friend"
-           * sagen. Auf der Karte EINER Person ist das keine Information,
-           * sondern Rauschen -- es sind ihre Orte, die Zahl waere
-           * ueberall dieselbe.
-           */
-          friends: 0,
-          saved: false,
-        });
-      }
-      return result;
-    },
-  });
+  /*
+   * Die Kartenpunkte kommen aus denselben Bewertungen, die oben ohnehin
+   * geladen wurden -- keine zweite Abfrage.
+   *
+   * Vorher stand hier eine eigene Abfrage auf reviews. Sie hatte
+   * denselben blinden Fleck wie die Liste: Bei jemandem, dem man nicht
+   * folgt, liess die RLS-Regel nichts durch, und die Karte eines
+   * oeffentlichen Kontos blieb leer. Ueber die geladenen Zeilen zu gehen
+   * loest das nebenbei mit und spart einen Weg zum Server.
+   */
+  const mapPlaces: PlaceListItem[] = useMemo(() => {
+    type Row = {
+      id: string;
+      name: string;
+      city: string | null;
+      category: string;
+      lat: number | null;
+      lng: number | null;
+    };
+    const byId = new Map<string, Row>();
+    const sums = new Map<string, { total: number; count: number }>();
+    for (const r of data?.reviews ?? []) {
+      const place = (r as { places?: Row | null }).places ?? null;
+      if (!place) continue;
+      byId.set(place.id, place);
+      const entry = sums.get(place.id) ?? { total: 0, count: 0 };
+      entry.total += r.rating;
+      entry.count += 1;
+      sums.set(place.id, entry);
+    }
+    return Array.from(byId.entries()).map(([id, place]) => ({
+      id,
+      name: place.name,
+      city: place.city,
+      category: normalizeCategory(place.category),
+      lat: place.lat,
+      lng: place.lng,
+      rating: sums.get(id)!.total / sums.get(id)!.count,
+      /*
+       * Bewusst 0: Die Zeile unter dem Namen wuerde sonst "1 friend"
+       * sagen. Auf der Karte EINER Person ist das keine Information,
+       * sondern Rauschen -- es sind ihre Orte, die Zahl waere ueberall
+       * dieselbe.
+       */
+      friends: 0,
+      saved: false,
+    }));
+  }, [data?.reviews]);
+
+  // Die Karte wartet auf dieselbe Abfrage wie der Rest der Seite.
+  const mapLoading = isLoading;
 
   /*
    * Beim Wechsel auf "Map" zur Karte scrollen.
@@ -560,7 +577,7 @@ function ProfilePage() {
                   />
                 ) : (
                   <PinMap
-                    pins={mapPlaces!}
+                    pins={mapPlaces}
                     mapKey={`profile:${profile.id}`}
                     heading={`${profile.display_name || profile.username}'s places`}
                     className={MAP_HEIGHT}
