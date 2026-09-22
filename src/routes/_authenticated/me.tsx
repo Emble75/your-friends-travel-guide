@@ -874,10 +874,19 @@ function MePage() {
                 <EmptyState
                   icon={Star}
                   title="No reviews yet"
-                  text="Review your first place — your friends will see it right away."
+                  text="Find a place on the map and rate it — your friends will see it right away."
                   action={
+                    /*
+                     * Auf die Karte, nicht direkt ins Formular.
+                     *
+                     * /new erwartet einen Ort. Wer noch nie etwas
+                     * bewertet hat, stand dort vor einem Suchfeld und
+                     * musste erraten, was hineingehoert. Der Weg, den
+                     * die App sonst ueberall geht, beginnt auf der
+                     * Karte: Ort finden, antippen, bewerten.
+                     */
                     <Button asChild className="rounded-2xl">
-                      <Link to="/new">Review a place</Link>
+                      <Link to="/map">Find a place</Link>
                     </Button>
                   }
                 />
