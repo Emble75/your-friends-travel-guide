@@ -187,10 +187,34 @@ export function PlaceSheet({
               .maybeSingle()
           : Promise.resolve({ data: null }),
       ]);
+      /*
+       * Rueckfall fuer oeffentliche Konten, denen man nicht folgt.
+       *
+       * Die Abfrage oben geht direkt auf die reviews-Tabelle, wo
+       * is_visible_author gilt -- bei jemandem, dem man nicht folgt,
+       * kommt nichts zurueck. Auf SEINER Karte stand dann "No review to
+       * show", obwohl der Pin genau aus dieser Bewertung entstanden ist.
+       *
+       * Dieselbe Funktion wie auf der Profilseite liefert sie: eng
+       * geschnitten, nur fuer oeffentliche Konten. Sie gibt alle
+       * Bewertungen dieser Person heraus, hier wird auf den einen Ort
+       * gefiltert. Nur wenn der direkte Weg leer bleibt -- wer folgt,
+       * braucht den Umweg nicht.
+       */
+      let visible = reviews ?? [];
+      if (visible.length === 0 && onlyUserId && onlyUserId !== me) {
+        const { data: viaRpc } = await supabase.rpc("public_profile_reviews", {
+          p_user_id: onlyUserId,
+        });
+        visible = ((viaRpc ?? []) as unknown as { places?: { id?: string } }[]).filter(
+          (r) => r.places?.id === local.id,
+        ) as typeof visible;
+      }
+
       return {
         localId: local.id,
         place: placeRes.data,
-        reviews: reviews ?? [],
+        reviews: visible,
         isSaved: !!savedRes.data,
         myRating: (mineRes.data as { rating: number } | null)?.rating ?? null,
       };
