@@ -275,6 +275,11 @@ export function PlaceSheet({
 
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
 
+  // Habe ich diesen Ort schon bewertet? Kommt aus einer eigenen Abfrage
+  // und gilt damit auch auf fremden Karten, wo die Liste nur die
+  // Bewertung der anderen Person enthaelt.
+  const iReviewed = data?.myRating != null;
+
   /*
    * Wessen Note im Kasten steht. Auf einer Personenkarte ist das ihr
    * Name -- "3 from your circle" waere dort schlicht falsch.
@@ -518,8 +523,23 @@ export function PlaceSheet({
             vollstaendig im Bild stehen, waehrend die Bewertungen
             angeschnitten sein duerfen.
           */}
-          <Button disabled={busy} onClick={() => go("review")} className="h-12 w-full rounded-2xl">
-            <Star size={18} className="mr-1" /> Review
+          {/*
+            Wer den Ort schon bewertet hat, bekommt keinen zweiten
+            Knopf zum Bewerten.
+
+            /new legt jede Bewertung als neue Zeile an -- ein zweiter
+            Durchgang haette also einen doppelten Eintrag zum selben Ort
+            erzeugt, mit zwei Noten im Durchschnitt. Auf der eigenen
+            Karte stand der Knopf sogar an jedem Pin, denn jeder Pin
+            dort IST eine eigene Bewertung.
+          */}
+          <Button
+            disabled={busy}
+            onClick={() => go(iReviewed ? "place" : "review")}
+            variant={iReviewed ? "secondary" : "default"}
+            className="h-12 w-full rounded-2xl"
+          >
+            <Star size={18} className="mr-1" /> {iReviewed ? "Your review" : "Review"}
           </Button>
 
           {/*

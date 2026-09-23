@@ -5,7 +5,7 @@ import { searchMapPlaces } from "@/lib/maps.functions";
 import { looksLikeArea, zoomForPlace } from "@/lib/map-area";
 import { getErrorMessage } from "@/lib/turi";
 import { deviceLanguage } from "@/lib/device-language";
-import { List, LocateFixed, Search, X } from "lucide-react";
+import { List, LocateFixed, Maximize2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { currentLocationIcon, mapColor, ratingPinIcon } from "@/lib/mapIcons";
@@ -122,6 +122,7 @@ export function PinMap({
   mapKey,
   className,
   onlyUserId = null,
+  expandable = true,
 }: {
   pins: PlaceListItem[];
   /** Ueberschrift der Liste, z. B. "Toms places". */
@@ -135,6 +136,15 @@ export function PinMap({
   className?: string;
   /** Wem diese Karte gehoert -- das Panel zeigt dann nur deren Bewertung. */
   onlyUserId?: string | null;
+  /*
+   * Die eingebettete Karte ist eine Vorschau: ein Tipp macht sie gross.
+   *
+   * In der Kachel im Profil laesst sich kaum etwas erkunden -- sie ist
+   * ein Ausschnitt. Wer die Orte einer Person wirklich durchgehen will
+   * (und genau das ist der Fall bei jemandem, dem man wegen seiner
+   * Empfehlungen folgt), braucht dieselbe Flaeche wie auf Discover.
+   */
+  expandable?: boolean;
 }) {
   const { ready, error } = useGoogleMaps();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -148,6 +158,7 @@ export function PinMap({
     () => mapMemory.get(mapKey)?.filter ?? null,
   );
   const [listOpen, setListOpen] = useState(false);
+  const [full, setFull] = useState(false);
   const [selected, setSelected] = useState<SheetTarget | null>(null);
   const [query, setQuery] = useState("");
   const [jumping, setJumping] = useState(false);
@@ -431,6 +442,38 @@ export function PinMap({
     }
   }
 
+  /*
+   * In der Vorschau nimmt die Karte keine Gesten an.
+   *
+   * Sonst streiten sich zwei Bedeutungen um dieselbe Bewegung: Ein Wisch
+   * waere zugleich "Karte verschieben" und "Seite scrollen", und ein
+   * Tipp waere zugleich "oeffnen" und "Pin auswaehlen". In der Vorschau
+   * gilt nur eins: antippen und gross machen.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setOptions({ gestureHandling: full || !expandable ? "greedy" : "none" });
+    // Die Mitte ueber den Groessenwechsel retten -- sonst rutscht der
+    // Ausschnitt, weil sich das Seitenverhaeltnis aendert.
+    const center = map.getCenter();
+    const id = requestAnimationFrame(() => {
+      if (center) map.setCenter(center);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [full, expandable, ready]);
+
+  // Waehrend die Karte den Bildschirm fuellt, scrollt die Seite darunter
+  // nicht mit.
+  useEffect(() => {
+    if (!full) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [full]);
+
   // Beim Verlassen der Seite aufraeumen.
   useEffect(() => {
     const marker = meMarkerRef;
@@ -445,7 +488,11 @@ export function PinMap({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border border-border bg-muted shadow-card ${className ?? ""}`}
+      className={
+        full
+          ? "fixed inset-0 z-50 overflow-hidden bg-muted"
+          : `relative overflow-hidden rounded-3xl border border-border bg-muted shadow-card ${className ?? ""}`
+      }
     >
       <div ref={containerRef} className="size-full" />
 
@@ -457,36 +504,79 @@ export function PinMap({
         </div>
       ) : null}
 
+      {/*
+        Die Vorschau: eine Flaeche, ein Tipp. Der Hinweis unten sagt, was
+        passiert -- ohne ihn sieht eine Karte, die auf Wischen nicht
+        reagiert, schlicht kaputt aus.
+      */}
+      {expandable && !full ? (
+        <button
+          type="button"
+          onClick={() => {
+            void tap();
+            setFull(true);
+          }}
+          aria-label={`Open ${heading} full screen`}
+          className="absolute inset-0 z-20 flex items-end justify-center pb-4"
+        >
+          <span
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold ${FLOATING}`}
+          >
+            <Maximize2 size={14} />
+            Tap to explore
+          </span>
+        </button>
+      ) : null}
+
       {/* Die Leisten schweben ueber der Karte, wie auf der Hauptkarte. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 space-y-3 p-4">
-        <div className="pointer-events-auto relative">
-          <Search
-            size={17}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            // Die Eingabetaste bedeutet "jetzt hin": Liegt ein eigener
-            // Treffer vor, ist die Karte ohnehin schon dort -- sonst
-            // uebernimmt die Ortssuche.
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && queried.length === 0) void jumpAnywhere();
-            }}
-            placeholder="Search these places"
-            aria-label="Search these places"
-            className={`h-11 rounded-full pl-10 pr-10 ${FLOATING}`}
-          />
-          {query ? (
+      <div
+        className={`pointer-events-none absolute inset-x-0 top-0 space-y-3 p-4 ${
+          expandable && !full ? "hidden" : ""
+        } ${full ? "pt-[calc(1rem+env(safe-area-inset-top))]" : ""}`}
+      >
+        <div className="pointer-events-auto relative flex items-center gap-2">
+          {full ? (
             <button
               type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="turi-tap turi-hit absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+              onClick={() => {
+                void tap();
+                setFull(false);
+              }}
+              aria-label="Close map"
+              className={`turi-tap flex size-11 shrink-0 items-center justify-center rounded-full ${FLOATING}`}
             >
-              <X size={14} />
+              <X size={18} />
             </button>
           ) : null}
+          <div className="relative min-w-0 flex-1">
+            <Search
+              size={17}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              // Die Eingabetaste bedeutet "jetzt hin": Liegt ein eigener
+              // Treffer vor, ist die Karte ohnehin schon dort -- sonst
+              // uebernimmt die Ortssuche.
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && queried.length === 0) void jumpAnywhere();
+              }}
+              placeholder="Search these places"
+              aria-label="Search these places"
+              className={`h-11 rounded-full pl-10 pr-10 ${FLOATING}`}
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="turi-tap turi-hit absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <CategoryFilterBar items={visible} value={filter} onChange={setFilter} />
@@ -522,7 +612,11 @@ export function PinMap({
         sitzt die Liste ueber dem Standort, und das soll man nicht
         zweimal lernen muessen.
       */}
-      <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2">
+      <div
+        className={`absolute bottom-4 right-4 flex flex-col items-end gap-2 ${
+          expandable && !full ? "hidden" : ""
+        }`}
+      >
         {listed.length > 0 ? (
           <Button
             type="button"
