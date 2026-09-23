@@ -92,7 +92,15 @@ const STICKY_TOP = "calc(3.5rem + env(safe-area-inset-top))";
  * das halbe rem am Schluss ist Luft, damit die Karte die Leiste nicht
  * beruehrt.
  */
-const MAP_HEIGHT = "h-[calc(100dvh-7.25rem-env(safe-area-inset-top)-var(--bottom-nav-h)-0.5rem)]";
+/*
+ * Die Vorschau ist bewusst flach.
+ *
+ * Sie war vorher fast bildschirmhoch -- aus der Zeit, als man in ihr
+ * arbeiten musste. Seit ein Tipp die Karte bildschirmfuellend macht, ist
+ * das nicht mehr noetig, und die Hoehe hatte einen Preis: Eine flache
+ * Flaeche fasst die ganze Welt ohne graue Raender, eine hohe nicht.
+ */
+const MAP_HEIGHT = "h-[38dvh]";
 
 function ProfilePage() {
   const { username } = Route.useParams();

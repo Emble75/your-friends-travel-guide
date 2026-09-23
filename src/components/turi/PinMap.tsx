@@ -103,9 +103,25 @@ const FLOATING_CONTROL =
 
 /** Grundkarte ohne Googles eigene Orts- und Verkehrssymbole. */
 /*
- * Die kleinste erlaubte Zoomstufe -- siehe Begruendung bei minZoom.
+ * Die kleinste Zoomstufe, bei der die Karte die Flaeche noch fuellt.
+ *
+ * Auf einer Mercator-Karte ist die Welt bei Zoom 0 genau 256 Pixel hoch
+ * und verdoppelt sich mit jeder Stufe. Ist die Flaeche hoeher als die
+ * Welt, malt Google oben und unten Grau -- genau die Raender, die in der
+ * Vorschau auftauchten.
+ *
+ * Eine feste Untergrenze war der falsche Weg: Sie zwang eine Weltkarte
+ * auf eine Stufe, auf der nur noch ein Ausschnitt passt, und wer Orte
+ * auf mehreren Kontinenten hatte, landete mitten im Nordatlantik -- also
+ * auf Groenland. Die Grenze muss von der Flaeche kommen, nicht von einer
+ * Zahl: Eine flache Vorschau darf die ganze Welt zeigen, die
+ * bildschirmfuellende Ansicht braucht eine Stufe mehr.
  */
-const MIN_ZOOM = 3;
+function minZoomFor(element: HTMLElement | null): number {
+  const height = element?.clientHeight ?? 0;
+  if (height <= 0) return 1;
+  return Math.max(0, Math.ceil(Math.log2(height / 256)));
+}
 
 const QUIET_STYLE: google.maps.MapTypeStyle[] = [
   { featureType: "poi", stylers: [{ visibility: "off" }] },
@@ -307,7 +323,7 @@ export function PinMap({
     const remembered = mapMemory.get(mapKey);
     mapRef.current = new google.maps.Map(containerRef.current, {
       center: remembered ? { lat: remembered.lat, lng: remembered.lng } : { lat: 20, lng: 0 },
-      zoom: remembered?.zoom ?? MIN_ZOOM,
+      zoom: remembered?.zoom ?? minZoomFor(containerRef.current),
       /*
        * Nicht weiter hinauszoomen als bis hierher.
        *
@@ -320,7 +336,7 @@ export function PinMap({
        * Ab Zoom 3 ist die Welt ueber 2000 Pixel hoch und fuellt jede
        * Flaeche, die auf einem Telefon vorkommt.
        */
-      minZoom: MIN_ZOOM,
+      minZoom: minZoomFor(containerRef.current),
       disableDefaultUI: true,
       gestureHandling: "greedy",
       clickableIcons: false,
@@ -387,7 +403,8 @@ export function PinMap({
        */
       const listener = google.maps.event.addListenerOnce(mapRef.current, "idle", () => {
         const map = mapRef.current;
-        if (map && (map.getZoom() ?? MIN_ZOOM) < MIN_ZOOM) map.setZoom(MIN_ZOOM);
+        const floor = minZoomFor(containerRef.current);
+        if (map && (map.getZoom() ?? floor) < floor) map.setZoom(floor);
       });
       return () => google.maps.event.removeListener(listener);
     }
@@ -483,7 +500,12 @@ export function PinMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setOptions({ gestureHandling: full || !expandable ? "greedy" : "none" });
+    const floor = minZoomFor(containerRef.current);
+    map.setOptions({
+      gestureHandling: full || !expandable ? "greedy" : "none",
+      minZoom: floor,
+    });
+    if ((map.getZoom() ?? floor) < floor) map.setZoom(floor);
     // Die Mitte ueber den Groessenwechsel retten -- sonst rutscht der
     // Ausschnitt, weil sich das Seitenverhaeltnis aendert.
     const center = map.getCenter();

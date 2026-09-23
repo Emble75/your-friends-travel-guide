@@ -106,7 +106,15 @@ type PendingRequest = {
 /** Wo der Reiter-Umschalter kleben bleibt: direkt unter der Kopfzeile. */
 const STICKY_TOP = "env(safe-area-inset-top)";
 
-const MAP_HEIGHT = "h-[82dvh]";
+/*
+ * Die Vorschau ist bewusst flach.
+ *
+ * Sie war vorher fast bildschirmhoch -- aus der Zeit, als man in ihr
+ * arbeiten musste. Seit ein Tipp die Karte bildschirmfuellend macht, ist
+ * das nicht mehr noetig, und die Hoehe hatte einen Preis: Eine flache
+ * Flaeche fasst die ganze Welt ohne graue Raender, eine hohe nicht.
+ */
+const MAP_HEIGHT = "h-[38dvh]";
 
 function MePage() {
   const navigate = useNavigate();
