@@ -102,6 +102,11 @@ const FLOATING_CONTROL =
   "h-11 rounded-full border border-border bg-card/80 px-4 text-sm font-semibold shadow-card backdrop-blur-xl backdrop-saturate-150";
 
 /** Grundkarte ohne Googles eigene Orts- und Verkehrssymbole. */
+/*
+ * Die kleinste erlaubte Zoomstufe -- siehe Begruendung bei minZoom.
+ */
+const MIN_ZOOM = 3;
+
 const QUIET_STYLE: google.maps.MapTypeStyle[] = [
   { featureType: "poi", stylers: [{ visibility: "off" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
@@ -302,7 +307,20 @@ export function PinMap({
     const remembered = mapMemory.get(mapKey);
     mapRef.current = new google.maps.Map(containerRef.current, {
       center: remembered ? { lat: remembered.lat, lng: remembered.lng } : { lat: 20, lng: 0 },
-      zoom: remembered?.zoom ?? 2,
+      zoom: remembered?.zoom ?? MIN_ZOOM,
+      /*
+       * Nicht weiter hinauszoomen als bis hierher.
+       *
+       * Auf einer Mercator-Karte ist die Welt bei Zoom 0 genau 256 Pixel
+       * hoch. Ist die Flaeche hoeher als die Welt, malt Google oben und
+       * unten Grau -- genau die Raender, die in der Vorschau auftauchten.
+       * Sie entstanden beim Einpassen: Wer Orte auf mehreren Kontinenten
+       * hat, bekommt einen Ausschnitt, der die ganze Welt umfasst.
+       *
+       * Ab Zoom 3 ist die Welt ueber 2000 Pixel hoch und fuellt jede
+       * Flaeche, die auf einem Telefon vorkommt.
+       */
+      minZoom: MIN_ZOOM,
       disableDefaultUI: true,
       gestureHandling: "greedy",
       clickableIcons: false,
@@ -361,7 +379,19 @@ export function PinMap({
       const box = new google.maps.LatLngBounds();
       placed.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
       mapRef.current.fitBounds(box, 48);
+      /*
+       * fitBounds rechnet ohne Ruecksicht auf minZoom und kann darunter
+       * landen. Nach dem Einpassen deshalb nachziehen -- sonst bleiben
+       * die grauen Raender genau in dem Fall, fuer den die Grenze
+       * gedacht ist.
+       */
+      const listener = google.maps.event.addListenerOnce(mapRef.current, "idle", () => {
+        const map = mapRef.current;
+        if (map && (map.getZoom() ?? MIN_ZOOM) < MIN_ZOOM) map.setZoom(MIN_ZOOM);
+      });
+      return () => google.maps.event.removeListener(listener);
     }
+    return;
   }, [ready, shown, placed]);
 
   /*
