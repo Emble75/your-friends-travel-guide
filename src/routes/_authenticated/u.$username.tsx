@@ -27,7 +27,7 @@ import { FollowListSheet } from "@/components/turi/FollowListSheet";
 import { PinMap } from "@/components/turi/PinMap";
 import { type PlaceListItem } from "@/components/turi/PlaceList";
 import { normalizeCategory } from "@/lib/categories";
-import { ProfileCover, asProfileColor } from "@/components/turi/ProfileCover";
+import { ProfileCover } from "@/components/turi/ProfileCover";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -121,7 +121,7 @@ function ProfilePage() {
       const me = auth.user?.id ?? "";
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, is_private, profile_color")
+        .select("id, username, display_name, avatar_url, bio, is_private, cover_url")
         .eq("username", username)
         .maybeSingle();
       if (error) throw error;
@@ -358,7 +358,7 @@ function ProfilePage() {
         <section className="turi-card overflow-hidden">
           {/* Dasselbe Farbband wie im eigenen Profil -- die vom Gegenueber
               gewaehlte Farbe. */}
-          <ProfileCover color={asProfileColor(profile.profile_color)} />
+          <ProfileCover imagePath={profile.cover_url} />
           <div className="flex items-end gap-4 px-5">
             <UserAvatar
               avatarPath={profile.avatar_url}
