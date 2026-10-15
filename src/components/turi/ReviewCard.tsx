@@ -452,7 +452,7 @@ export function ReviewCard({
             <Link
               to="/place/$placeId"
               params={{ placeId: place.id }}
-              className="font-display block text-[1.6rem] font-semibold leading-[1.04] tracking-[-0.024em] text-foreground"
+              className="font-display block text-[1.4rem] font-semibold leading-[1.12] tracking-[-0.02em] text-foreground"
             >
               {place.name}
             </Link>

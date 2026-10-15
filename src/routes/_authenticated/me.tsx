@@ -572,7 +572,7 @@ function MePage() {
               />
             </label>
             <div className="min-w-0 flex-1">
-              <h1 className="font-display truncate text-[1.65rem] font-semibold leading-[1.08] tracking-[-0.024em]">
+              <h1 className="font-display truncate text-[1.45rem] font-semibold leading-[1.1] tracking-[-0.02em]">
                 {profile.display_name || profile.username}
               </h1>
               <p className="truncate text-sm text-muted-foreground">

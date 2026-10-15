@@ -162,9 +162,10 @@ function PlacePage() {
             Routen-Knopf fuehrt aber aus der App HERAUS und gehoert nicht
             in die erste Reihe.
           */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <h1 className="font-display truncate text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.026em]">
+              {/* Umbrechen statt abschneiden -- siehe PlaceSheet. */}
+              <h1 className="font-display text-[1.5rem] font-semibold leading-[1.12] tracking-[-0.022em]">
                 {place?.name ?? "…"}
               </h1>
               <p className="turi-meta truncate text-sm text-muted-foreground">

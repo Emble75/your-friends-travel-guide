@@ -419,9 +419,18 @@ export function PlaceSheet({
           die gegenueberliegenden Raender wandern.
         */}
         <DrawerHeader className="mx-auto w-full max-w-md shrink-0 px-6 pb-2 text-left">
-          <DrawerTitle className="flex items-center gap-3">
+          <DrawerTitle className="flex items-start gap-3">
             <span className="min-w-0 flex-1">
-              <span className="font-display block truncate text-[1.65rem] font-semibold leading-[1.05] tracking-[-0.024em]">
+              {/*
+                Umbrechen statt abschneiden.
+
+                "Satan's Coffee Corner" passt in eine Zeile, "Taberna da
+                Rua das Flores" nicht -- und ein abgeschnittener Name ist
+                genau das, was man hier NICHT gebrauchen kann: Der Name
+                ist der Grund, warum das Panel offen ist. Drei Zeilen
+                sind die Grenze, damit die Note darunter im Bild bleibt.
+              */}
+              <span className="font-display line-clamp-3 block text-[1.4rem] font-semibold leading-[1.12] tracking-[-0.02em]">
                 {header?.name}
               </span>
               <span className="mt-1 block truncate text-sm font-normal text-muted-foreground">

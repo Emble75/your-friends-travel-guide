@@ -88,7 +88,7 @@ function FeedPage() {
             });
           }}
           aria-pressed={tab === "friends"}
-          className={`font-display text-[1.65rem] font-semibold tracking-[-0.024em] transition-colors ${
+          className={`font-display text-[1.5rem] font-semibold tracking-[-0.022em] transition-colors ${
             tab === "friends" ? "text-foreground" : "text-muted-foreground/55"
           }`}
         >
@@ -107,7 +107,7 @@ function FeedPage() {
             });
           }}
           aria-pressed={tab === "suggested"}
-          className={`font-display text-[1.65rem] font-semibold tracking-[-0.024em] transition-colors ${
+          className={`font-display text-[1.5rem] font-semibold tracking-[-0.022em] transition-colors ${
             tab === "suggested" ? "text-foreground" : "text-muted-foreground/55"
           }`}
         >
