@@ -828,9 +828,16 @@ function MapPage() {
         die Frage, mit der man eine fremde Stadt oeffnet, und die
         Antwort entscheidet, ob man weitersucht oder woanders hinschaut.
 
-        Personen, nicht Bewertungen: Wer zwoelf Orte markiert hat,
-        zaehlt einmal. Ohne jemanden aus dem Kreis steht hier nichts --
-        eine Null zu melden hilft niemandem.
+        Gezaehlt werden PERSONEN, nicht Bewertungen: Wer zwoelf Orte
+        bewertet hat, zaehlt einmal.
+
+        Und ausschliesslich ANDERE. Die eigenen Orte kennt man; dass man
+        selbst hier war, ist keine Entdeckung. Gemerkte Orte zaehlen
+        ebenfalls nicht -- das Band beantwortet "wer war hier und fand
+        etwas gut", nicht "wo wollte jemand mal hin".
+
+        Ohne jemanden aus dem Kreis steht hier nichts -- eine Null zu
+        melden hilft niemandem.
       */}
       {people.length > 0 ? (
         <div
@@ -849,8 +856,8 @@ function MapPage() {
           </div>
           <p className="min-w-0 flex-1 truncate text-sm">
             {people.length === 1
-              ? `${people[0]!.name} has marked a place here`
-              : `${people.length} friends have marked places here`}
+              ? `${people[0]!.name} reviewed a place here`
+              : `${people.length} friends reviewed places here`}
           </p>
         </div>
       ) : null}
@@ -931,7 +938,13 @@ function MapPage() {
         // sitzen auf einer Linie und lasen sich vorher als zwei
         // verschiedene Dinge -- flache Pille gegen hohes Quadrat.
         className={`absolute left-4 z-10 h-12 rounded-full px-4 text-sm ${FLOATING}`}
-        style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
+        // Weicht dem Band nach oben aus, wie die Knoepfe gegenueber.
+        style={{
+          bottom:
+            people.length > 0
+              ? "calc(var(--bottom-nav-h) + 5rem)"
+              : "calc(var(--bottom-nav-h) + 0.75rem)",
+        }}
       >
         <Link to="/new" search={{ create: true }}>
           <Plus size={16} className="mr-1" /> Can't find it?
