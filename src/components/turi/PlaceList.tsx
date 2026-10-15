@@ -167,7 +167,13 @@ export function PlaceList({
         ) : (
           <span className="flex-1" />
         )}
-        <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary p-1">
+        {/*
+          Dieselbe Sprache wie die Reiter im Feed: zwei Woerter, das
+          geltende in Tinte, das andere ruhig daneben. Die graue Pille
+          davor sah aus wie ein Schalter an einem Geraet -- sortiert
+          wird aber nur, was ohnehin schon dasteht.
+        */}
+        <span className="flex shrink-0 items-baseline gap-3">
           <button
             type="button"
             onClick={() => {
@@ -175,8 +181,8 @@ export function PlaceList({
               setSort("rating");
             }}
             aria-pressed={sort === "rating"}
-            className={`turi-tap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-              sort === "rating" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            className={`font-display text-sm font-semibold tracking-tight transition-colors ${
+              sort === "rating" ? "text-foreground" : "text-muted-foreground/60"
             }`}
           >
             Top rated
@@ -186,8 +192,8 @@ export function PlaceList({
             onClick={chooseNearest}
             disabled={locating}
             aria-pressed={sort === "distance"}
-            className={`turi-tap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-              sort === "distance" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            className={`font-display text-sm font-semibold tracking-tight transition-colors ${
+              sort === "distance" ? "text-foreground" : "text-muted-foreground/60"
             }`}
           >
             {locating ? "Locating…" : "Nearest"}

@@ -746,7 +746,9 @@ function MapPage() {
         */}
         {searchCandidates && searchCandidates.length > 0 ? (
           <div className="pointer-events-auto flex w-fit items-center gap-2 rounded-full bg-card/95 py-1.5 pl-3 pr-1.5 shadow-card backdrop-blur">
-            <span className="turi-eyebrow">{searchCandidates.length} on the map — tap a pin</span>
+            <span className="text-xs text-muted-foreground">
+              {searchCandidates.length} on the map — tap a pin
+            </span>
             <button
               type="button"
               onClick={() => setSearchCandidates(null)}
@@ -904,7 +906,7 @@ function PlacesListSheet({
         className="flex max-h-[78dvh] flex-col rounded-t-3xl border-0 p-0"
       >
         <SheetHeader className="px-6 pb-2 pt-6 text-left">
-          <SheetTitle className="truncate pr-8 text-lg font-bold">{heading}</SheetTitle>
+          <SheetTitle className="truncate pr-8">{heading}</SheetTitle>
         </SheetHeader>
         <PlaceList
           items={pins}

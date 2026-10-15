@@ -284,7 +284,8 @@ function FolderPage() {
               className="sticky z-20 -mx-4 bg-background/95 px-4 py-2 backdrop-blur"
               style={{ top: STICKY_TOP }}
             >
-              <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+              {/* Reiter als Text mit Unterstrich -- wie in den Profilen. */}
+              <div className="flex gap-5 border-b border-border">
                 <button
                   type="button"
                   onClick={() =>
@@ -297,8 +298,10 @@ function FolderPage() {
                       viewTransition: false,
                     })
                   }
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                    view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
+                  className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                    view === "feed"
+                      ? "border-brand text-foreground"
+                      : "border-transparent text-muted-foreground"
                   }`}
                 >
                   <Rows3 size={15} /> Feed
@@ -315,8 +318,10 @@ function FolderPage() {
                       viewTransition: false,
                     })
                   }
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                    view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
+                  className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                    view === "map"
+                      ? "border-brand text-foreground"
+                      : "border-transparent text-muted-foreground"
                   }`}
                 >
                   <MapIcon size={15} /> Map
