@@ -421,8 +421,10 @@ export function PlaceSheet({
         <DrawerHeader className="mx-auto w-full max-w-md shrink-0 px-6 pb-2 text-left">
           <DrawerTitle className="flex items-center gap-3">
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-lg font-bold">{header?.name}</span>
-              <span className="turi-meta block truncate text-xs font-normal text-muted-foreground">
+              <span className="font-display block truncate text-[1.65rem] font-semibold leading-[1.05] tracking-[-0.024em]">
+                {header?.name}
+              </span>
+              <span className="mt-1 block truncate text-sm font-normal text-muted-foreground">
                 {header?.subtitle}
               </span>
             </span>
@@ -510,11 +512,18 @@ export function PlaceSheet({
             <p className="turi-meta text-xs text-muted-foreground">{distance} away</p>
           ) : null}
 
+          {/*
+            Das Notenband ist das Schwerste auf der Flaeche -- nicht der
+            Knopf darunter. Es traegt den Grund, warum jemand ueberhaupt
+            hierher geschaut hat: was die Freunde sagen.
+          */}
           {avg !== null ? (
-            <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
-              <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
-              <Stars value={avg} size={16} />
-              <span className="ml-auto text-xs text-muted-foreground">{ratingNote}</span>
+            <div className="flex items-center gap-3 rounded-2xl bg-map-pin px-4 py-3.5 text-background">
+              <span className="font-display text-[2rem] font-semibold leading-none tracking-[-0.02em]">
+                {avg.toFixed(1)}
+              </span>
+              <Stars value={avg} size={15} />
+              <span className="ml-auto text-xs text-background/70">{ratingNote}</span>
             </div>
           ) : null}
 

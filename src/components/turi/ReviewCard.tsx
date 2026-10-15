@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Stars, StarPicker } from "./Stars";
+import { CATEGORY_ICONS, CATEGORY_LABELS } from "./PlaceList";
+import { normalizeCategory } from "@/lib/categories";
 import {
   FolderPicker,
   folderChoiceFor,
@@ -269,6 +271,14 @@ export function ReviewCard({
     }
   }
 
+  /*
+   * Art des Ortes als Symbol -- dasselbe Zeichen, das auf der Karte am
+   * Pin steht. So muss man es nur einmal lernen.
+   */
+  const category = normalizeCategory(place?.category);
+  const CategoryIcon = CATEGORY_ICONS[category];
+  const categoryWord = CATEGORY_LABELS[category].replace(/s$/, "");
+
   return (
     <article className="turi-card turi-enter p-4">
       <div className="flex items-center gap-3">
@@ -290,7 +300,18 @@ export function ReviewCard({
             @{profile?.username} · {timeAgo(review.created_at)}
           </p>
         </div>
-        <Stars value={review.rating} />
+        {/*
+          Die Note als Stempel, nicht als Sternenreihe.
+
+          Fuenf Sterne sind fuenf Formen, die man zaehlen muss, um eine
+          Zahl zu bekommen -- und sie wiederholen sich in jeder Karte.
+          Eine Ziffer in der Serife liest man sofort, und sie ist das
+          Zeichen, das Turi ueberall benutzt: auf den Pins, im Panel,
+          hier.
+        */}
+        <span className="font-display shrink-0 rounded-xl bg-map-pin px-2.5 py-1.5 text-base font-semibold leading-none tracking-tight text-background">
+          {review.rating.toFixed(1)}
+        </span>
         {isOwn ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -353,52 +374,69 @@ export function ReviewCard({
           Vorher fuehrte von hier nur ein Weg zur Ortsseite; merken oder
           sich hinfuehren lassen ging erst einen Schritt spaeter.
         */
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3">
+          {/*
+            Der Ortsname ist die Ueberschrift der Karte, nicht ein Chip
+            darin. Vorher stand er klein in einer grauen Pille -- damit
+            sah jede Bewertung aus wie ein Datensatz. In der Serife und
+            in dieser Groesse ist er das, was er ist: ein Name.
+          */}
           <Link
             to="/place/$placeId"
             params={{ placeId: place.id }}
-            className="turi-tap flex min-w-0 flex-1 items-center gap-2 rounded-2xl bg-secondary px-3 py-2 transition-colors hover:bg-secondary/70"
+            className="font-display block text-[1.6rem] font-semibold leading-[1.04] tracking-[-0.024em] text-foreground"
           >
-            <MapPin size={16} className="shrink-0 text-primary" />
-            <span className="truncate text-sm font-semibold">{place.name}</span>
-            <span className="turi-meta truncate text-xs text-muted-foreground">{place.city}</span>
+            {place.name}
           </Link>
 
-          <button
-            type="button"
-            onClick={toggleSave}
-            aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
-            aria-pressed={isSaved}
-            className={`turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
-              isSaved
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground"
-            }`}
-          >
-            <Bookmark size={15} fill={isSaved ? "currentColor" : "none"} />
-          </button>
+          <div className="mt-2 flex items-center gap-2">
+            <CategoryIcon size={16} className="shrink-0 text-primary" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+              {[categoryWord, place.city].filter(Boolean).join(" in ")}
+            </span>
 
-          <a
-            href={directionsUrl({
-              name: place.name,
-              city: place.city,
-              lat: place.lat,
-              lng: place.lng,
-              googlePlaceId: place.google_place_id,
-            })}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Directions in Google Maps"
-            className="turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
-          >
-            <Navigation size={15} />
-          </a>
+            <button
+              type="button"
+              onClick={toggleSave}
+              aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
+              aria-pressed={isSaved}
+              className={`turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                isSaved
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground"
+              }`}
+            >
+              <Bookmark size={15} fill={isSaved ? "currentColor" : "none"} />
+            </button>
+
+            <a
+              href={directionsUrl({
+                name: place.name,
+                city: place.city,
+                lat: place.lat,
+                lng: place.lng,
+                googlePlaceId: place.google_place_id,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Directions in Google Maps"
+              className="turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+            >
+              <Navigation size={15} />
+            </a>
+          </div>
         </div>
       ) : null}
 
+      {/*
+        Der Text ist ein Zitat, kein Datenfeld -- also in der Serife und
+        in Anfuehrungszeichen. Es ist das, was eine Person tatsaechlich
+        gesagt hat, und der einzige Grund, warum man einer Empfehlung
+        glaubt.
+      */}
       {review.text ? (
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-          {review.text}
+        <p className="font-display mt-3 whitespace-pre-wrap text-[1.05rem] leading-[1.42] text-foreground">
+          „{review.text}“
         </p>
       ) : null}
 
@@ -542,8 +580,17 @@ export const reviewSelect =
 function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: string }) {
   const [index, setIndex] = useState(0);
 
+  /*
+   * Quadratisch und randlos -- wie man es von Instagram kennt.
+   *
+   * Vorher: 4:3 und innerhalb des Karten-Innenabstands. Beides machte
+   * das Bild klein, und klein ist bei einer Reise-App das Falscheste:
+   * Das Foto IST die Empfehlung. Das negative Aussenmass hebt den
+   * Innenabstand der Karte (p-4) auf, das Quadrat gibt jedem Motiv
+   * gleich viel Flaeche -- hochkant wie quer.
+   */
   return (
-    <div className="mt-3">
+    <div className="-mx-4 mt-4">
       <div
         onScroll={(e) => {
           const el = e.currentTarget;
@@ -552,10 +599,10 @@ function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: s
           const next = Math.round(el.scrollLeft / Math.max(el.clientWidth, 1));
           if (next !== index) setIndex(next);
         }}
-        className="flex snap-x snap-mandatory overflow-x-auto rounded-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {urls.map((url, i) => (
-          <div key={i} className="aspect-4/3 w-full shrink-0 snap-center bg-muted">
+          <div key={i} className="aspect-square w-full shrink-0 snap-center bg-muted">
             {url ? (
               <img
                 src={url}
@@ -571,7 +618,7 @@ function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: s
 
       {/* Punkte nur, wenn es etwas zu wischen gibt. */}
       {urls.length > 1 ? (
-        <div className="mt-2 flex justify-center gap-1.5">
+        <div className="mt-3 flex justify-center gap-1.5">
           {urls.map((_, i) => (
             <span
               key={i}

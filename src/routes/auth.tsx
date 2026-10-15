@@ -231,13 +231,43 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col justify-center bg-background">
-      <div className="app-shell py-10">
-        <div className="flex flex-col items-center text-center">
-          <TuriMark className="size-20" />
-          <h1 className="mt-5 text-3xl font-bold">Turi</h1>
-          <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-            Review places and only see what your friends think.
+    <main className="min-h-screen bg-background">
+      {/*
+        Der Einstieg ist der einzige dunkle Bildschirm der App.
+        Absicht: Man kommt herein, es ist ein Ort -- dann wird es hell
+        und ruhig, und man kann arbeiten. Ein zentriertes Logo auf
+        weisser Flaeche sagt ueber eine Reise-App nichts; ein Foto sagt
+        alles, was der Satz darunter behauptet.
+
+        object-position legt den Ausschnitt auf das Leuchtschild: Die
+        Flaeche ist breiter als hoch, "cover" beschneidet also in der
+        Hoehe -- 63 % schiebt das Schild auf die Mitte, statt den
+        dunklen Eingang darunter zu zeigen.
+      */}
+      <div className="relative h-[42dvh] min-h-[280px] overflow-hidden bg-foreground">
+        <img
+          src="/auth-cover.jpg"
+          alt=""
+          className="absolute inset-0 size-full object-cover object-[50%_63%]"
+        />
+        <div className="absolute inset-0 bg-linear-to-b from-foreground/45 via-foreground/0 to-foreground/0" />
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-b from-transparent via-background/70 to-background" />
+
+        <div className="absolute left-5 top-6 flex items-center gap-2.5">
+          <TuriMark className="size-9" />
+          <span className="font-display text-xl font-semibold text-background drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+            Turi
+          </span>
+        </div>
+      </div>
+
+      <div className="app-shell -mt-10 pb-10">
+        <div className="relative">
+          <h1 className="font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-0.026em] text-balance">
+            Die Karte, die nur deine Freunde zeichnen
+          </h1>
+          <p className="mt-3 max-w-[32ch] text-[0.95rem] leading-relaxed text-muted-foreground">
+            Keine Sterne von Fremden. Nur die Orte der Leute, denen du ohnehin glaubst.
           </p>
         </div>
 

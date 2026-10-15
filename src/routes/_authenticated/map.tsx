@@ -552,7 +552,7 @@ function MapPage() {
         // Gemerkte Orte eine Stufe hoeher: die eigene, bewusste Liste
         // soll nicht hinter fremden Bewertungen verschwinden.
         zIndex: p.saved ? 11 : 10,
-        icon: ratingPinIcon(p.rating, { saved: p.saved }),
+        icon: ratingPinIcon(p.rating, { saved: p.saved, category: p.category }),
       });
       marker.addListener("click", () =>
         setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),

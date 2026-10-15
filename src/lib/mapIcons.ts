@@ -26,6 +26,13 @@ const TAIL = 7; // Laenge der Spitze darunter
 const PAD_X = 7.5; // Rand links und rechts des Inhalts
 const GAP = 3; // Abstand zwischen Zeichen und Note
 const GLYPH_W = 8; // Breite von Lesezeichen und Lupe
+const CAT_W = 10; // Breite des Zeichens fuer die Art des Ortes
+/*
+ * Die Art des Ortes wird in einem helleren Signal gezeichnet. Auf der
+ * tintenschwarzen Pille waere reines Signal zu dunkel, reines Weiss
+ * wuerde mit der Note konkurrieren.
+ */
+const CAT_INK = "#F0A077";
 const EDGE = 4; // Luft ringsum fuer den Schatten
 /*
  * Zeichenaufloesung. Die Grafik wird doppelt so gross erzeugt und ueber
@@ -34,6 +41,41 @@ const EDGE = 4; // Luft ringsum fuer den Schatten
  * Aufloesung -- auf Retina-Bildschirmen sichtbar unscharf.
  */
 const SHARP = 2;
+
+/**
+ * Die Art des Ortes, klein und vereinfacht.
+ *
+ * Bewusst EIGENE Formen, nicht die Symbole aus der Liste: Bei 10 Pixeln
+ * ist ein gekreuztes Besteck ein Fleck. Was bei 17 Pixeln lesbar ist,
+ * muss hier auf zwei, drei Striche eingedampft werden -- erkennbar
+ * bleibt die Silhouette, nicht das Detail.
+ *
+ * Warum ueberhaupt: Auf einer Karte mit dreissig Pins beantwortet die
+ * Note "wie gut", aber nicht "was ist das". Genau daran scheiterte der
+ * urspruengliche Fall -- dreissig Pins in Barcelona, und keiner sagt,
+ * welcher davon ein Cafe ist.
+ */
+const CAT_GLYPH: Record<string, string> = {
+  Cafe: '<path d="M1 3h6v3.4a3 3 0 0 1-6 0z"/><path d="M7 3.9h1.3a1.4 1.4 0 0 1 0 2.8H7"/><path d="M.8 9.3h7.4"/>',
+  Restaurant:
+    '<path d="M1.4 1v2.2a1.6 1.6 0 0 0 3.2 0V1"/><path d="M3 4.6V9"/><path d="M7.7 1c.9 1.2.9 3.2 0 4.4V9"/>',
+  Bar: '<path d="M1 1.4h8L5 6z"/><path d="M5 6v3"/><path d="M3 9.2h4"/>',
+  Hotel:
+    '<path d="M.8 8.6V3.8"/><path d="M.8 6.4h8.4V8.6"/><path d="M3 6.4V4.6h4.2a2 2 0 0 1 2 1.8"/>',
+  Beach: '<path d="M5 9.2V4.6"/><path d="M.9 4.6a4.1 4.1 0 0 1 8.2 0z"/>',
+  Museum:
+    '<path d="M.8 4.2 5 1.3l4.2 2.9"/><path d="M2.2 4.8v3.6"/><path d="M5 4.8v3.6"/><path d="M7.8 4.8v3.6"/><path d="M.9 9.2h8.2"/>',
+  Landmark: '<path d="M2 9.2V1"/><path d="M2 1.6h5.6L6.2 3.6l1.4 2H2"/>',
+  Nature: '<path d="m.7 8.8 3-5.4 2.2 3.5 1.4-2 2 3.9z"/>',
+  Other: '<circle cx="5" cy="5" r="2.3"/>',
+};
+
+/** Zeichnet die Art des Ortes in die Pille, linksbuendig ab x. */
+function categoryGlyph(x: number, stroke: string, category: string) {
+  const paths = CAT_GLYPH[category] ?? CAT_GLYPH["Other"];
+  return `<g transform="translate(${x} ${H / 2 - 5})" fill="none" stroke="${stroke}"
+    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${paths}</g>`;
+}
 
 /** Das Lesezeichen -- "da will ich noch hin". */
 function bookmark(x: number, fill: string) {
@@ -71,16 +113,18 @@ function magnifier(x: number, stroke: string) {
 function pill(opts: {
   text?: string;
   glyph?: "bookmark" | "magnifier";
+  /** Art des Ortes -- steht links vor der Note. */
+  category?: string;
   /** Weisse Pille mit dunklem Rand statt gefuellter -- fuer Suchtreffer. */
   outline?: boolean;
 }) {
-  const { text, glyph, outline } = opts;
+  const { text, glyph, category, outline } = opts;
   const ink = mapColor("pin");
   const bg = outline ? "#ffffff" : ink;
   const fg = outline ? ink : "#ffffff";
 
   const textW = text ? text.length * 7 : 0;
-  const glyphW = glyph ? GLYPH_W : 0;
+  const glyphW = glyph ? GLYPH_W : category ? CAT_W : 0;
   const gap = glyph && text ? GAP : 0;
   const contentW = glyphW + gap + textW;
   const width = Math.max(H, PAD_X * 2 + contentW);
@@ -92,6 +136,9 @@ function pill(opts: {
   let inner = "";
   if (glyph === "bookmark") inner += bookmark(startX, mapColor("accent"));
   if (glyph === "magnifier") inner += magnifier(startX, fg);
+  // Das Zeichen der Art steht in Signal, nicht in Weiss: Es ordnet ein,
+  // die Note bleibt die Hauptinformation.
+  if (!glyph && category) inner += categoryGlyph(startX, outline ? ink : CAT_INK, category);
   if (text) {
     const cx = startX + glyphW + gap + textW / 2;
     inner += `<text x="${cx}" y="${H / 2 + 4}" font-family="${FONT_STACK}" font-size="11.5"
@@ -139,10 +186,16 @@ function pill(opts: {
  * Pille. Ohne Note und ohne Merken gibt es keinen Pin, deshalb traegt
  * der Fall ohne beides ersatzweise das Lesezeichen.
  */
-export function ratingPinIcon(rating?: number, opts?: { saved?: boolean }) {
+export function ratingPinIcon(rating?: number, opts?: { saved?: boolean; category?: string }) {
   const saved = opts?.saved === true;
+  const category = opts?.category;
   if (typeof rating === "number") {
-    return pill({ text: rating.toFixed(1), ...(saved ? { glyph: "bookmark" as const } : {}) });
+    return pill({
+      text: rating.toFixed(1),
+      // Gemerkt UND bewertet: das Lesezeichen gewinnt, es ist die
+      // seltenere und handlungsrelevantere Aussage.
+      ...(saved ? { glyph: "bookmark" as const } : category ? { category } : {}),
+    });
   }
   return pill({ glyph: "bookmark" });
 }

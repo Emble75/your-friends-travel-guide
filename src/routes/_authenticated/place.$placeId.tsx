@@ -132,7 +132,9 @@ function PlacePage() {
           */}
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xl font-bold">{place?.name ?? "…"}</h1>
+              <h1 className="font-display truncate text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.026em]">
+                {place?.name ?? "…"}
+              </h1>
               <p className="turi-meta truncate text-sm text-muted-foreground">
                 {place?.city}
                 {place?.category ? ` · ${place.category}` : ""}
@@ -166,12 +168,19 @@ function PlacePage() {
             ) : null}
           </div>
 
-          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
+          {/* Dieselbe dunkle Note wie im Kartenpanel -- ein Zeichen, zwei Orte. */}
+          <div
+            className={`mt-4 flex items-center gap-3 rounded-2xl px-4 py-3.5 ${
+              avg !== null ? "bg-map-pin text-background" : "bg-secondary"
+            }`}
+          >
             {avg !== null ? (
               <>
-                <span className="font-display text-2xl font-bold">{avg.toFixed(1)}</span>
-                <Stars value={avg} size={16} />
-                <span className="ml-auto text-xs text-muted-foreground">
+                <span className="font-display text-[2rem] font-semibold leading-none tracking-[-0.02em]">
+                  {avg.toFixed(1)}
+                </span>
+                <Stars value={avg} size={15} />
+                <span className="ml-auto text-xs text-background/70">
                   {circleReviews.length} {circleReviews.length === 1 ? "friend" : "friends"}
                 </span>
               </>

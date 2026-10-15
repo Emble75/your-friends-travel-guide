@@ -77,6 +77,14 @@ export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
         Args: { p_user_id: string };
         Returns: Json[];
       };
+      // set_place_category: stellt die Art eines Ortes richtig. Eigene
+      // Funktion, weil places bewusst keine UPDATE-Policy hat und RLS
+      // nicht auf einzelne Spalten eingeschraenkt werden kann -- siehe
+      // Migration 20260925090000_set_place_category.sql.
+      set_place_category: {
+        Args: { p_place_id: string; p_category: string };
+        Returns: undefined;
+      };
     };
     Tables: Omit<GenTables, "follows" | "places" | "profiles" | "reviews"> & {
       follows: WithColumns<

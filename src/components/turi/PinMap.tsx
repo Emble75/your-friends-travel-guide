@@ -373,7 +373,10 @@ export function PinMap({
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
-        icon: ratingPinIcon(p.rating, { saved: p.rating === undefined && p.saved }),
+        icon: ratingPinIcon(p.rating, {
+          saved: p.rating === undefined && p.saved,
+          category: p.category,
+        }),
       });
       marker.addListener("click", () => {
         void tap();

@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CATEGORIES, getErrorMessage } from "@/lib/turi";
+import { normalizeCategory, type Category } from "@/lib/categories";
+import { CATEGORY_ICONS, CATEGORY_LABELS } from "@/components/turi/PlaceList";
 import { createReview } from "@/lib/create-review";
 import { deviceLanguage } from "@/lib/device-language";
 import { isNative, takePhoto } from "@/lib/native";
@@ -267,6 +269,32 @@ function NewReviewPage() {
     setCreating(false);
   }
 
+  /*
+   * Art des Ortes richtigstellen.
+   *
+   * Der Wert liegt auf dem ORT, nicht auf der Bewertung -- die Karte
+   * zeichnet ja den Ort. places hat bewusst keine UPDATE-Regel, deshalb
+   * geht es ueber eine eng geschnittene Funktion, die ausschliesslich
+   * diese eine Spalte anfasst.
+   *
+   * Die Oberflaeche zieht sofort nach und wartet nicht auf die Antwort:
+   * Ein Chip, der nach dem Antippen zwei Sekunden lang nichts tut,
+   * fuehlt sich kaputt an. Schlaegt es fehl, springt er zurueck.
+   */
+  async function chooseCategory(next: Category) {
+    if (!place) return;
+    const previous = place.category;
+    setPlace({ ...place, category: next });
+    const { error } = await supabase.rpc("set_place_category", {
+      p_place_id: place.id,
+      p_category: next,
+    });
+    if (error) {
+      setPlace({ ...place, category: previous });
+      toast.error(getErrorMessage(error, "Could not save the kind of place"));
+    }
+  }
+
   function onPickFiles(list: FileList | null) {
     if (!list) return;
     setFiles((prev) => [...prev, ...Array.from(list)].slice(0, 3));
@@ -385,15 +413,51 @@ function NewReviewPage() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{place.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {place.city} · {place.category}
-                </span>
+                <span className="block truncate text-xs text-muted-foreground">{place.city}</span>
               </span>
               <Button type="button" variant="ghost" size="icon" onClick={() => setPlace(null)}>
                 <X size={18} />
               </Button>
             </div>
-          ) : creating ? (
+          ) : null}
+
+          {/*
+            Die Art des Ortes -- vorausgewaehlt, nicht abgefragt.
+            Turi liest sie aus Googles Ortstyp; das trifft meistens, aber
+            eine Weinbar laeuft dort als Restaurant. Seit die Art als
+            Zeichen am Kartenpin steht, ist ein falscher Wert sichtbar
+            falsch -- und wer gerade davorsteht, weiss es besser.
+            Deshalb: schon richtig ausgefuellt, aber aenderbar.
+          */}
+          {place ? (
+            <div className="mt-4">
+              <Label className="turi-eyebrow">Kind of place</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {CATEGORIES.map((c) => {
+                  const Icon = CATEGORY_ICONS[c];
+                  const active = normalizeCategory(place.category) === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => void chooseCategory(c)}
+                      aria-pressed={active}
+                      className={`turi-tap flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                        active
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border text-muted-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      <Icon size={14} />
+                      {CATEGORY_LABELS[c].replace(/s$/, "")}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {!place && creating ? (
             <div className="mt-3 space-y-3">
               <Input
                 value={newName}
