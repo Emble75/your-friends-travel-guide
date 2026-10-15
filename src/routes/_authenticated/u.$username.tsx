@@ -299,10 +299,6 @@ function ProfilePage() {
     () => [...mapPlaces].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1)),
     [mapPlaces],
   );
-  const numberOf = useMemo(() => {
-    const index = new Map(ordered.map((p, i) => [p.id, i + 1]));
-    return (id: string) => index.get(id);
-  }, [ordered]);
 
   // Die Karte wartet auf dieselbe Abfrage wie der Rest der Seite.
   const mapLoading = isLoading;
@@ -625,7 +621,6 @@ function ProfilePage() {
                       heading={`${profile.display_name || profile.username}'s places`}
                       className={MAP_HEIGHT}
                       onlyUserId={profile.id}
-                      numberOf={numberOf}
                     />
                     <PlaceLegend
                       items={ordered}

@@ -502,11 +502,6 @@ function MePage() {
    * die Nummern der Pins ploetzlich auf andere Zeilen.
    */
   const orderedMine = [...myMapPlaces].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
-  const mineIndex = new Map(orderedMine.map((p, i) => [p.id, i + 1]));
-  // Bewusst ohne useMemo: Die Stelle liegt hinter einer fruehen
-  // Rueckgabe (Ladezustand), ein Hook darf dort nicht stehen -- und bei
-  // der Groesse einer Ortsliste ist das Sortieren ohnehin umsonst.
-  const numberOfMine = (id: string) => mineIndex.get(id);
 
   return (
     <>
@@ -861,7 +856,6 @@ function MePage() {
                     mapKey="me"
                     className={MAP_HEIGHT}
                     onlyUserId={profile.id}
-                    numberOf={numberOfMine}
                   />
                   <PlaceLegend
                     items={orderedMine}

@@ -13,7 +13,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { toast } from "sonner";
-import { type Category } from "@/lib/categories";
+import { CATEGORIES, type Category } from "@/lib/categories";
 import { distanceLabel, metersBetween } from "@/lib/geo";
 import { currentPosition, tap } from "@/lib/native";
 import { directionsUrl } from "@/lib/turi";
@@ -295,17 +295,22 @@ export function PlaceList({
 }
 
 /*
- * Die Legende zur Karte einer Person.
+ * Die Orte einer Person unter ihrer Karte -- nach Art gruppiert.
  *
- * Auf der Karte tragen die Pins eine Nummer, hier steht dieselbe Nummer
- * neben dem Namen -- wie bei einer gedruckten Karte mit Verzeichnis.
- * Damit laesst sich die Karte LESEN, ohne jeden Pin einzeln antippen zu
- * muessen; vorher war der einzige Weg zu den Namen ein Blatt, das die
- * Karte verdeckte.
+ * Hier standen zuerst laufende Nummern, passend zu nummerierten Pins.
+ * Die Idee war die Legende einer gedruckten Karte; in der Hand ist sie
+ * aber nutzlos: Eine "7" sagt nichts, man muss sie erst auf der Karte
+ * suchen. Was man wirklich wissen will, steht jetzt da -- die Note, und
+ * zwar getrennt nach Cafes, Restaurants, Bars.
  *
- * Sortiert wird hier NICHT. Die Reihenfolge kommt vom Elternteil und
- * gilt fuer Karte und Liste gleichzeitig -- waere sie hier aenderbar,
- * zeigten die Pins auf einmal auf andere Zeilen.
+ * Die Gruppierung ist die eigentliche Antwort auf die Frage, mit der
+ * man die Karte eines Menschen oeffnet: nicht "welche Orte hat die
+ * Person", sondern "wo gehe ich hier essen". Innerhalb einer Gruppe
+ * zuerst die beste Note.
+ *
+ * Die Reihenfolge der Gruppen ist fest (CATEGORIES), nicht nach Anzahl:
+ * Sonst springen die Abschnitte bei jedem neuen Ort an eine andere
+ * Stelle, und man sucht jedes Mal neu.
  */
 export function PlaceLegend({
   items,
@@ -314,41 +319,60 @@ export function PlaceLegend({
   items: PlaceListItem[];
   onPick: (item: PlaceListItem) => void;
 }) {
+  const groups = CATEGORIES.map((category) => ({
+    category,
+    places: items
+      .filter((i) => i.category === category)
+      .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1)),
+  })).filter((g) => g.places.length > 0);
+
   return (
-    <ol className="mt-3 list-none">
-      {items.map((item, i) => {
-        const Icon = CATEGORY_ICONS[item.category];
+    <div className="mt-5 space-y-6">
+      {groups.map(({ category, places }) => {
+        const Icon = CATEGORY_ICONS[category];
         return (
-          <li key={item.id}>
-            <button
-              type="button"
-              onClick={() => {
-                void tap();
-                onPick(item);
-              }}
-              className="turi-tap flex w-full items-center gap-3 border-b border-border py-3 text-left"
-            >
-              <span className="font-display flex size-7 shrink-0 items-center justify-center rounded-lg bg-map-pin text-xs font-semibold text-background">
-                {i + 1}
+          <section key={category}>
+            <h3 className="flex items-center gap-2 border-b border-border pb-2">
+              <Icon size={15} className="shrink-0 text-primary" />
+              <span className="font-display text-base font-semibold tracking-tight">
+                {CATEGORY_LABELS[category]}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.95rem] font-semibold">{item.name}</span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Icon size={13} className="shrink-0 text-primary" />
-                  <span className="truncate">
-                    {[categoryWord(item.category), item.city].filter(Boolean).join(" · ")}
-                  </span>
-                </span>
-              </span>
-              {item.rating !== undefined ? (
-                <span className="font-display shrink-0 text-base font-semibold tracking-tight">
-                  {item.rating.toFixed(1)}
-                </span>
-              ) : null}
-            </button>
-          </li>
+              <span className="text-xs text-muted-foreground">{places.length}</span>
+            </h3>
+
+            <ul className="list-none">
+              {places.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void tap();
+                      onPick(item);
+                    }}
+                    className="turi-tap flex w-full items-center gap-3 border-b border-border py-3 text-left"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[0.95rem] font-semibold">
+                        {item.name}
+                      </span>
+                      {item.city ? (
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {item.city}
+                        </span>
+                      ) : null}
+                    </span>
+                    {item.rating !== undefined ? (
+                      <span className="font-display shrink-0 rounded-lg bg-map-pin px-2 py-1 text-sm font-semibold leading-none text-background">
+                        {item.rating.toFixed(1)}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         );
       })}
-    </ol>
+    </div>
   );
 }

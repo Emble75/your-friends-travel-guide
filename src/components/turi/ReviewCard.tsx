@@ -660,7 +660,7 @@ function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: s
    * Kante der Karte die Kante des Bildes.
    */
   return (
-    <div>
+    <div className="relative">
       <div
         onScroll={(e) => {
           const el = e.currentTarget;
@@ -686,15 +686,25 @@ function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: s
         ))}
       </div>
 
-      {/* Punkte nur, wenn es etwas zu wischen gibt. */}
+      {/*
+        Die Punkte liegen IM Bild, nicht darunter.
+
+        Als eigene Zeile machten sie die Bildflaeche hoeher -- und zwar
+        nur bei mehreren Fotos. Dadurch wanderte der Stempel an der
+        unteren Kante mit, und der Abstand zwischen Bild und Ortsname
+        war mal groesser, mal kleiner. Zwei Karten nebeneinander sahen
+        aus, als folgten sie verschiedenen Regeln.
+
+        Als Auflage ist die Hoehe immer dieselbe: ein Quadrat, Punkt.
+      */}
       {urls.length > 1 ? (
-        <div className="flex justify-center gap-1.5 py-2.5">
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
           {urls.map((_, i) => (
             <span
               key={i}
               aria-hidden="true"
-              className={`size-1.5 rounded-full transition-colors ${
-                i === index ? "bg-foreground" : "bg-border"
+              className={`size-1.5 rounded-full shadow-[0_0_6px_rgba(0,0,0,0.5)] transition-colors ${
+                i === index ? "bg-white" : "bg-white/45"
               }`}
             />
           ))}
