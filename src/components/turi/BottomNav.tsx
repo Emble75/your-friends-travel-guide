@@ -95,7 +95,7 @@ export function BottomNav() {
              * graues Symbol. Getrennt gibt es den Konflikt nicht.
              */
             activeProps={{
-              className: "bg-brand-soft text-brand",
+              className: "bg-brand-soft text-primary",
               "aria-current": "page",
             }}
             inactiveProps={{ className: "text-muted-foreground" }}

@@ -76,8 +76,8 @@
   --radius-2xl: calc(var(--radius) + 4px); /* 14px -- Chips, Felder, Knoepfe */
   --radius-3xl: calc(var(--radius) + 8px); /* 18px -- Karten, Flaechen */
   --radius-4xl: calc(var(--radius) + 10px); /* 20px */
-  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
   /* Metadaten, Zahlen und Abschnittslabels. Gibt der Oberflaeche den
      praezisen, "gebauten" Charakter, ohne dass Farbe dafuer noetig ist. */
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -121,7 +121,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --shadow-card: 0 1px 2px oklch(0.2 0.007 262 / 4%), 0 4px 16px -10px oklch(0.2 0.007 262 / 10%);
-  --shadow-glow: 0 10px 28px -10px oklch(0.55 0.23 266 / 45%);
+  --shadow-glow: 0 10px 28px -10px rgb(222 90 36 / 40%);
   /* Kleinste Stufe der Schriftskala: Navigationsbeschriftungen, kleine
      Knopf-Labels. Ersetzt verstreute Einzelwerte wie text-[11px], damit
      die Skala geschlossen bleibt (2xs -> xs -> sm -> base -> lg ...). */
@@ -179,24 +179,24 @@
    * Karten bleiben reinweiss, Markenblau, Orange und das Sternchen-Gold
    * sind unveraendert.
    */
-  --background: oklch(0.955 0.004 258);
-  --foreground: oklch(0.145 0.005 262);
-  --card: oklch(1 0 0);
+  --background: #FBFAF7; /* Papier -- warmes Off-White statt kuehlem Grau */
+  --foreground: #16181D; /* Tinte */
+  --card: #FFFDFA; /* einen Hauch waermer als Weiss, sonst sticht es aus dem Papier heraus */
   --card-foreground: oklch(0.145 0.005 262);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0.005 262);
   /* Siehe Rollenbeschreibung oben: identisch mit --brand. */
-  --primary: oklch(0.5 0.23 266);
+  --primary: #A33C15; /* Signal als SCHRIFT -- dunkel genug zum Lesen (5,7:1 auf brand-soft) */
   /*
    * Markenblau. Ausgangspunkt war #0840D0; auf hellem Grund traegt es
    * ohnehin, aufgehellt auf 0.55 bleibt es auch auf dunklen Flaechen
    * (Bildmarke, App-Icon) lesbar -- weisse Marke darin 5.16:1.
    */
-  --brand: oklch(0.5 0.23 266);
+  --brand: #DE5A24; /* Signal als FLAECHE: Logo, aktiver Reiter, Marken-Akzente. Nie als Schrift. */
   /* Sehr leichte Markentoenung: Hintergrund-Pille fuer aktive Zustaende
      (z. B. untere Navigation). Traegt die Marke sichtbarer, ohne Flaechen
      voll einzufaerben. */
-  --brand-soft: oklch(0.94 0.025 266);
+  --brand-soft: #FBEDE6;
   /*
    * Turi-Orange -- der zweite Markenakzent.
    *
@@ -243,16 +243,16 @@
    * leerer Zustaende. Sie soll zuruecktreten, nicht die Markenfarbe ein
    * weiteres Mal in den Bildschirm tragen.
    */
-  --primary-soft: oklch(0.915 0.006 258);
-  --secondary: oklch(0.93 0.005 258);
-  --secondary-foreground: oklch(0.2 0.005 262);
-  --muted: oklch(0.93 0.005 258);
+  --primary-soft: #F1EEE8;
+  --secondary: #F1EEE8;
+  --secondary-foreground: #2B2E35;
+  --muted: #F1EEE8;
   /* Ein einziger Sekundaerton, der auf ALLEN Flaechen die 4.5:1 haelt:
      Karte 5.64, Hintergrund 4.94, Chip und Eingabefeld 4.59. Dadurch ist
      das frueher noetige, separate --field-placeholder ueberfluessig. */
-  --muted-foreground: oklch(0.515 0.008 262);
-  --accent: oklch(0.915 0.006 258);
-  --accent-foreground: oklch(0.28 0.007 262);
+  --muted-foreground: #5C5F68; /* 5,9:1 auf Papier */
+  --accent: #F1EEE8;
+  --accent-foreground: #2B2E35;
   /*
    * Gruen fuer "hat gerade offen". Der erste Zustand der App, der eine
    * gute Nachricht ist -- bisher gab es nur Rot fuer Fehler.
@@ -265,23 +265,23 @@
   --positive: oklch(0.55 0.13 152);
   --destructive: oklch(0.58 0.22 25);
   --destructive-foreground: oklch(0.99 0.004 258);
-  --star: oklch(0.79 0.16 75);
+  --star: #DE5A24; /* Sterne in Signal statt Gold -- eine Akzentfarbe reicht */
   /* Kontur der gefuellten Sterne. Die helle Goldflaeche erreicht auf Weiss
      nur 1.98:1 und verschwimmt dadurch -- WCAG 1.4.11 verlangt fuer
      bedeutungstragende Grafiken 3:1. Statt das Gold abzudunkeln (es ist
      Teil des Markenbilds) bekommt der Stern eine dunklere Kontur: 4.06:1
      gegen Weiss, Flaeche unveraendert. */
   --star-outline: oklch(0.6 0.15 70);
-  --border: oklch(0.885 0.006 258);
-  --input: oklch(0.885 0.006 258);
+  --border: #E6E3DC;
+  --input: #E6E3DC;
   /* Eingabefelder: gefuellte Flaeche statt Rahmen (wie in Apples eigenen
      Apps). Der frueher alleinstehende Rahmen erreichte nur 1.35:1 und war
      als Feldbegrenzung kaum wahrnehmbar. Eine Flaeche ist bei gleichem
      Messwert deutlich besser erkennbar als eine 1px-Linie -- ein formales
      3:1 erreicht aber auch sie nicht, dafuer muesste das Feld mittelgrau
      werden. */
-  --field: oklch(0.93 0.005 258);
-  --ring: oklch(0.5 0.23 266);
+  --field: #F1EEE8;
+  --ring: #A33C15;
 
   /*
    * Kartenfarben -- die einzige Stelle, an der sie definiert sind.
@@ -313,8 +313,8 @@
    *
    * NUR FUER DIE KARTE -- nicht an Bedienelemente.
    */
-  --map-pin: #161311;
-  --map-accent: #4c7aff;
+  --map-pin: #16181D;
+  --map-accent: #0E7C86; /* Lagune -- bedeutet immer: gemerkt */
   --map-me: #325ef5;
 
   /*
@@ -518,7 +518,10 @@
 }
 
 @utility brand-gradient {
-  background-image: linear-gradient(140deg, oklch(0.6 0.22 268), var(--brand));
+  /* Zwei Stufen desselben Signals statt Blau nach Orange -- die
+     Bildmarke soll die Markenfarbe zeigen, nicht einen Verlauf durch
+     die halbe Palette. */
+  background-image: linear-gradient(140deg, #E8763C, #C2492A);
 }
 
 @utility brand-accent-line {

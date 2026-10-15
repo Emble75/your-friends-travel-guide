@@ -47,7 +47,7 @@ function FilterChip({
       // Aktiv in der weichen Markenfarbe -- dieselbe Sprache wie der
       // Modus-Umschalter der Karte und der aktive Reiter unten.
       className={`turi-tap flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors ${FLOATING} ${
-        active ? "bg-brand-soft text-brand" : "text-muted-foreground"
+        active ? "bg-brand-soft text-primary" : "text-muted-foreground"
       }`}
     >
       {Icon ? <Icon size={14} /> : null}

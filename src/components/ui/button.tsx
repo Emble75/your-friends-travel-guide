@@ -25,7 +25,7 @@ const buttonVariants = cva(
          * Rand macht daraus wieder einen erkennbaren Knopf -- genau das
          * verlangt WCAG 1.4.11 fuer Bedienelemente.
          */
-        default: "border border-brand/40 bg-brand-soft text-brand hover:bg-brand-soft/70",
+        default: "border border-brand/40 bg-brand-soft text-primary hover:bg-brand-soft/70",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",

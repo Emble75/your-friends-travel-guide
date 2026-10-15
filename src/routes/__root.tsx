@@ -31,7 +31,7 @@ function NotFoundComponent() {
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-full border border-brand/40 bg-brand-soft px-5 py-2.5 text-sm font-medium text-brand transition-colors hover:bg-brand-soft/70"
+            className="inline-flex items-center justify-center rounded-full border border-brand/40 bg-brand-soft px-5 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-brand-soft/70"
           >
             Zur Startseite
           </Link>
@@ -74,7 +74,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-full border border-brand/40 bg-brand-soft px-5 py-2.5 text-sm font-medium text-brand transition-colors hover:bg-brand-soft/70"
+            className="inline-flex items-center justify-center rounded-full border border-brand/40 bg-brand-soft px-5 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-brand-soft/70"
           >
             Try again
           </button>
@@ -110,7 +110,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
       },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],

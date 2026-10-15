@@ -651,7 +651,7 @@ export function PinMap({
               variant="ghost"
               disabled={jumping}
               onClick={jumpAnywhere}
-              className="h-7 rounded-full bg-brand-soft px-3 text-xs font-semibold text-brand hover:bg-brand-soft hover:text-brand"
+              className="h-7 rounded-full bg-brand-soft px-3 text-xs font-semibold text-primary hover:bg-brand-soft hover:text-primary"
             >
               {jumping ? "Going…" : "Go there anyway"}
             </Button>
