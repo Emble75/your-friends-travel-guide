@@ -389,18 +389,20 @@ export function ReviewCard({
             {actions}
           </div>
 
-          <span className="font-display absolute -bottom-5 right-4 flex size-14 -rotate-6 items-center justify-center rounded-2xl bg-map-pin text-xl font-semibold tracking-tight text-background shadow-card">
+          <span className="font-display absolute -bottom-4 right-4 flex size-12 -rotate-6 items-center justify-center rounded-2xl bg-map-pin text-lg font-semibold tracking-tight text-background shadow-card">
             {review.rating.toFixed(1)}
           </span>
         </div>
       ) : null}
 
       {/*
-        Mit Foto mehr Luft oben: Der Stempel haengt ueber die Bildkante
-        herunter und braucht die Stelle, an der sonst sofort der
-        Ortsname beginnt.
+        Mit Foto etwas mehr Luft oben: Der Stempel haengt ueber die
+        Bildkante herunter und braucht die Stelle, an der sonst sofort
+        der Ortsname beginnt. Nicht mehr als noetig -- mit den kleineren
+        Ueberschriften stand sonst eine Luecke zwischen Bild und Name,
+        die wie ein Fehler aussah.
       */}
-      <div className={`p-4 ${paths.length > 0 ? "pt-10" : ""}`}>
+      <div className={`p-4 ${paths.length > 0 ? "pt-7" : ""}`}>
         <div className={`flex items-center gap-3 ${paths.length > 0 ? "hidden" : ""}`}>
           <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
             <UserAvatar

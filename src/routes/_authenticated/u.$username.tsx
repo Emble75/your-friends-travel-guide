@@ -375,7 +375,7 @@ function ProfilePage() {
         <section className="turi-card overflow-hidden">
           {/* Dasselbe Farbband wie im eigenen Profil -- die vom Gegenueber
               gewaehlte Farbe. */}
-          <ProfileCover imagePath={profile.cover_url} />
+          <ProfileCover />
           <div className="flex items-end gap-4 px-5">
             <UserAvatar
               avatarPath={profile.avatar_url}

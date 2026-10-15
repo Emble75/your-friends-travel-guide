@@ -285,7 +285,16 @@ function MapPage() {
           display_name: string | null;
           avatar_url: string | null;
         } | null;
-        if (author) {
+        /*
+         * Sich selbst nie mitzaehlen.
+         *
+         * Die Abfrage schliesst eigene Bewertungen bereits aus
+         * (.neq user_id). Solange die Sitzung aber noch nicht geladen
+         * ist, ist me ein leerer Text -- und "user_id ungleich leer"
+         * trifft auf jeden zu, auch auf einen selbst. Dann stand im
+         * Band der eigene Name.
+         */
+        if (author && r.user_id !== me) {
           people.set(r.user_id, {
             name: author.display_name || author.username,
             avatar: author.avatar_url,
@@ -826,7 +835,7 @@ function MapPage() {
       {people.length > 0 ? (
         <div
           className="absolute inset-x-4 z-10 flex items-center gap-3 rounded-2xl bg-map-pin px-4 py-3 text-background shadow-card"
-          style={{ bottom: "calc(var(--bottom-nav-h) + 4.75rem)" }}
+          style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
         >
           <div className="flex shrink-0">
             {people.slice(0, 3).map((person, i) => (
@@ -851,9 +860,20 @@ function MapPage() {
         bleibt ihr Abstand zueinander an einer Stelle festgelegt, und
         die Liste sitzt sichtbar ueber dem Standortknopf.
       */}
+      {/*
+        Die Knoepfe weichen dem Band aus, statt es hoeher zu schieben.
+        Das Band gehoert direkt ueber die Navigation -- dort ist es ein
+        Abschluss. Weiter oben waere es ein zweites schwebendes Element
+        und naehme der Karte unnoetig Flaeche.
+      */}
       <div
         className="absolute right-4 z-10 flex flex-col items-end gap-2"
-        style={{ bottom: "calc(var(--bottom-nav-h) + 0.75rem)" }}
+        style={{
+          bottom:
+            people.length > 0
+              ? "calc(var(--bottom-nav-h) + 5rem)"
+              : "calc(var(--bottom-nav-h) + 0.75rem)",
+        }}
       >
         {listPins.length > 0 ? (
           <Button

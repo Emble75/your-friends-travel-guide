@@ -50,57 +50,64 @@ const items = [
  * Wert dort mitgezogen werden -- sonst rutschen die schwebenden
  * Kartenknoepfe darunter.
  *
- * Aktuell: 0.5rem Innenrand der Pille (p-1, oben + unten)
- *        + 3rem Hoehe der Eintraege (h-12)
- *        = 3.5rem, dazu der Abstand zum unteren Rand.
+ * Aktuell: 0.5rem Innenabstand oben (pt-2)
+ *        + 1.3125rem Symbol (21px)
+ *        + 0.25rem Abstand + 0.6875rem Beschriftung
+ *        + 0.125rem Strich + 0.25rem Abstand + 0.25rem unten (pb-1)
+ *        ~ 3.5rem, dazu der sichere Bereich am unteren Rand.
  */
 export function BottomNav() {
   return (
     <nav
       aria-label="Main navigation"
-      // pointer-events-none auf dem Rahmen, damit der freie Platz links
-      // und rechts der Pille nicht unsichtbar Klicks abfaengt -- dort
-      // liegt die Seite, und die soll bedienbar bleiben.
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4"
-      style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+      /*
+       * Eine FESTE Leiste, keine schwebende Pille.
+       *
+       * Die Pille schwebte ueber dem Inhalt und liess links und rechts
+       * Karte durchscheinen -- auf einer Karte sah sie dadurch aus wie
+       * ein weiteres Bedienelement, das jemand darauf gelegt hat, und
+       * nicht wie der Boden der App. Eine durchgehende Leiste mit einer
+       * Haarlinie darueber schliesst den Bildschirm ab: Darueber ist
+       * Inhalt, darunter Navigation.
+       *
+       * Dazu die Beschriftungen. Vier Symbole ohne Worte muss man
+       * raten; "Map, Feed, People, Profile" muss man lesen -- einmal.
+       */
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card"
+      style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
     >
-      {/*
-        Volle Breite statt enger Pille: Die Symbole verteilen sich ueber
-        den Bildschirm, statt in der Mitte zusammenzuruecken. max-w-md
-        entspricht der Inhaltsbreite der App (app-shell) -- auf breiten
-        Bildschirmen laeuft die Leiste sonst quer ueber die ganze Seite,
-        waehrend der Inhalt darueber schmal bleibt.
-      */}
-      <div className="pointer-events-auto flex w-full max-w-md items-center rounded-full border border-border bg-card/80 p-1 shadow-card backdrop-blur-xl backdrop-saturate-150">
+      <div className="mx-auto flex w-full max-w-md items-stretch px-2 pt-2">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
             aria-label={label}
-            className="turi-tap flex h-12 flex-1 items-center justify-center rounded-full transition-colors"
-            // Aktiver Reiter: die einzige Stelle in der Kern-Navigation,
-            // die Markenfarbe traegt. Die Pille dahinter macht den
-            // Zustand auch ohne Farbsehen als Flaeche erkennbar.
-            // aria-current markiert die aktive Seite fuer Screenreader --
-            // Farbe allein ist dafuer keine Information.
+            className="turi-tap flex flex-1 flex-col items-center gap-1 pb-1 pt-0.5 transition-colors"
             /*
              * Die Farbe des INAKTIVEN Zustands gehoert in inactiveProps,
-             * nicht in die Grundklassen.
-             *
-             * Stand sie dort, kollidierte sie mit text-brand: Beide sind
-             * gewoehnliche Utility-Klassen gleicher Spezifitaet, es
-             * gewinnt also die, die im erzeugten Stylesheet WEITER UNTEN
-             * steht -- und das war text-muted-foreground. Der aktive
-             * Reiter bekam dadurch zwar die blaue Flaeche, aber ein
-             * graues Symbol. Getrennt gibt es den Konflikt nicht.
+             * nicht in die Grundklassen -- sonst kollidieren zwei
+             * Utility-Klassen gleicher Spezifitaet und es gewinnt die,
+             * die im erzeugten Stylesheet weiter unten steht.
              */
-            activeProps={{
-              className: "bg-brand-soft text-primary",
-              "aria-current": "page",
-            }}
+            activeProps={{ className: "text-foreground", "aria-current": "page" }}
             inactiveProps={{ className: "text-muted-foreground" }}
           >
-            <Icon size={23} strokeWidth={2} />
+            {({ isActive }) => (
+              <>
+                <Icon size={21} strokeWidth={1.9} />
+                <span className="text-[0.6875rem] font-semibold leading-none">{label}</span>
+                {/*
+                  Der Strich darunter statt einer farbigen Flaeche: Er
+                  markiert den aktiven Reiter, ohne dass die Leiste eine
+                  zweite Farbe braucht. Im inaktiven Zustand bleibt er
+                  als unsichtbarer Platzhalter stehen, damit die
+                  Symbole nicht springen.
+                */}
+                <span
+                  className={`h-0.5 w-4 rounded-full ${isActive ? "bg-brand" : "bg-transparent"}`}
+                />
+              </>
+            )}
           </Link>
         ))}
       </div>

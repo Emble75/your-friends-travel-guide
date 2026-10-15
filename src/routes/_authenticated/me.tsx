@@ -391,46 +391,6 @@ function MePage() {
     queryClient.invalidateQueries();
   }
 
-  /*
-   * Das Titelbild. Groesser komprimiert als das Profilbild: Es laeuft
-   * ueber die volle Breite, 512 Pixel saehen dort matschig aus.
-   */
-  async function uploadCover(rawFile: File) {
-    const { data: auth } = await supabase.auth.getUser();
-    const me = auth.user!.id;
-    const file = await compressImage(rawFile, { maxDimension: 1400, quality: 0.82 });
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `${me}/cover-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (error) {
-      toast.error(getErrorMessage(error, "Upload failed"));
-      return;
-    }
-    const { error: pErr } = await supabase
-      .from("profiles")
-      .update({ cover_url: path })
-      .eq("id", me);
-    if (pErr) {
-      toast.error(getErrorMessage(pErr, "Could not save"));
-      return;
-    }
-    toast.success("Cover photo updated");
-    queryClient.invalidateQueries();
-  }
-
-  async function removeCover() {
-    const { data: auth } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("profiles")
-      .update({ cover_url: null })
-      .eq("id", auth.user!.id);
-    if (error) {
-      toast.error(getErrorMessage(error, "Could not save"));
-      return;
-    }
-    queryClient.invalidateQueries();
-  }
-
   async function saveProfile() {
     const { data: auth } = await supabase.auth.getUser();
     const { error } = await supabase
@@ -555,7 +515,7 @@ function MePage() {
           {/* Farbband: waehlbar in der Bearbeiten-Ansicht. Waehrend des
               Bearbeitens zeigt es sofort die angetippte Farbe, damit man
               die Wirkung sieht, bevor man speichert. */}
-          <ProfileCover imagePath={profile.cover_url} />
+          <ProfileCover />
           <div className="flex items-end gap-4 px-5">
             <label
               /* -mt-10 zieht das Bild in das Band hinein; der weisse Ring
@@ -652,44 +612,6 @@ function MePage() {
                   rows={3}
                   className="rounded-2xl"
                 />
-                <div className="rounded-2xl border border-border p-3">
-                  <Label className="text-sm font-medium">Cover photo</Label>
-                  <p className="text-xs text-muted-foreground">
-                    The band behind your photo. Without one it stays light blue.
-                  </p>
-                  {/*
-                    Hochladen geschieht sofort, nicht erst beim Speichern.
-                    Ein Bild ist kein Formularfeld: Man waehlt es aus und
-                    will es sehen. Genau so verhaelt sich das Profilbild
-                    darueber auch schon.
-                  */}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button asChild variant="secondary" className="h-10 rounded-2xl">
-                      <label className="cursor-pointer">
-                        {profile.cover_url ? "Change photo" : "Choose photo"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            e.target.value = "";
-                            if (f) void uploadCover(f);
-                          }}
-                        />
-                      </label>
-                    </Button>
-                    {profile.cover_url ? (
-                      <Button
-                        variant="ghost"
-                        className="h-10 rounded-2xl text-muted-foreground"
-                        onClick={() => void removeCover()}
-                      >
-                        Remove
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
                 <div className="flex items-center justify-between rounded-2xl border border-border p-3">
                   <div>
                     <Label htmlFor="is-private" className="text-sm font-medium">

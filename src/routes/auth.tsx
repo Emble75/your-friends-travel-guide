@@ -244,33 +244,44 @@ function AuthPage() {
         Hoehe -- 63 % schiebt das Schild auf die Mitte, statt den
         dunklen Eingang darunter zu zeigen.
       */}
-      <div className="relative h-[42dvh] min-h-[280px] overflow-hidden bg-foreground">
+      <div className="relative min-h-[460px] overflow-hidden bg-[#14100D] pb-8 pt-6">
         <img
           src="/auth-cover.jpg"
           alt=""
-          className="absolute inset-0 size-full object-cover object-[50%_63%]"
+          className="absolute inset-0 size-full object-cover object-[50%_58%]"
         />
-        <div className="absolute inset-0 bg-linear-to-b from-foreground/45 via-foreground/0 to-foreground/0" />
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-b from-transparent via-background/70 to-background" />
+        {/*
+          Der Verlauf geht nach DUNKEL, nicht nach Papier.
 
-        <div className="absolute left-5 top-6 flex items-center gap-2.5">
-          <TuriMark className="size-9" />
-          <span className="font-display text-xl font-semibold text-background drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-            Turi
-          </span>
+          Vorher blendete das Bild nach unten ins Papierweiss ab -- das
+          machte es nicht dunkler, sondern milchig, und die Ueberschrift
+          stand in schwarzer Schrift auf einem grauen Schleier. Jetzt
+          liegt der ganze Kopf im Dunkeln und die Schrift darauf ist
+          hell; der helle Teil der Seite beginnt erst beim Formular.
+        */}
+        <div className="absolute inset-0 bg-linear-to-b from-[#14100D]/55 via-[#14100D]/25 to-[#14100D]" />
+
+        <div className="app-shell relative flex min-h-[412px] flex-col">
+          <div className="flex items-center gap-2.5">
+            <TuriMark className="size-9" />
+            <span className="font-display text-xl font-semibold text-[#FBFAF7] drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]">
+              Turi
+            </span>
+          </div>
+
+          <div className="mt-auto pt-20">
+            <h1 className="font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-0.026em] text-[#FBFAF7] text-balance">
+              The map only your friends could draw
+            </h1>
+            <p className="mt-3 max-w-[32ch] text-[0.95rem] leading-relaxed text-[#D9D4CE]">
+              No stars from strangers. Just the places the people you already trust stand behind.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="app-shell -mt-10 pb-10">
-        <div className="relative">
-          <h1 className="font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-0.026em] text-balance">
-            The map only your friends could draw
-          </h1>
-          <p className="mt-3 max-w-[32ch] text-[0.95rem] leading-relaxed text-muted-foreground">
-            No stars from strangers. Just the places the people you already trust stand behind.
-          </p>
-        </div>
-
+      {/* Das Blatt schneidet in das Bild -- dieselbe Figur wie ueberall sonst. */}
+      <div className="app-shell relative -mt-5 rounded-t-3xl bg-background pb-10 pt-6">
         {resetSent ? (
           <div className="mt-8 turi-card p-5 text-center">
             <h2 className="text-lg font-semibold">Check your email</h2>
