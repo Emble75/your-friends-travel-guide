@@ -279,28 +279,44 @@ export function ReviewCard({
   const CategoryIcon = CATEGORY_ICONS[category];
   const categoryWord = CATEGORY_LABELS[category].replace(/s$/, "");
 
+  /*
+   * overflow-hidden ist hier kein Detail, sondern die Bedingung dafuer,
+   * dass das Bild ueberhaupt einen Rand bekommt: Ein randloses Foto in
+   * einer Karte mit runden Ecken ragt sonst ueber genau diese Ecken
+   * hinaus, und die Karte sieht aus, als waere sie kaputt. Mit der
+   * Beschneidung wird die Kante der Karte zur Kante des Bildes.
+   *
+   * Das Foto steht OBEN, nicht unter dem Text. Es ist das Erste, was man
+   * sieht und was einen anhalten laesst -- der Text erklaert danach,
+   * warum.
+   */
   return (
-    <article className="turi-card turi-enter p-4">
-      <div className="flex items-center gap-3">
-        <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
-          <UserAvatar
-            avatarPath={profile?.avatar_url}
-            name={profile?.display_name ?? profile?.username}
-          />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <Link
-            to="/u/$username"
-            params={{ username: profile?.username ?? "" }}
-            className="block truncate text-sm font-semibold"
-          >
-            {profile?.display_name || profile?.username}
+    <article className="turi-card turi-enter overflow-hidden">
+      {paths.length > 0 ? (
+        <PhotoStrip urls={urls ?? paths.map(() => null)} placeName={place?.name ?? "place"} />
+      ) : null}
+
+      <div className="p-4">
+        <div className="flex items-center gap-3">
+          <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
+            <UserAvatar
+              avatarPath={profile?.avatar_url}
+              name={profile?.display_name ?? profile?.username}
+            />
           </Link>
-          <p className="turi-meta truncate text-xs text-muted-foreground">
-            @{profile?.username} · {timeAgo(review.created_at)}
-          </p>
-        </div>
-        {/*
+          <div className="min-w-0 flex-1">
+            <Link
+              to="/u/$username"
+              params={{ username: profile?.username ?? "" }}
+              className="block truncate text-sm font-semibold"
+            >
+              {profile?.display_name || profile?.username}
+            </Link>
+            <p className="turi-meta truncate text-xs text-muted-foreground">
+              @{profile?.username} · {timeAgo(review.created_at)}
+            </p>
+          </div>
+          {/*
           Die Note als Stempel, nicht als Sternenreihe.
 
           Fuenf Sterne sind fuenf Formen, die man zaehlen muss, um eine
@@ -309,140 +325,137 @@ export function ReviewCard({
           Zeichen, das Turi ueberall benutzt: auf den Pins, im Panel,
           hier.
         */}
-        <span className="font-display shrink-0 rounded-xl bg-map-pin px-2.5 py-1.5 text-base font-semibold leading-none tracking-tight text-background">
-          {review.rating.toFixed(1)}
-        </span>
-        {isOwn ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="turi-tap turi-hit flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
-                aria-label="More options"
-              >
-                <MoreVertical size={16} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-2xl">
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  openEdit();
-                }}
-              >
-                <Pencil size={16} className="mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <DropdownMenuItem
-                    onSelect={(e) => e.preventDefault()}
-                    className="text-destructive"
-                  >
-                    <Trash2 size={16} className="mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-3xl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete review?</AlertDialogTitle>
-                    <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={deleteReview}
-                      disabled={deleting}
-                      className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          <span className="font-display shrink-0 rounded-xl bg-map-pin px-2.5 py-1.5 text-base font-semibold leading-none tracking-tight text-background">
+            {review.rating.toFixed(1)}
+          </span>
+          {isOwn ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="turi-tap turi-hit flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+                  aria-label="More options"
+                >
+                  <MoreVertical size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-2xl">
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    openEdit();
+                  }}
+                >
+                  <Pencil size={16} className="mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
+                      className="text-destructive"
                     >
-                      {deleting ? "Deleting…" : "Delete"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <ReportDialog reviewId={review.id} />
-        )}
-      </div>
+                      <Trash2 size={16} className="mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-3xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete review?</AlertDialogTitle>
+                      <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={deleteReview}
+                        disabled={deleting}
+                        className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {deleting ? "Deleting…" : "Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <ReportDialog reviewId={review.id} />
+          )}
+        </div>
 
-      {showPlace && place ? (
-        /*
+        {showPlace && place ? (
+          /*
           Ortszeile mit den beiden Nebenhandlungen daneben -- dieselben
           runden Symbolknoepfe wie auf der Ortsseite und im Kartenpanel.
           Vorher fuehrte von hier nur ein Weg zur Ortsseite; merken oder
           sich hinfuehren lassen ging erst einen Schritt spaeter.
         */
-        <div className="mt-3">
-          {/*
+          <div className="mt-3">
+            {/*
             Der Ortsname ist die Ueberschrift der Karte, nicht ein Chip
             darin. Vorher stand er klein in einer grauen Pille -- damit
             sah jede Bewertung aus wie ein Datensatz. In der Serife und
             in dieser Groesse ist er das, was er ist: ein Name.
           */}
-          <Link
-            to="/place/$placeId"
-            params={{ placeId: place.id }}
-            className="font-display block text-[1.6rem] font-semibold leading-[1.04] tracking-[-0.024em] text-foreground"
-          >
-            {place.name}
-          </Link>
-
-          <div className="mt-2 flex items-center gap-2">
-            <CategoryIcon size={16} className="shrink-0 text-primary" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-              {[categoryWord, place.city].filter(Boolean).join(" in ")}
-            </span>
-
-            <button
-              type="button"
-              onClick={toggleSave}
-              aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
-              aria-pressed={isSaved}
-              className={`turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                isSaved
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground"
-              }`}
+            <Link
+              to="/place/$placeId"
+              params={{ placeId: place.id }}
+              className="font-display block text-[1.6rem] font-semibold leading-[1.04] tracking-[-0.024em] text-foreground"
             >
-              <Bookmark size={15} fill={isSaved ? "currentColor" : "none"} />
-            </button>
+              {place.name}
+            </Link>
 
-            <a
-              href={directionsUrl({
-                name: place.name,
-                city: place.city,
-                lat: place.lat,
-                lng: place.lng,
-                googlePlaceId: place.google_place_id,
-              })}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Directions in Google Maps"
-              className="turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
-            >
-              <Navigation size={15} />
-            </a>
+            <div className="mt-2 flex items-center gap-2">
+              <CategoryIcon size={16} className="shrink-0 text-primary" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                {[categoryWord, place.city].filter(Boolean).join(" in ")}
+              </span>
+
+              <button
+                type="button"
+                onClick={toggleSave}
+                aria-label={isSaved ? "Remove from want to go" : "Add to want to go"}
+                aria-pressed={isSaved}
+                className={`turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                  isSaved
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                <Bookmark size={15} fill={isSaved ? "currentColor" : "none"} />
+              </button>
+
+              <a
+                href={directionsUrl({
+                  name: place.name,
+                  city: place.city,
+                  lat: place.lat,
+                  lng: place.lng,
+                  googlePlaceId: place.google_place_id,
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Directions in Google Maps"
+                className="turi-tap flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+              >
+                <Navigation size={15} />
+              </a>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {/*
+        {/*
         Der Text ist ein Zitat, kein Datenfeld -- also in der Serife und
         in Anfuehrungszeichen. Es ist das, was eine Person tatsaechlich
         gesagt hat, und der einzige Grund, warum man einer Empfehlung
         glaubt.
       */}
-      {review.text ? (
-        <p className="font-display mt-3 whitespace-pre-wrap text-[1.05rem] leading-[1.42] text-foreground">
-          „{review.text}“
-        </p>
-      ) : null}
-
-      {paths.length > 0 ? (
-        <PhotoStrip urls={urls ?? paths.map(() => null)} placeName={place?.name ?? "place"} />
-      ) : null}
+        {review.text ? (
+          <p className="font-display mt-3 whitespace-pre-wrap text-[1.05rem] leading-[1.42] text-foreground">
+            “{review.text}”
+          </p>
+        ) : null}
+      </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl">
@@ -585,12 +598,15 @@ function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: s
    *
    * Vorher: 4:3 und innerhalb des Karten-Innenabstands. Beides machte
    * das Bild klein, und klein ist bei einer Reise-App das Falscheste:
-   * Das Foto IST die Empfehlung. Das negative Aussenmass hebt den
-   * Innenabstand der Karte (p-4) auf, das Quadrat gibt jedem Motiv
-   * gleich viel Flaeche -- hochkant wie quer.
+   * Das Foto IST die Empfehlung. Das Quadrat gibt jedem Motiv gleich
+   * viel Flaeche -- hochkant wie quer.
+   *
+   * Keine eigenen Raender und keine eigene Rundung: Die Karte umgibt
+   * das Bild und beschneidet es (overflow-hidden dort), deshalb ist die
+   * Kante der Karte die Kante des Bildes.
    */
   return (
-    <div className="-mx-4 mt-4">
+    <div>
       <div
         onScroll={(e) => {
           const el = e.currentTarget;
@@ -618,7 +634,7 @@ function PhotoStrip({ urls, placeName }: { urls: (string | null)[]; placeName: s
 
       {/* Punkte nur, wenn es etwas zu wischen gibt. */}
       {urls.length > 1 ? (
-        <div className="mt-3 flex justify-center gap-1.5">
+        <div className="flex justify-center gap-1.5 py-2.5">
           {urls.map((_, i) => (
             <span
               key={i}

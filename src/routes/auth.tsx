@@ -264,10 +264,10 @@ function AuthPage() {
       <div className="app-shell -mt-10 pb-10">
         <div className="relative">
           <h1 className="font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-0.026em] text-balance">
-            Die Karte, die nur deine Freunde zeichnen
+            The map only your friends could draw
           </h1>
           <p className="mt-3 max-w-[32ch] text-[0.95rem] leading-relaxed text-muted-foreground">
-            Keine Sterne von Fremden. Nur die Orte der Leute, denen du ohnehin glaubst.
+            No stars from strangers. Just the places the people you already trust stand behind.
           </p>
         </div>
 
