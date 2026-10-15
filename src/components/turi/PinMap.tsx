@@ -8,7 +8,7 @@ import { deviceLanguage } from "@/lib/device-language";
 import { List, LocateFixed, Maximize2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
-import { currentLocationIcon, mapColor, ratingPinIcon } from "@/lib/mapIcons";
+import { currentLocationIcon, indexPinIcon, mapColor, ratingPinIcon } from "@/lib/mapIcons";
 import { type Category } from "@/lib/categories";
 import { currentPosition, tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
@@ -144,6 +144,7 @@ export function PinMap({
   className,
   onlyUserId = null,
   expandable = true,
+  numberOf,
 }: {
   pins: PlaceListItem[];
   /** Ueberschrift der Liste, z. B. "Toms places". */
@@ -166,6 +167,13 @@ export function PinMap({
    * Empfehlungen folgt), braucht dieselbe Flaeche wie auf Discover.
    */
   expandable?: boolean;
+  /*
+   * Gibt der Elternteil eine Reihenfolge vor, tragen die Pins deren
+   * Nummer statt der Note -- und die Liste darunter dieselbe. Die
+   * Nummer ist dann das Band zwischen beidem, wie in der Legende einer
+   * gedruckten Karte.
+   */
+  numberOf?: (id: string) => number | undefined;
 }) {
   const { ready, error } = useGoogleMaps();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -373,10 +381,12 @@ export function PinMap({
         map: mapRef.current!,
         position: { lat: p.lat, lng: p.lng },
         title: p.name,
-        icon: ratingPinIcon(p.rating, {
-          saved: p.rating === undefined && p.saved,
-          category: p.category,
-        }),
+        icon: numberOf?.(p.id)
+          ? indexPinIcon(numberOf(p.id)!)
+          : ratingPinIcon(p.rating, {
+              saved: p.rating === undefined && p.saved,
+              category: p.category,
+            }),
       });
       marker.addListener("click", () => {
         void tap();

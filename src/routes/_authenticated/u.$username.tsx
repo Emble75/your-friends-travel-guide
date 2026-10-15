@@ -25,7 +25,7 @@ import { UserAvatar } from "@/components/turi/UserAvatar";
 import { ReportDialog } from "@/components/turi/ReportDialog";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
 import { PinMap } from "@/components/turi/PinMap";
-import { type PlaceListItem } from "@/components/turi/PlaceList";
+import { PlaceLegend, type PlaceListItem } from "@/components/turi/PlaceList";
 import { normalizeCategory } from "@/lib/categories";
 import { ProfileCover } from "@/components/turi/ProfileCover";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
@@ -286,6 +286,23 @@ function ProfilePage() {
       saved: false,
     }));
   }, [data?.reviews]);
+
+  /*
+   * Eine Reihenfolge fuer beides -- Pins und Legende.
+   *
+   * Beste Note zuerst: Auf der Karte einer Person ist das die Frage,
+   * mit der man sie oeffnet ("was empfiehlst du?"), nicht die Naehe.
+   * Die Liste darf deshalb auch nicht selbst sortieren, sonst zeigten
+   * die Nummern der Pins ploetzlich auf andere Zeilen.
+   */
+  const ordered = useMemo(
+    () => [...mapPlaces].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1)),
+    [mapPlaces],
+  );
+  const numberOf = useMemo(() => {
+    const index = new Map(ordered.map((p, i) => [p.id, i + 1]));
+    return (id: string) => index.get(id);
+  }, [ordered]);
 
   // Die Karte wartet auf dieselbe Abfrage wie der Rest der Seite.
   const mapLoading = isLoading;
@@ -601,13 +618,22 @@ function ProfilePage() {
                     }
                   />
                 ) : (
-                  <PinMap
-                    pins={mapPlaces}
-                    mapKey={`profile:${profile.id}`}
-                    heading={`${profile.display_name || profile.username}'s places`}
-                    className={MAP_HEIGHT}
-                    onlyUserId={profile.id}
-                  />
+                  <>
+                    <PinMap
+                      pins={ordered}
+                      mapKey={`profile:${profile.id}`}
+                      heading={`${profile.display_name || profile.username}'s places`}
+                      className={MAP_HEIGHT}
+                      onlyUserId={profile.id}
+                      numberOf={numberOf}
+                    />
+                    <PlaceLegend
+                      items={ordered}
+                      onPick={(item) =>
+                        navigate({ to: "/place/$placeId", params: { placeId: item.id } })
+                      }
+                    />
+                  </>
                 )}
               </div>
             ) : reviews.length > 0 ? (

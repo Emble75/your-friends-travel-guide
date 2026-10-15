@@ -12,6 +12,7 @@ import { CATEGORIES, type Category, normalizeCategory } from "@/lib/categories";
 import { PlaceList } from "@/components/turi/PlaceList";
 import { PlaceSheet, type SheetTarget } from "@/components/turi/PlaceSheet";
 import { CategoryFilterBar } from "@/components/turi/CategoryFilter";
+import { UserAvatar } from "@/components/turi/UserAvatar";
 import { looksLikeArea } from "@/lib/map-area";
 import { deviceLanguage } from "@/lib/device-language";
 import { metersBetween } from "@/lib/geo";
@@ -247,13 +248,26 @@ function MapPage() {
       const me = auth.user?.id ?? "";
       const { data, error: qErr } = await supabase
         .from("reviews")
-        .select("rating, places!inner(id, name, lat, lng, google_place_id, category)")
+        .select(
+          "rating, user_id, profiles:profiles!reviews_user_id_fkey(username, display_name, avatar_url), places!inner(id, name, lat, lng, google_place_id, category)",
+        )
         .neq("user_id", me)
         .gte("places.lat", swLat)
         .lte("places.lat", neLat)
         .gte("places.lng", swLng)
         .lte("places.lng", neLng);
       if (qErr) throw qErr;
+      /*
+       * Wer hier ueberhaupt unterwegs war.
+       *
+       * Die Zahl pro Ort ("3 friends") beantwortet "wie viele fuer
+       * diesen Ort". Das Band unten beantwortet die andere Frage: "ist
+       * in dieser Gegend ueberhaupt jemand aus meinem Kreis gewesen" --
+       * dafuer zaehlen Personen, nicht Bewertungen, und jede Person nur
+       * einmal, egal wie viele Orte sie markiert hat.
+       */
+      const people = new Map<string, { name: string; avatar: string | null }>();
+
       const seen = new Map<
         string,
         {
@@ -266,6 +280,17 @@ function MapPage() {
         }
       >();
       for (const r of data ?? []) {
+        const author = r.profiles as unknown as {
+          username: string;
+          display_name: string | null;
+          avatar_url: string | null;
+        } | null;
+        if (author) {
+          people.set(r.user_id, {
+            name: author.display_name || author.username,
+            avatar: author.avatar_url,
+          });
+        }
         const p = r.places as unknown as {
           id: string;
           name: string;
@@ -285,7 +310,7 @@ function MapPage() {
         entry.count += 1;
         seen.set(p.id, entry);
       }
-      return Array.from(seen.entries()).map(([id, v]) => ({
+      const places = Array.from(seen.entries()).map(([id, v]) => ({
         id,
         name: v.name,
         lat: v.lat,
@@ -297,6 +322,8 @@ function MapPage() {
         // einer einzelnen Meinung und einem echten Tipp.
         friends: v.count,
       }));
+
+      return { places, people: Array.from(people.values()) };
     },
   });
 
@@ -343,7 +370,7 @@ function MapPage() {
    * einmal darin und traegt beides.
    */
   const pins = useMemo<Pin[]>(() => {
-    const reviewed = reviewedInView ?? [];
+    const reviewed = reviewedInView?.places ?? [];
     const saved = savedInView ?? [];
     const savedIds = new Set(saved.map((p) => p.id));
     const reviewedIds = new Set(reviewed.map((p) => p.id));
@@ -385,6 +412,8 @@ function MapPage() {
   const filteredPins = useMemo(() => byFilter(pins), [byFilter, pins]);
   // Liste und Filterleiste: nur das Sichtbare.
   const listPins = useMemo(() => byFilter(visiblePins), [byFilter, visiblePins]);
+
+  const people = reviewedInView?.people ?? [];
 
   // Init map
   useEffect(() => {
@@ -781,6 +810,41 @@ function MapPage() {
           }}
         />
       </div>
+
+      {/*
+        Wer hier unterwegs war.
+
+        Die Karte beantwortet bisher nur "welche Orte" -- nicht "ist
+        hier ueberhaupt jemand aus meinem Kreis gewesen". Das ist aber
+        die Frage, mit der man eine fremde Stadt oeffnet, und die
+        Antwort entscheidet, ob man weitersucht oder woanders hinschaut.
+
+        Personen, nicht Bewertungen: Wer zwoelf Orte markiert hat,
+        zaehlt einmal. Ohne jemanden aus dem Kreis steht hier nichts --
+        eine Null zu melden hilft niemandem.
+      */}
+      {people.length > 0 ? (
+        <div
+          className="absolute inset-x-4 z-10 flex items-center gap-3 rounded-2xl bg-map-pin px-4 py-3 text-background shadow-card"
+          style={{ bottom: "calc(var(--bottom-nav-h) + 4.75rem)" }}
+        >
+          <div className="flex shrink-0">
+            {people.slice(0, 3).map((person, i) => (
+              <UserAvatar
+                key={person.name + i}
+                avatarPath={person.avatar}
+                name={person.name}
+                className={`size-7 border-2 border-map-pin ${i > 0 ? "-ml-2.5" : ""}`}
+              />
+            ))}
+          </div>
+          <p className="min-w-0 flex-1 truncate text-sm">
+            {people.length === 1
+              ? `${people[0]!.name} has marked a place here`
+              : `${people.length} friends have marked places here`}
+          </p>
+        </div>
+      ) : null}
 
       {/*
         Beide Knoepfe in einer Saeule statt einzeln positioniert: so

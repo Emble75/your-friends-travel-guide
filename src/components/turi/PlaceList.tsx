@@ -293,3 +293,62 @@ export function PlaceList({
     </div>
   );
 }
+
+/*
+ * Die Legende zur Karte einer Person.
+ *
+ * Auf der Karte tragen die Pins eine Nummer, hier steht dieselbe Nummer
+ * neben dem Namen -- wie bei einer gedruckten Karte mit Verzeichnis.
+ * Damit laesst sich die Karte LESEN, ohne jeden Pin einzeln antippen zu
+ * muessen; vorher war der einzige Weg zu den Namen ein Blatt, das die
+ * Karte verdeckte.
+ *
+ * Sortiert wird hier NICHT. Die Reihenfolge kommt vom Elternteil und
+ * gilt fuer Karte und Liste gleichzeitig -- waere sie hier aenderbar,
+ * zeigten die Pins auf einmal auf andere Zeilen.
+ */
+export function PlaceLegend({
+  items,
+  onPick,
+}: {
+  items: PlaceListItem[];
+  onPick: (item: PlaceListItem) => void;
+}) {
+  return (
+    <ol className="mt-3 list-none">
+      {items.map((item, i) => {
+        const Icon = CATEGORY_ICONS[item.category];
+        return (
+          <li key={item.id}>
+            <button
+              type="button"
+              onClick={() => {
+                void tap();
+                onPick(item);
+              }}
+              className="turi-tap flex w-full items-center gap-3 border-b border-border py-3 text-left"
+            >
+              <span className="font-display flex size-7 shrink-0 items-center justify-center rounded-lg bg-map-pin text-xs font-semibold text-background">
+                {i + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[0.95rem] font-semibold">{item.name}</span>
+                <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Icon size={13} className="shrink-0 text-primary" />
+                  <span className="truncate">
+                    {[categoryWord(item.category), item.city].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+              </span>
+              {item.rating !== undefined ? (
+                <span className="font-display shrink-0 text-base font-semibold tracking-tight">
+                  {item.rating.toFixed(1)}
+                </span>
+              ) : null}
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

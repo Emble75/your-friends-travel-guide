@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/app-client";
 import { deleteOwnAccount } from "@/lib/account.functions";
 import { EmptyState } from "@/components/turi/EmptyState";
-import { PlaceList, type PlaceListItem } from "@/components/turi/PlaceList";
+import { PlaceLegend, PlaceList, type PlaceListItem } from "@/components/turi/PlaceList";
 import { PinMap } from "@/components/turi/PinMap";
 import { normalizeCategory } from "@/lib/categories";
 import { ErrorState } from "@/components/turi/ErrorState";
@@ -536,6 +536,18 @@ function MePage() {
     return Array.from(byId.values());
   })();
 
+  /*
+   * Eine Reihenfolge fuer Pins und Legende -- beste Note zuerst.
+   * Siehe fremdes Profil: Waere die Liste selbst sortierbar, zeigten
+   * die Nummern der Pins ploetzlich auf andere Zeilen.
+   */
+  const orderedMine = [...myMapPlaces].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+  const mineIndex = new Map(orderedMine.map((p, i) => [p.id, i + 1]));
+  // Bewusst ohne useMemo: Die Stelle liegt hinter einer fruehen
+  // Rueckgabe (Ladezustand), ein Hook darf dort nicht stehen -- und bei
+  // der Groesse einer Ortsliste ist das Sortieren ohnehin umsonst.
+  const numberOfMine = (id: string) => mineIndex.get(id);
+
   return (
     <>
       <div className="app-shell app-top space-y-4 pb-4">
@@ -920,13 +932,22 @@ function MePage() {
               />
             ) : (
               <div ref={mapAnchorRef} className="scroll-mt-[calc(3.5rem+env(safe-area-inset-top))]">
-                <PinMap
-                  pins={myMapPlaces}
-                  heading="Your places"
-                  mapKey="me"
-                  className={MAP_HEIGHT}
-                  onlyUserId={profile.id}
-                />
+                <>
+                  <PinMap
+                    pins={orderedMine}
+                    heading="Your places"
+                    mapKey="me"
+                    className={MAP_HEIGHT}
+                    onlyUserId={profile.id}
+                    numberOf={numberOfMine}
+                  />
+                  <PlaceLegend
+                    items={orderedMine}
+                    onPick={(item) =>
+                      navigate({ to: "/place/$placeId", params: { placeId: item.id } })
+                    }
+                  />
+                </>
               </div>
             )
           ) : (

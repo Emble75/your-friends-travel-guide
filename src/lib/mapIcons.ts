@@ -201,6 +201,18 @@ export function ratingPinIcon(rating?: number, opts?: { saved?: boolean; categor
 }
 
 /**
+ * Ein Ort auf der Karte EINER Person -- mit laufender Nummer.
+ *
+ * Auf einer fremden Karte ist die Note an jedem Pin redundant: Es sind
+ * ohnehin alles Orte derselben Person, und die Zahlen liegen eng
+ * beieinander. Die Nummer dagegen verbindet den Pin mit der Zeile in
+ * der Liste darunter -- wie die Legende einer gedruckten Karte.
+ */
+export function indexPinIcon(index: number) {
+  return pill({ text: String(index) });
+}
+
+/**
  * Suchtreffer -- weisse Pille mit dunklem Rand und einer Lupe.
  *
  * Bewusst umgekehrt zu den eigenen Pins: Ein Treffer ist ein Vorschlag,
