@@ -572,7 +572,7 @@ function MePage() {
               />
             </label>
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-bold">
+              <h1 className="font-display truncate text-[1.65rem] font-semibold leading-[1.08] tracking-[-0.024em]">
                 {profile.display_name || profile.username}
               </h1>
               <p className="truncate text-sm text-muted-foreground">
@@ -598,7 +598,9 @@ function MePage() {
                 onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth" })}
                 className="turi-tap flex flex-col items-center py-2.5"
               >
-                <strong className="font-display text-base leading-tight">{reviews.length}</strong>
+                <strong className="font-display text-lg font-semibold leading-tight tracking-tight">
+                  {reviews.length}
+                </strong>
                 <span className="text-xs text-muted-foreground">Reviews</span>
               </button>
               <button
@@ -606,7 +608,9 @@ function MePage() {
                 onClick={() => setFollowListOpen("followers")}
                 className="turi-tap flex flex-col items-center py-2.5"
               >
-                <strong className="font-display text-base leading-tight">{data.followers}</strong>
+                <strong className="font-display text-lg font-semibold leading-tight tracking-tight">
+                  {data.followers}
+                </strong>
                 <span className="text-xs text-muted-foreground">Followers</span>
               </button>
               <button
@@ -614,7 +618,9 @@ function MePage() {
                 onClick={() => setFollowListOpen("following")}
                 className="turi-tap flex flex-col items-center py-2.5"
               >
-                <strong className="font-display text-base leading-tight">{data.following}</strong>
+                <strong className="font-display text-lg font-semibold leading-tight tracking-tight">
+                  {data.following}
+                </strong>
                 <span className="text-xs text-muted-foreground">Following</span>
               </button>
             </div>
@@ -803,7 +809,8 @@ function MePage() {
           className="sticky z-20 -mx-4 bg-background/95 px-4 py-2 backdrop-blur"
           style={{ top: STICKY_TOP }}
         >
-          <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+          {/* Reiter als Text mit Unterstrich -- siehe fremdes Profil. */}
+          <div className="flex gap-5 border-b border-border">
             <button
               type="button"
               onClick={() =>
@@ -816,8 +823,10 @@ function MePage() {
                 })
               }
               aria-pressed={view === "feed"}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
+              className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                view === "feed"
+                  ? "border-brand text-foreground"
+                  : "border-transparent text-muted-foreground"
               }`}
             >
               <Rows3 size={15} /> Feed
@@ -834,8 +843,10 @@ function MePage() {
                 })
               }
               aria-pressed={view === "map"}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
+              className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                view === "map"
+                  ? "border-brand text-foreground"
+                  : "border-transparent text-muted-foreground"
               }`}
             >
               <MapIcon size={15} /> Map

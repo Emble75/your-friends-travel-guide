@@ -44,15 +44,23 @@ function FilterChip({
         onClick();
       }}
       aria-pressed={active}
-      // Aktiv in der weichen Markenfarbe -- dieselbe Sprache wie der
-      // Modus-Umschalter der Karte und der aktive Reiter unten.
-      className={`turi-tap flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors ${FLOATING} ${
-        active ? "bg-brand-soft text-primary" : "text-muted-foreground"
+      /*
+       * Aktiv in Tinte, nicht in der weichen Markenfarbe.
+       *
+       * Die Leiste schwebt ueber der Karte. Ein heller Akzent-Chip
+       * zwischen hellen Chips auf hellem Kartenbild trennt zu wenig --
+       * man sieht nicht auf einen Blick, welcher Filter gerade gilt.
+       * Tinte ist auf der Karte ohnehin die Farbe der eigenen Dinge.
+       */
+      className={`turi-tap flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold transition-colors ${FLOATING} ${
+        active ? "bg-foreground text-background" : "text-muted-foreground"
       }`}
     >
       {Icon ? <Icon size={14} /> : null}
       {label}
-      <span className={`turi-meta text-xs font-normal ${active ? "" : "text-muted-foreground/70"}`}>
+      <span
+        className={`text-xs font-normal ${active ? "text-background/70" : "text-muted-foreground/70"}`}
+      >
         {count}
       </span>
     </button>

@@ -64,7 +64,17 @@ function FeedPage() {
       als wuerde sie neu geladen: Wer ein Stueck gescrollt hatte, um
       die Karte anzusehen, stand danach wieder ganz oben.
       */}
-      <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+      {/*
+        Die beiden Reiter sind die Ueberschrift der Seite, keine
+        Schalterleiste darunter.
+
+        Vorher: zwei gleich grosse Knoepfe in einer grauen Pille --
+        dieselbe Form, die in jeder App irgendeinen Modus umschaltet,
+        und darueber gar keine Ueberschrift. Als Wortpaar in der Serife
+        sagen sie zugleich, wo man ist und wohin man wechseln kann; der
+        aktive steht in Tinte, der andere ruhig daneben.
+      */}
+      <div className="flex items-baseline gap-4">
         <button
           type="button"
           onClick={() => {
@@ -78,11 +88,11 @@ function FeedPage() {
             });
           }}
           aria-pressed={tab === "friends"}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-            tab === "friends" ? "bg-card shadow-card" : "text-muted-foreground"
+          className={`font-display text-[1.65rem] font-semibold tracking-[-0.024em] transition-colors ${
+            tab === "friends" ? "text-foreground" : "text-muted-foreground/55"
           }`}
         >
-          <Users size={15} /> Friends
+          Friends
         </button>
         <button
           type="button"
@@ -97,11 +107,11 @@ function FeedPage() {
             });
           }}
           aria-pressed={tab === "suggested"}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-            tab === "suggested" ? "bg-card shadow-card" : "text-muted-foreground"
+          className={`font-display text-[1.65rem] font-semibold tracking-[-0.024em] transition-colors ${
+            tab === "suggested" ? "text-foreground" : "text-muted-foreground/55"
           }`}
         >
-          <Sparkles size={15} /> Suggested
+          Discover
         </button>
       </div>
 

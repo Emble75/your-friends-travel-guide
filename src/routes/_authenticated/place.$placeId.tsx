@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/turi/AppHeader";
 import { EmptyState } from "@/components/turi/EmptyState";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
+import { signedUrl } from "@/lib/turi";
 import { Stars } from "@/components/turi/Stars";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,25 @@ function PlacePage() {
    * mitgezaehlt und floss in den Durchschnitt ein. Der Kern der App ist
    * aber, was ANDERE denken; die eigene Meinung darf ihn nicht faerben.
    */
+  /*
+   * Das Titelbild des Ortes gibt es nicht als eigenes Feld -- Fotos
+   * gehoeren zu Bewertungen, nicht zu Orten. Genommen wird deshalb das
+   * erste Foto der juengsten Bewertung: Es ist das aktuellste Bild, das
+   * jemand aus dem eigenen Kreis von dort mitgebracht hat, und damit
+   * genau das, was die Seite zeigen soll.
+   */
+  const heroPath =
+    (reviews ?? [])
+      .flatMap((r) => (r.review_images ?? []) as { image_url: string; position: number }[])
+      .slice(0, 1)
+      .map((i) => i.image_url)[0] ?? null;
+
+  const { data: heroUrl } = useQuery({
+    queryKey: ["place-hero", heroPath],
+    queryFn: () => signedUrl("review-photos", heroPath),
+    enabled: !!heroPath,
+  });
+
   const myReview = reviews?.find((r) => r.user_id === me) ?? null;
   const circleReviews = reviews?.filter((r) => r.user_id !== me) ?? [];
 
@@ -121,7 +141,19 @@ function PlacePage() {
   return (
     <>
       <AppHeader title={place?.name ?? "Place"} showBack fallbackTo="/map" />
-      <div className="app-shell space-y-4 py-4">
+      {/*
+        Das Bild laeuft bis an die Raender und das Blatt darunter
+        schneidet hinein -- dieselbe Figur wie im Karten-Panel. Ohne Foto
+        entfaellt es ersatzlos; ein grauer Platzhalter waere schlechter
+        als gar nichts.
+      */}
+      {heroUrl ? (
+        <div className="-mt-14 h-72 w-full overflow-hidden bg-secondary">
+          <img src={heroUrl} alt="" className="size-full object-cover" />
+        </div>
+      ) : null}
+
+      <div className={`app-shell space-y-4 py-4 ${heroUrl ? "-mt-10 relative" : ""}`}>
         <section className="turi-card p-5">
           {/*
             Dieselbe Ordnung wie im Karten-Panel: Name traegt die Zeile,

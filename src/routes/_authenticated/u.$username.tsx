@@ -366,7 +366,7 @@ function ProfilePage() {
               className="-mt-10 size-20 shrink-0 ring-4 ring-card"
             />
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-bold">
+              <h1 className="font-display truncate text-[1.65rem] font-semibold leading-[1.08] tracking-[-0.024em]">
                 {profile.display_name || profile.username}
               </h1>
               <p className="truncate text-sm text-muted-foreground">@{profile.username}</p>
@@ -439,24 +439,30 @@ function ProfilePage() {
             {profile.bio ? <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p> : null}
             <div className="mt-4 flex gap-5 text-sm">
               <span>
-                <strong>{reviews.length}</strong>{" "}
-                <span className="text-muted-foreground">Reviews</span>
+                <strong className="font-display text-lg font-semibold tracking-tight">
+                  {reviews.length}
+                </strong>{" "}
+                <span className="text-xs text-muted-foreground">Reviews</span>
               </span>
               <button
                 type="button"
                 onClick={() => setFollowListOpen("followers")}
                 className="text-left"
               >
-                <strong>{data.followers}</strong>{" "}
-                <span className="text-muted-foreground">Followers</span>
+                <strong className="font-display text-lg font-semibold tracking-tight">
+                  {data.followers}
+                </strong>{" "}
+                <span className="text-xs text-muted-foreground">Followers</span>
               </button>
               <button
                 type="button"
                 onClick={() => setFollowListOpen("following")}
                 className="text-left"
               >
-                <strong>{data.following}</strong>{" "}
-                <span className="text-muted-foreground">Following</span>
+                <strong className="font-display text-lg font-semibold tracking-tight">
+                  {data.following}
+                </strong>{" "}
+                <span className="text-xs text-muted-foreground">Following</span>
               </button>
             </div>
             {!data.isMe ? (
@@ -508,7 +514,14 @@ function ProfilePage() {
               className="sticky z-20 -mx-4 bg-background/95 px-4 py-2 backdrop-blur"
               style={{ top: STICKY_TOP }}
             >
-              <div className="flex gap-1 rounded-2xl bg-secondary p-1">
+              {/*
+                Reiter als Text mit Unterstrich, nicht als Pillen in
+                einer grauen Leiste. Eine Pillenleiste sieht aus wie ein
+                Schalter; hier wechselt man aber die ANSICHT auf
+                dieselben Inhalte -- dafuer ist der Unterstrich das
+                gelernte Zeichen, und er kostet keine Flaeche.
+              */}
+              <div className="flex gap-5 border-b border-border">
                 <button
                   type="button"
                   onClick={() =>
@@ -521,8 +534,10 @@ function ProfilePage() {
                       viewTransition: false,
                     })
                   }
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                    view === "feed" ? "bg-card shadow-card" : "text-muted-foreground"
+                  className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                    view === "feed"
+                      ? "border-brand text-foreground"
+                      : "border-transparent text-muted-foreground"
                   }`}
                 >
                   <Rows3 size={15} /> Feed
@@ -539,8 +554,10 @@ function ProfilePage() {
                       viewTransition: false,
                     })
                   }
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors ${
-                    view === "map" ? "bg-card shadow-card" : "text-muted-foreground"
+                  className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                    view === "map"
+                      ? "border-brand text-foreground"
+                      : "border-transparent text-muted-foreground"
                   }`}
                 >
                   <MapIcon size={15} /> Map
