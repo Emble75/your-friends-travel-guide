@@ -280,6 +280,63 @@ export function ReviewCard({
   const categoryWord = CATEGORY_LABELS[category].replace(/s$/, "");
 
   /*
+   * Bearbeiten/Loeschen beziehungsweise Melden -- einmal beschrieben,
+   * zweimal gesetzt: mit Foto oben rechts darauf, ohne Foto in der
+   * Kopfzeile. Als Variable statt doppeltem Markup, damit die beiden
+   * Fassungen nicht auseinanderlaufen koennen.
+   */
+  const actions = isOwn ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="turi-tap turi-hit flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+          aria-label="More options"
+        >
+          <MoreVertical size={16} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="rounded-2xl">
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            openEdit();
+          }}
+        >
+          <Pencil size={16} className="mr-2" />
+          Edit
+        </DropdownMenuItem>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+              <Trash2 size={16} className="mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="rounded-3xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete review?</AlertDialogTitle>
+              <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={deleteReview}
+                disabled={deleting}
+                className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <ReportDialog reviewId={review.id} />
+  );
+
+  /*
    * overflow-hidden ist hier kein Detail, sondern die Bedingung dafuer,
    * dass das Bild ueberhaupt einen Rand bekommt: Ein randloses Foto in
    * einer Karte mit runden Ecken ragt sonst ueber genau diese Ecken
@@ -292,12 +349,59 @@ export function ReviewCard({
    */
   return (
     <article className="turi-card turi-enter overflow-hidden">
+      {/*
+        Mit Foto liegen Person und Note AUF dem Bild, nicht darueber.
+        Das spart eine ganze Zeile, bevor der Ortsname kommt -- und es
+        ist die Anordnung, die beim Entwurf abgestimmt wurde. Ohne Foto
+        gibt es nichts zum Darauflegen, dort bleibt die Zeile oben.
+      */}
       {paths.length > 0 ? (
-        <PhotoStrip urls={urls ?? paths.map(() => null)} placeName={place?.name ?? "place"} />
+        <div className="relative">
+          <PhotoStrip urls={urls ?? paths.map(() => null)} placeName={place?.name ?? "place"} />
+
+          {/* Verlauf nur oben: er traegt Name und Zeit, sonst nichts. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-foreground/55 to-transparent" />
+
+          <div className="absolute inset-x-3 top-3 flex items-center gap-2.5">
+            <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
+              <UserAvatar
+                avatarPath={profile?.avatar_url}
+                name={profile?.display_name ?? profile?.username}
+                className="size-9 border-2 border-card/90"
+              />
+            </Link>
+            <Link
+              to="/u/$username"
+              params={{ username: profile?.username ?? "" }}
+              className="min-w-0 flex-1 truncate text-sm font-semibold text-background drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]"
+            >
+              {profile?.display_name || profile?.username} · {timeAgo(review.created_at)}
+            </Link>
+          </div>
+
+          {/*
+            Der Stempel sitzt auf der Kante und ist leicht gedreht --
+            das eine Zeichen, das Turi ueberall wiederholt. Gerade
+            ausgerichtet saehe er aus wie ein Etikett, schief wie
+            etwas, das jemand daraufgedrueckt hat.
+          */}
+          <div className="absolute right-2 top-3 text-background drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
+            {actions}
+          </div>
+
+          <span className="font-display absolute -bottom-5 right-4 flex size-14 -rotate-6 items-center justify-center rounded-2xl bg-map-pin text-xl font-semibold tracking-tight text-background shadow-card">
+            {review.rating.toFixed(1)}
+          </span>
+        </div>
       ) : null}
 
-      <div className="p-4">
-        <div className="flex items-center gap-3">
+      {/*
+        Mit Foto mehr Luft oben: Der Stempel haengt ueber die Bildkante
+        herunter und braucht die Stelle, an der sonst sofort der
+        Ortsname beginnt.
+      */}
+      <div className={`p-4 ${paths.length > 0 ? "pt-10" : ""}`}>
+        <div className={`flex items-center gap-3 ${paths.length > 0 ? "hidden" : ""}`}>
           <Link to="/u/$username" params={{ username: profile?.username ?? "" }}>
             <UserAvatar
               avatarPath={profile?.avatar_url}
@@ -328,59 +432,7 @@ export function ReviewCard({
           <span className="font-display shrink-0 rounded-xl bg-map-pin px-2.5 py-1.5 text-base font-semibold leading-none tracking-tight text-background">
             {review.rating.toFixed(1)}
           </span>
-          {isOwn ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="turi-tap turi-hit flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
-                  aria-label="More options"
-                >
-                  <MoreVertical size={16} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-2xl">
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    openEdit();
-                  }}
-                >
-                  <Pencil size={16} className="mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-destructive"
-                    >
-                      <Trash2 size={16} className="mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="rounded-3xl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete review?</AlertDialogTitle>
-                      <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={deleteReview}
-                        disabled={deleting}
-                        className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        {deleting ? "Deleting…" : "Delete"}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <ReportDialog reviewId={review.id} />
-          )}
+          {paths.length > 0 ? null : actions}
         </div>
 
         {showPlace && place ? (

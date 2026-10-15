@@ -300,8 +300,11 @@
    *   --map-pin     Die Pille. Immer. Bewertet, gemerkt, beides.
    *   --map-accent  Das Lesezeichen darin: "da will ich noch hin".
    *                 Die EINZIGE Farbe auf der Karte.
-   *   --map-me      Eigener Standort. Sattes Markenblau, deutlich tiefer
-   *                 als der Akzent -- und ein Kreis, keine Pille.
+   *   --map-me      Eigener Standort. Ein ruhiges Schieferblau: der
+   *                 eigene Punkt ist ein INSTRUMENT, keine Marke --
+   *                 wie die Nadel eines Kompasses. Das knallige Blau
+   *                 davor stammte aus der alten Palette und war der
+   *                 letzte Fremdkoerper auf der Karte.
    *
    * Suchtreffer tragen keine eigene Farbe mehr: weisse Pille mit
    * --map-pin als Rand. Vorher waren sie fast schwarz und waeren mit den
@@ -315,7 +318,7 @@
    */
   --map-pin: #16181D;
   --map-accent: #0E7C86; /* Lagune -- bedeutet immer: gemerkt */
-  --map-me: #325ef5;
+  --map-me: #2B4C7E;
 
   /*
    * ENTFERNT: acht Kategorie-Toene (Restaurant, Cafe, Bar, Hotel, Beach,
@@ -331,7 +334,7 @@
 
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0.005 262);
-  --sidebar-primary: oklch(0.5 0.23 266);
+  --sidebar-primary: #A33C15;
   --sidebar-primary-foreground: oklch(0.99 0.002 258);
   --sidebar-accent: oklch(0.915 0.006 258);
   --sidebar-accent-foreground: oklch(0.28 0.007 262);

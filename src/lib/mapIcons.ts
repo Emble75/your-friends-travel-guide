@@ -12,7 +12,7 @@
  * Rendern, wo es kein document gibt.
  */
 export function mapColor(role: "pin" | "accent" | "me"): string {
-  const fallback = { pin: "#161311", accent: "#4c7aff", me: "#325ef5" }[role];
+  const fallback = { pin: "#16181D", accent: "#0E7C86", me: "#2B4C7E" }[role];
   if (typeof document === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(`--map-${role}`).trim();
   return value || fallback;
