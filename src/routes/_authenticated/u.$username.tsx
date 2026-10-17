@@ -27,7 +27,6 @@ import { FollowListSheet } from "@/components/turi/FollowListSheet";
 import { PinMap } from "@/components/turi/PinMap";
 import { PlaceLegend, type PlaceListItem } from "@/components/turi/PlaceList";
 import { normalizeCategory } from "@/lib/categories";
-import { ProfileCover } from "@/components/turi/ProfileCover";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -369,14 +368,20 @@ function ProfilePage() {
       <AppHeader title={`@${profile.username}`} showBack fallbackTo="/feed" />
       <div className="app-shell space-y-4 py-4">
         <section className="turi-card overflow-hidden">
-          {/* Dasselbe Farbband wie im eigenen Profil -- die vom Gegenueber
-              gewaehlte Farbe. */}
-          <ProfileCover />
-          <div className="flex items-end gap-4 px-5">
+          {/*
+            Hier lag ein Farbband (zuletzt hellblau, davor zehn Farben,
+            dazwischen ein Titelbild). Alles wieder raus: Der Kopf einer
+            Profilseite traegt schon Bild, Namen, Kennzahlen und Reiter.
+            Eine zusaetzliche Farbflaeche darueber ist eine fuenfte
+            Ebene, die nichts sagt -- und sie konkurriert mit den Fotos
+            der Bewertungen, die weiter unten die eigentliche Farbe der
+            Seite liefern.
+          */}
+          <div className="flex items-end gap-4 px-5 pt-5">
             <UserAvatar
               avatarPath={profile.avatar_url}
               name={profile.display_name ?? profile.username}
-              className="-mt-10 size-20 shrink-0 ring-4 ring-card"
+              className="size-20 shrink-0"
             />
             <div className="min-w-0 flex-1">
               <h1 className="font-display truncate text-[1.45rem] font-semibold leading-[1.1] tracking-[-0.02em]">

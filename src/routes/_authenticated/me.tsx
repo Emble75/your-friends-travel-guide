@@ -25,7 +25,6 @@ import { normalizeCategory } from "@/lib/categories";
 import { ErrorState } from "@/components/turi/ErrorState";
 import { UserAvatar } from "@/components/turi/UserAvatar";
 import { FollowListSheet } from "@/components/turi/FollowListSheet";
-import { ProfileCover } from "@/components/turi/ProfileCover";
 import { ReviewCard, reviewSelect, type ReviewWithRelations } from "@/components/turi/ReviewCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -507,15 +506,10 @@ function MePage() {
     <>
       <div className="app-shell app-top space-y-4 pb-4">
         <section className="turi-card overflow-hidden">
-          {/* Farbband: waehlbar in der Bearbeiten-Ansicht. Waehrend des
-              Bearbeitens zeigt es sofort die angetippte Farbe, damit man
-              die Wirkung sieht, bevor man speichert. */}
-          <ProfileCover />
-          <div className="flex items-end gap-4 px-5">
+          {/* Siehe fremdes Profil: das Farbband ist ersatzlos entfallen. */}
+          <div className="flex items-end gap-4 px-5 pt-5">
             <label
-              /* -mt-10 zieht das Bild in das Band hinein; der weisse Ring
-                 trennt es sauber von der Farbe dahinter. */
-              className="relative -mt-10 shrink-0 cursor-pointer"
+              className="relative shrink-0 cursor-pointer"
               onClick={async (e) => {
                 if (!isNative()) return;
                 e.preventDefault();
@@ -526,7 +520,7 @@ function MePage() {
               <UserAvatar
                 avatarPath={profile.avatar_url}
                 name={profile.display_name ?? profile.username}
-                className="size-20 ring-4 ring-card"
+                className="size-20"
               />
               <span className="turi-hit absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-card">
                 <Camera size={14} />
