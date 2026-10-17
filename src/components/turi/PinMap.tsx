@@ -117,6 +117,14 @@ const FLOATING_CONTROL =
  * Zahl: Eine flache Vorschau darf die ganze Welt zeigen, die
  * bildschirmfuellende Ansicht braucht eine Stufe mehr.
  */
+/*
+ * Die hoechste Stufe, auf die das Einpassen gehen darf.
+ *
+ * Betrifft nur das automatische Einpassen beim Oeffnen -- von Hand
+ * darf weiter herangezoomt werden.
+ */
+const MAX_FIT_ZOOM = 15;
+
 function minZoomFor(element: HTMLElement | null): number {
   const height = element?.clientHeight ?? 0;
   if (height <= 0) return 1;
@@ -409,15 +417,26 @@ export function PinMap({
       placed.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
       mapRef.current.fitBounds(box, 48);
       /*
-       * fitBounds rechnet ohne Ruecksicht auf minZoom und kann darunter
-       * landen. Nach dem Einpassen deshalb nachziehen -- sonst bleiben
-       * die grauen Raender genau in dem Fall, fuer den die Grenze
-       * gedacht ist.
+       * Nach dem Einpassen die Zoomstufe in BEIDE Richtungen begrenzen.
+       *
+       * NACH UNTEN, weil fitBounds ohne Ruecksicht auf minZoom rechnet:
+       * Sonst blieben die grauen Raender genau in dem Fall, fuer den
+       * die Grenze gedacht ist (Orte auf mehreren Kontinenten).
+       *
+       * NACH OBEN, weil ein einzelner Ort gar keine Ausdehnung hat:
+       * fitBounds zoomt dann bis zur Hausnummer, und man sieht ein
+       * graues Rechteck mit einem Pin darauf -- ohne Strassenzug, ohne
+       * Stadt, ohne jeden Hinweis, WO das ist. Genau die Umgebung ist
+       * aber der Grund, warum man auf eine Karte schaut. Bei Stufe 15
+       * liegt das Viertel im Bild.
        */
       const listener = google.maps.event.addListenerOnce(mapRef.current, "idle", () => {
         const map = mapRef.current;
+        if (!map) return;
         const floor = minZoomFor(containerRef.current);
-        if (map && (map.getZoom() ?? floor) < floor) map.setZoom(floor);
+        const zoom = map.getZoom() ?? floor;
+        if (zoom < floor) map.setZoom(floor);
+        else if (zoom > MAX_FIT_ZOOM) map.setZoom(MAX_FIT_ZOOM);
       });
       return () => google.maps.event.removeListener(listener);
     }
