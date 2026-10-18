@@ -6,6 +6,7 @@ import {
   Flag,
   Lock,
   Map as MapIcon,
+  MapPin,
   Rows3,
   ShieldOff,
   Star,
@@ -232,6 +233,24 @@ function ProfilePage() {
   }
 
   const followStatus = clickedStatus ? clickedStatus.value : data?.followStatus;
+
+  /*
+   * Die Staedte mit den meisten Orten -- dasselbe wie im eigenen
+   * Profil. Bei einem fremden Profil ist es sogar die wichtigere
+   * Information: Ob jemand fuer Lissabon oder fuer Stockholm steht,
+   * entscheidet, ob man ihm folgen will.
+   */
+  const topCities = (() => {
+    const counts = new Map<string, number>();
+    for (const r of data?.reviews ?? []) {
+      const city = (r as { places?: { city?: string | null } }).places?.city;
+      if (city) counts.set(city, (counts.get(city) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([city]) => city);
+  })();
 
   const canSeeReviews = data
     ? !data.profile.is_private || followStatus === "accepted" || data.isMe
@@ -504,6 +523,18 @@ function ProfilePage() {
                 <span className="mt-1 block text-xs text-muted-foreground">Following</span>
               </button>
             </div>
+
+            {topCities.length > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <MapPin size={14} className="shrink-0 text-primary" />
+                {topCities.map((city, i) => (
+                  <span key={city} className="text-[0.9rem] text-muted-foreground">
+                    {city}
+                    {i < topCities.length - 1 ? " ·" : ""}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             {!data.isMe ? (
               <FollowButton
                 userId={profile.id}
@@ -554,9 +585,9 @@ function ProfilePage() {
               style={{ top: STICKY_TOP }}
             >
               {/*
-                Reihenfolge wie im abgestimmten Entwurf: Karte zuerst.
-                Auf einem fremden Profil ist sie der Grund, warum man
-                dort ist -- die Beitraege erklaeren sie.
+                Beitraege zuerst, dann Karte -- der Reiter, der beim
+                Oeffnen gilt, gehoert an die erste Stelle. Sonst springt
+                die Markierung beim Ankommen in die Mitte.
 
                 Reiter als Text mit Unterstrich statt Pillen: Eine
                 Pillenleiste sieht aus wie ein Schalter, hier wechselt
@@ -565,8 +596,8 @@ function ProfilePage() {
               <div className="flex gap-5 border-b border-border">
                 {(
                   [
-                    ["map", "Map"],
                     ["feed", "Posts"],
+                    ["map", "Map"],
                   ] as const
                 ).map(([key, label]) => (
                   <button

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Map as MapIcon, Rows3 } from "lucide-react";
+import { Map as MapIcon, MapPin, Rows3 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -488,6 +488,27 @@ function MePage() {
    * Siehe fremdes Profil: Waere die Liste selbst sortierbar, zeigten
    * die Nummern der Pins ploetzlich auf andere Zeilen.
    */
+  /*
+   * Die Staedte, in denen die meisten Orte liegen.
+   *
+   * Der Kopf bestand aus Bild, Name, Handle und drei Zahlen -- richtig,
+   * aber inhaltsleer: Nichts davon sagt, WOFUER jemand steht. Bei einer
+   * Reise-App ist das die erste Frage, und die Antwort liegt schon in
+   * den Daten. Vier reichen; eine vollstaendige Liste waere wieder nur
+   * eine Aufzaehlung.
+   */
+  const topCities = (() => {
+    const counts = new Map<string, number>();
+    for (const r of reviews) {
+      const city = r.places?.city;
+      if (city) counts.set(city, (counts.get(city) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([city]) => city);
+  })();
+
   const orderedMine = [...myMapPlaces].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
 
   return (
@@ -600,6 +621,18 @@ function MePage() {
                 <span className="mt-1 block text-xs text-muted-foreground">Following</span>
               </button>
             </div>
+
+            {topCities.length > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <MapPin size={14} className="shrink-0 text-primary" />
+                {topCities.map((city, i) => (
+                  <span key={city} className="text-[0.9rem] text-muted-foreground">
+                    {city}
+                    {i < topCities.length - 1 ? " ·" : ""}
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
             {editing ? (
               <div className="mt-4 space-y-3">
@@ -748,9 +781,11 @@ function MePage() {
           style={{ top: STICKY_TOP }}
         >
           {/*
-            Reihenfolge wie im abgestimmten Entwurf: Karte zuerst.
-            Sie ist das, wofuer Turi da ist -- die Beitraege erklaeren
-            sie, und die Ordner sind die Sortierung darueber.
+            Beitraege zuerst, dann Karte, dann die Sortierungen
+            darueber. Die Karte stand kurz vorne, weil sie im Entwurf
+            vorne stand -- beim Benutzen passt es nicht: Der Reiter, der
+            beim Oeffnen gilt, gehoert an die erste Stelle, sonst
+            springt die Markierung beim Ankommen in die Mitte.
 
             Reiter als Text mit Unterstrich statt Pillen: Eine
             Pillenleiste sieht aus wie ein Schalter, hier wechselt man
@@ -759,8 +794,8 @@ function MePage() {
           <div className="flex gap-5 border-b border-border">
             {(
               [
-                ["map", "Map"],
                 ["feed", "Posts"],
+                ["map", "Map"],
                 ["folders", "Folders"],
                 ["saved", "Want to go"],
               ] as const
@@ -937,11 +972,14 @@ function MePage() {
                 </>
               </div>
             )
-          ) : (
+          ) : view === "feed" ? (
+            /*
+              Nur im Beitraege-Reiter. Vorher war dies der Sonst-Zweig
+              und lief damit auch unter "Folders" und "Want to go" mit --
+              dort standen die eigenen Bewertungen also ein zweites Mal
+              unter der jeweiligen Liste.
+            */
             <>
-              {/* Bisher standen die Bewertungen voellig unbeschriftet unter
-                  den Sammlungen -- man sah nicht, wo die Listen enden und
-                  die eigenen Bewertungen anfangen. */}
               {reviews.length > 0 ? (
                 <h2 className="turi-eyebrow">Your reviews ({reviews.length})</h2>
               ) : null}
@@ -969,7 +1007,7 @@ function MePage() {
                 />
               )}
             </>
-          )}
+          ) : null}
         </div>
 
         {/*
