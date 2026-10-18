@@ -7,9 +7,8 @@ import { getErrorMessage } from "@/lib/turi";
 import { deviceLanguage } from "@/lib/device-language";
 import { List, LocateFixed, Maximize2, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { loadMapLibre, useMapLibre } from "@/hooks/use-maplibre";
-import { applyTuriPalette, TILE_STYLE_URL } from "@/lib/turi-map";
-import { locationMarker, ratingMarker, savedMarker } from "@/lib/mapMarkers";
+import { useGoogleMaps } from "@/hooks/use-google-maps";
+import { currentLocationIcon, indexPinIcon, mapColor, ratingPinIcon } from "@/lib/mapIcons";
 import { type Category } from "@/lib/categories";
 import { currentPosition, tap } from "@/lib/native";
 import { Button } from "@/components/ui/button";
@@ -132,6 +131,14 @@ function minZoomFor(element: HTMLElement | null): number {
   return Math.max(0, Math.ceil(Math.log2(height / 256)));
 }
 
+const QUIET_STYLE: google.maps.MapTypeStyle[] = [
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  // Parks als Flaeche behalten, aber ohne Beschriftung: Sie geben der
+  // Karte Struktur, ihre Namen konkurrieren aber mit unseren Pins.
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ visibility: "on" }] },
+];
+
 /** Kurzform, damit die Sprache nur mitgeht, wenn es eine gibt. */
 function langArg() {
   const language = deviceLanguage();
@@ -176,22 +183,14 @@ export function PinMap({
    */
   numberOf?: (id: string) => number | undefined;
 }) {
-  const { ready, error } = useMapLibre();
-  /*
-   * Die Karte entsteht jetzt ASYNCHRON (die Bibliothek wird nachgeladen).
-   * Ohne dieses Signal liefen die Effekte, die Marker setzen und den
-   * Ausschnitt einpassen, einmal ins Leere -- mapRef war da noch leer --
-   * und wurden nie wieder angestossen, weil sich ihre Abhaengigkeiten
-   * nicht mehr aenderten. Ergebnis: eine Weltkarte ohne Pins.
-   */
-  const [mapReady, setMapReady] = useState(false);
+  const { ready, error } = useGoogleMaps();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<import("maplibre-gl").Map | null>(null);
-  const markersRef = useRef<import("maplibre-gl").Marker[]>([]);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
   const fittedRef = useRef(false);
   // Eigener Standort: Punkt und Genauigkeitskreis, wie auf der Hauptkarte.
-  const meMarkerRef = useRef<import("maplibre-gl").Marker | null>(null);
-  const meAccuracyRef = useRef<HTMLElement | null>(null);
+  const meMarkerRef = useRef<google.maps.Marker | null>(null);
+  const meCircleRef = useRef<google.maps.Circle | null>(null);
   const [filter, setFilter] = useState<Category | null>(
     () => mapMemory.get(mapKey)?.filter ?? null,
   );
@@ -300,16 +299,27 @@ export function PinMap({
     const map = mapRef.current;
     if (!map) return;
 
-    const maplibre = await loadMapLibre();
     if (!meMarkerRef.current) {
-      const el = locationMarker();
-      meAccuracyRef.current = el.firstElementChild as HTMLElement;
-      meMarkerRef.current = new maplibre.Marker({ element: el, anchor: "center" })
-        .setLngLat([c.lng, c.lat])
-        .addTo(map);
-    } else {
-      meMarkerRef.current.setLngLat([c.lng, c.lat]);
+      meMarkerRef.current = new google.maps.Marker({
+        map,
+        // Unter den Ortspins: der eigene Punkt soll sie nicht verdecken,
+        // wenn man genau davorsteht.
+        zIndex: 1,
+        clickable: false,
+        icon: currentLocationIcon(),
+      });
+      meCircleRef.current = new google.maps.Circle({
+        map,
+        strokeOpacity: 0,
+        fillColor: mapColor("me"),
+        fillOpacity: 0.12,
+        clickable: false,
+      });
     }
+    meMarkerRef.current.setPosition(c);
+    meCircleRef.current?.setCenter(c);
+    // Bei guter Ortung waere der Kreis winzig und nur Unruhe.
+    meCircleRef.current?.setRadius(c.accuracy > 25 ? c.accuracy : 0);
 
     /*
      * Ab jetzt nicht mehr automatisch einpassen. Treffen die Orte erst
@@ -326,124 +336,112 @@ export function PinMap({
 
   useEffect(() => {
     if (!ready || !containerRef.current || mapRef.current) return;
-    let cancelled = false;
     const remembered = mapMemory.get(mapKey);
+    mapRef.current = new google.maps.Map(containerRef.current, {
+      center: remembered ? { lat: remembered.lat, lng: remembered.lng } : { lat: 20, lng: 0 },
+      zoom: remembered?.zoom ?? minZoomFor(containerRef.current),
+      /*
+       * Nicht weiter hinauszoomen als bis hierher.
+       *
+       * Auf einer Mercator-Karte ist die Welt bei Zoom 0 genau 256 Pixel
+       * hoch. Ist die Flaeche hoeher als die Welt, malt Google oben und
+       * unten Grau -- genau die Raender, die in der Vorschau auftauchten.
+       * Sie entstanden beim Einpassen: Wer Orte auf mehreren Kontinenten
+       * hat, bekommt einen Ausschnitt, der die ganze Welt umfasst.
+       *
+       * Ab Zoom 3 ist die Welt ueber 2000 Pixel hoch und fuellt jede
+       * Flaeche, die auf einem Telefon vorkommt.
+       */
+      minZoom: minZoomFor(containerRef.current),
+      disableDefaultUI: true,
+      gestureHandling: "greedy",
+      clickableIcons: false,
+      styles: QUIET_STYLE,
+    });
+    // Gab es schon eine Ansicht, ist sie die richtige -- dann NICHT
+    // erneut einpassen.
+    if (remembered) fittedRef.current = true;
 
-    void loadMapLibre().then((maplibre) => {
-      if (cancelled || !containerRef.current || mapRef.current) return;
-      const map = new maplibre.Map({
-        container: containerRef.current,
-        style: TILE_STYLE_URL,
-        center: remembered ? [remembered.lng, remembered.lat] : [0, 20],
-        zoom: remembered?.zoom ?? minZoomFor(containerRef.current),
-        /*
-         * Nicht weiter hinauszoomen als bis hierher.
-         *
-         * Auf einer Mercator-Karte ist die Welt bei Zoom 0 genau 256
-         * Pixel hoch. Ist die Flaeche hoeher als die Welt, bleibt oben
-         * und unten Grau stehen -- genau die Raender, die in der
-         * Vorschau auftauchten, wenn jemand Orte auf mehreren
-         * Kontinenten hat.
-         */
-        minZoom: minZoomFor(containerRef.current),
-        attributionControl: false,
-        // Drehen und Kippen abschalten: Eine Karte, die sich beim
-        // Zoomen mit zwei Fingern auch noch dreht, verliert man.
-        pitchWithRotate: false,
-        dragRotate: false,
-        touchZoomRotate: true,
+    mapRef.current.addListener("idle", () => {
+      const map = mapRef.current;
+      const c = map?.getCenter();
+      if (!map || !c) return;
+      mapMemory.set(mapKey, {
+        lat: c.lat(),
+        lng: c.lng(),
+        zoom: map.getZoom() ?? 12,
+        filter: filterRef.current,
       });
-      map.touchZoomRotate.disableRotation();
-      mapRef.current = map;
-      setMapReady(true);
-
-      // Die Mitwirkenden gehoeren sichtbar auf die Karte -- OSM-Daten
-      // sind frei, aber nicht herrenlos.
-      map.addControl(new maplibre.AttributionControl({ compact: true }), "bottom-right");
-
-      map.on("load", () => applyTuriPalette(map));
-
-      // Gab es schon eine Ansicht, ist sie die richtige -- dann NICHT
-      // erneut einpassen.
-      if (remembered) fittedRef.current = true;
-
-      map.on("idle", () => {
-        const c = map.getCenter();
-        mapMemory.set(mapKey, {
-          lat: c.lat,
-          lng: c.lng,
-          zoom: map.getZoom(),
-          filter: filterRef.current,
-        });
-        const b = map.getBounds();
+      const b = map.getBounds();
+      if (b) {
         const ne = b.getNorthEast();
         const sw = b.getSouthWest();
-        setBounds({ swLat: sw.lat, swLng: sw.lng, neLat: ne.lat, neLng: ne.lng });
-      });
+        setBounds({ swLat: sw.lat(), swLng: sw.lng(), neLat: ne.lat(), neLng: ne.lng() });
+      }
     });
-
-    return () => {
-      cancelled = true;
-    };
   }, [ready, mapKey]);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!mapReady || !map) return;
-    let cancelled = false;
-
-    void loadMapLibre().then((maplibre) => {
-      if (cancelled) return;
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = shown.map((p) => {
-        const element =
-          p.rating === undefined && p.saved
-            ? savedMarker()
-            : ratingMarker(p.rating ?? 0, p.category);
-        element.addEventListener("click", () => {
-          void tap();
-          setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng });
-        });
-        return new maplibre.Marker({ element, anchor: "bottom" })
-          .setLngLat([p.lng, p.lat])
-          .addTo(map);
+    if (!ready || !mapRef.current) return;
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = shown.map((p) => {
+      const marker = new google.maps.Marker({
+        map: mapRef.current!,
+        position: { lat: p.lat, lng: p.lng },
+        title: p.name,
+        icon: numberOf?.(p.id)
+          ? indexPinIcon(numberOf(p.id)!)
+          : ratingPinIcon(p.rating, {
+              saved: p.rating === undefined && p.saved,
+              category: p.category,
+            }),
       });
-
-      /*
-       * Einpassen nur EINMAL, beim ersten Eintreffen der Orte.
-       *
-       * Bei jedem Datenwechsel einzupassen waere derselbe Fehler wie
-       * frueher auf der Hauptkarte: Wer hineingezoomt hat und dann
-       * einen Filter setzt, wuerde aus seiner Ansicht geworfen. Der
-       * Filter soll Pins ausblenden, nicht die Kamera bewegen.
-       */
-      if (!fittedRef.current && placed.length > 0) {
-        fittedRef.current = true;
-        const bounds = new maplibre.LngLatBounds();
-        placed.forEach((p) => bounds.extend([p.lng, p.lat]));
-        /*
-         * Die Zoomstufe wird in BEIDE Richtungen begrenzt.
-         *
-         * Nach unten, damit die Welt die Flaeche fuellt und keine
-         * grauen Raender stehen bleiben. Nach oben, weil ein einzelner
-         * Ort keine Ausdehnung hat: Ohne Grenze zoomt das Einpassen bis
-         * zur Hausnummer, und man sieht ein Rechteck mit einem Pin --
-         * ohne Strassenzug, ohne Stadt, ohne Hinweis WO das ist.
-         */
-        map.fitBounds(bounds, {
-          padding: 48,
-          maxZoom: MAX_FIT_ZOOM,
-          animate: false,
-        });
-        const floor = minZoomFor(containerRef.current);
-        if (map.getZoom() < floor) map.setZoom(floor);
-      }
+      marker.addListener("click", () => {
+        void tap();
+        setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng });
+      });
+      return marker;
     });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [mapReady, shown, placed]);
+    /*
+     * Einpassen nur EINMAL, beim ersten Eintreffen der Orte.
+     *
+     * Bei jedem Datenwechsel einzupassen, waere hier derselbe Fehler wie
+     * frueher auf der Hauptkarte: Wer hineingezoomt hat und dann einen
+     * Filter setzt, wuerde aus seiner Ansicht geworfen. Der Filter soll
+     * Pins ausblenden, nicht die Kamera bewegen.
+     */
+    if (!fittedRef.current && placed.length > 0) {
+      fittedRef.current = true;
+      const box = new google.maps.LatLngBounds();
+      placed.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
+      mapRef.current.fitBounds(box, 48);
+      /*
+       * Nach dem Einpassen die Zoomstufe in BEIDE Richtungen begrenzen.
+       *
+       * NACH UNTEN, weil fitBounds ohne Ruecksicht auf minZoom rechnet:
+       * Sonst blieben die grauen Raender genau in dem Fall, fuer den
+       * die Grenze gedacht ist (Orte auf mehreren Kontinenten).
+       *
+       * NACH OBEN, weil ein einzelner Ort gar keine Ausdehnung hat:
+       * fitBounds zoomt dann bis zur Hausnummer, und man sieht ein
+       * graues Rechteck mit einem Pin darauf -- ohne Strassenzug, ohne
+       * Stadt, ohne jeden Hinweis, WO das ist. Genau die Umgebung ist
+       * aber der Grund, warum man auf eine Karte schaut. Bei Stufe 15
+       * liegt das Viertel im Bild.
+       */
+      const listener = google.maps.event.addListenerOnce(mapRef.current, "idle", () => {
+        const map = mapRef.current;
+        if (!map) return;
+        const floor = minZoomFor(containerRef.current);
+        const zoom = map.getZoom() ?? floor;
+        if (zoom < floor) map.setZoom(floor);
+        else if (zoom > MAX_FIT_ZOOM) map.setZoom(MAX_FIT_ZOOM);
+      });
+      return () => google.maps.event.removeListener(listener);
+    }
+    return;
+  }, [ready, shown, placed]);
 
   /*
    * Bei einer Suche auf die Treffer springen.
@@ -455,23 +453,21 @@ export function PinMap({
    */
   const debouncedTerm = useDebouncedValue(term, 350);
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !debouncedTerm) return;
+    if (!ready || !mapRef.current || !debouncedTerm) return;
     const hits = placed.filter(
       (p) =>
         p.name.toLowerCase().includes(debouncedTerm) ||
         (p.city ?? "").toLowerCase().includes(debouncedTerm),
     );
     if (hits.length === 0) return;
-    const map = mapRef.current;
-    void loadMapLibre().then((maplibre) => {
-      const bounds = new maplibre.LngLatBounds();
-      hits.forEach((p) => bounds.extend([p.lng, p.lat]));
-      // Ein einzelner Treffer wuerde sonst bis zur Hausnummer
-      // herangezoomt -- der Umgebung beraubt sagt er wenig.
-      map.fitBounds(bounds, { padding: 64, maxZoom: 15, animate: false });
-    });
+    const box = new google.maps.LatLngBounds();
+    hits.forEach((p) => box.extend({ lat: p.lat, lng: p.lng }));
+    mapRef.current.fitBounds(box, 64);
+    // Ein einzelner Treffer wuerde sonst bis zur Hausnummer
+    // herangezoomt -- der Umgebung beraubt sagt er wenig.
+    if (hits.length === 1) mapRef.current.setZoom(15);
     fittedRef.current = true;
-  }, [mapReady, debouncedTerm, placed]);
+  }, [ready, debouncedTerm, placed]);
 
   /*
    * Dorthin fahren, wo die Person nichts hat.
@@ -537,55 +533,19 @@ export function PinMap({
     const map = mapRef.current;
     if (!map) return;
     const floor = minZoomFor(containerRef.current);
-    map.setMinZoom(floor);
-    if (map.getZoom() < floor) map.setZoom(floor);
-
-    // MapLibre kennt keinen Sammelschalter fuer Gesten -- jede wird
-    // einzeln an- oder abgeschaltet.
-    const interactive = full || !expandable;
-    for (const handler of [
-      map.dragPan,
-      map.scrollZoom,
-      map.touchZoomRotate,
-      map.doubleClickZoom,
-      map.keyboard,
-    ]) {
-      if (interactive) handler.enable();
-      else handler.disable();
-    }
-
-    return;
-  }, [full, expandable, mapReady]);
-
-  /*
-   * Die Mitte ueber den Groessenwechsel retten.
-   *
-   * NUR bei einem echten Wechsel zwischen Vorschau und Vollbild --
-   * nicht beim ersten Lauf. Vorher stand das im selben Effekt wie die
-   * Gesten und lief damit auch direkt nach dem Anlegen der Karte: Es
-   * merkte sich die Startmitte (mitten im Atlantik), und wenn kurz
-   * darauf das Einpassen auf die Orte gesprungen war, zog es die Karte
-   * im naechsten Bild dorthin zurueck. Zu sehen war eine gleichmaessig
-   * helle Flaeche -- Ozean bei Zoom 12 -- und kein einziger Pin. Die
-   * Karte war nicht kaputt, sie stand nur im Meer.
-   */
-  const previousFull = useRef(full);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || previousFull.current === full) {
-      previousFull.current = full;
-      return;
-    }
-    previousFull.current = full;
+    map.setOptions({
+      gestureHandling: full || !expandable ? "greedy" : "none",
+      minZoom: floor,
+    });
+    if ((map.getZoom() ?? floor) < floor) map.setZoom(floor);
+    // Die Mitte ueber den Groessenwechsel retten -- sonst rutscht der
+    // Ausschnitt, weil sich das Seitenverhaeltnis aendert.
     const center = map.getCenter();
     const id = requestAnimationFrame(() => {
-      // resize muss ausdruecklich angestossen werden: MapLibre misst
-      // seine Leinwand nicht von selbst nach.
-      map.resize();
-      map.setCenter(center);
+      if (center) map.setCenter(center);
     });
     return () => cancelAnimationFrame(id);
-  }, [full]);
+  }, [full, expandable, ready]);
 
   // Waehrend die Karte den Bildschirm fuellt, scrollt die Seite darunter
   // nicht mit.
@@ -598,25 +558,15 @@ export function PinMap({
     };
   }, [full]);
 
-  /*
-   * Beim Verlassen der Seite aufraeumen.
-   *
-   * Bei MapLibre gehoert auch die Karte selbst dazu: Sie haelt einen
-   * WebGL-Kontext, und davon gibt ein Browser nur eine Handvoll heraus.
-   * Ohne remove() waere die App nach ein paar Profilbesuchen ohne
-   * Karte -- ein Fehler, der erst nach laengerem Benutzen auftritt.
-   */
+  // Beim Verlassen der Seite aufraeumen.
   useEffect(() => {
-    const markers = markersRef;
-    const me = meMarkerRef;
-    const map = mapRef;
+    const marker = meMarkerRef;
+    const circle = meCircleRef;
     return () => {
-      markers.current.forEach((m) => m.remove());
-      markers.current = [];
-      me.current?.remove();
-      me.current = null;
-      map.current?.remove();
-      map.current = null;
+      marker.current?.setMap(null);
+      circle.current?.setMap(null);
+      marker.current = null;
+      circle.current = null;
     };
   }, []);
 

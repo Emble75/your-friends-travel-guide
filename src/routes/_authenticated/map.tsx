@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { getPlaceById, searchMapPlaces, suggestMapPlaces } from "@/lib/maps.functions";
 import type { MapPlace, PlaceSuggestion } from "@/lib/maps.server";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { locationMarker, ratingMarker, savedMarker, searchMarker } from "@/lib/mapMarkers";
+import { currentLocationIcon, mapColor, ratingPinIcon, searchPinIcon } from "@/lib/mapIcons";
 import { CATEGORIES, type Category, normalizeCategory } from "@/lib/categories";
 import { PlaceList } from "@/components/turi/PlaceList";
 import { PlaceSheet, type SheetTarget } from "@/components/turi/PlaceSheet";
@@ -17,8 +17,7 @@ import { looksLikeArea } from "@/lib/map-area";
 import { deviceLanguage } from "@/lib/device-language";
 import { metersBetween } from "@/lib/geo";
 import { supabase } from "@/integrations/supabase/app-client";
-import { loadMapLibre, useMapLibre } from "@/hooks/use-maplibre";
-import { applyTuriPalette, poiAt, TILE_STYLE_URL } from "@/lib/turi-map";
+import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { getErrorMessage } from "@/lib/turi";
 import { currentPosition, tap, watchPosition } from "@/lib/native";
 import { Input } from "@/components/ui/input";
@@ -112,22 +111,19 @@ type Pin = {
 };
 
 function MapPage() {
-  const { ready, error } = useMapLibre();
-  // Siehe PinMap: Die Karte entsteht asynchron, und die Effekte, die
-  // Marker setzen, brauchen ein Signal, dass es sie jetzt gibt.
-  const [mapReady, setMapReady] = useState(false);
+  const { ready, error } = useGoogleMaps();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<import("maplibre-gl").Map | null>(null);
-  const markersRef = useRef<import("maplibre-gl").Marker[]>([]);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
   // Suchtreffer-Marker bewusst getrennt von markersRef: das normale
   // Neuzeichnen der Karte (beim Verschieben, Moduswechsel, Nachladen)
   // raeumt markersRef komplett ab -- die Suchtreffer sollen dabei stehen
   // bleiben, bis die Suche verworfen wird.
-  const searchMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
+  const searchMarkersRef = useRef<google.maps.Marker[]>([]);
   // Eigener Standort: Punkt und Genauigkeitskreis.
-  const meMarkerRef = useRef<import("maplibre-gl").Marker | null>(null);
-
+  const meMarkerRef = useRef<google.maps.Marker | null>(null);
+  const meAccuracyRef = useRef<google.maps.Circle | null>(null);
   const [center, setCenter] = useState(
     mapSession.camera ? { lat: mapSession.camera.lat, lng: mapSession.camera.lng } : DEFAULT_CENTER,
   );
@@ -431,79 +427,52 @@ function MapPage() {
   // Init map
   useEffect(() => {
     if (!ready || !containerRef.current || mapRef.current) return;
-    let cancelled = false;
-
-    void loadMapLibre().then((maplibre) => {
-      if (cancelled || !containerRef.current || mapRef.current) return;
-      const map = new maplibre.Map({
-        container: containerRef.current,
-        style: TILE_STYLE_URL,
-        // Kehrt man von einer Ortsseite zurueck, genau dort
-        // weitermachen, wo die Karte vorher stand.
-        center: mapSession.camera
-          ? [mapSession.camera.lng, mapSession.camera.lat]
-          : [DEFAULT_CENTER.lng, DEFAULT_CENTER.lat],
-        zoom: mapSession.camera?.zoom ?? 14,
-        attributionControl: false,
-        pitchWithRotate: false,
-        dragRotate: false,
-      });
-      map.touchZoomRotate.disableRotation();
-      mapRef.current = map;
-      setMapReady(true);
-
-      map.addControl(new maplibre.AttributionControl({ compact: true }), "top-right");
-      map.on("load", () => applyTuriPalette(map));
-
-      map.on("idle", () => {
-        const c = map.getCenter();
-        setCenter({ lat: c.lat, lng: c.lng });
-        mapSession.camera = { lat: c.lat, lng: c.lng, zoom: map.getZoom() };
-        const b = map.getBounds();
+    mapRef.current = new google.maps.Map(containerRef.current, {
+      // Kehrt man von einer Ortsseite zurueck, genau dort weitermachen,
+      // wo die Karte vorher stand.
+      center: mapSession.camera
+        ? { lat: mapSession.camera.lat, lng: mapSession.camera.lng }
+        : DEFAULT_CENTER,
+      zoom: mapSession.camera?.zoom ?? 14,
+      disableDefaultUI: true,
+      gestureHandling: "greedy",
+      // Googles eingebaute, kostenlose Orts-Symbole (Restaurants, Cafes
+      // etc.) anklickbar lassen -- so sind viel mehr Orte sichtbar/
+      // auswaehlbar, ohne dass wir sie per Nearby-Search selbst einkaufen
+      // muessen. Nur der tatsaechlich angeklickte Ort kostet dann eine
+      // einzelne, guenstige Detailabfrage (siehe Klick-Listener unten).
+      clickableIcons: true,
+    });
+    mapRef.current.addListener("idle", () => {
+      const c = mapRef.current!.getCenter();
+      if (!c) return;
+      setCenter({ lat: c.lat(), lng: c.lng() });
+      mapSession.camera = {
+        lat: c.lat(),
+        lng: c.lng(),
+        zoom: mapRef.current!.getZoom() ?? 14,
+      };
+      const b = mapRef.current!.getBounds();
+      if (b) {
         const ne = b.getNorthEast();
         const sw = b.getSouthWest();
-        setBounds({ swLat: sw.lat, swLng: sw.lng, neLat: ne.lat, neLng: ne.lng });
-      });
-
-      /*
-       * Die Orte der Karte anklickbar lassen.
-       *
-       * Googles Karte lieferte anklickbare Symbole samt Orts-Kennung
-       * frei Haus. OSM liefert nur Name und Position -- die Kennung,
-       * an der bei uns jede Bewertung haengt, fehlt. Deshalb wird der
-       * angetippte Name ueber dieselbe Ortssuche aufgeloest, die auch
-       * das Suchfeld benutzt: ein Treffer, eine Kennung, derselbe
-       * Zwischenspeicher.
-       *
-       * Das kostet eine Abfrage pro Tipp -- genau wie vorher die
-       * Detailabfrage bei Google. Nicht teurer, nur ein Schritt mehr.
-       */
-      map.on("click", (event) => {
-        const poi = poiAt(map, event.point);
-        if (!poi) return;
-        void (async () => {
-          try {
-            const results = await searchFn({
-              data: {
-                query: poi.name,
-                lat: poi.lat,
-                lng: poi.lng,
-                ...(deviceLanguage() ? { language: deviceLanguage()! } : {}),
-              },
-            });
-            const hit = results[0];
-            if (hit) setSelected({ kind: "google", place: hit });
-          } catch (e) {
-            toast.error(getErrorMessage(e, "Could not open place"));
-          }
-        })();
-      });
+        setBounds({ swLat: sw.lat(), swLng: sw.lng(), neLat: ne.lat(), neLng: ne.lng() });
+      }
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, searchFn]);
+    mapRef.current.addListener("click", async (event: google.maps.MapMouseEvent) => {
+      const iconEvent = event as google.maps.IconMouseEvent;
+      if (!iconEvent.placeId) return;
+      // Verhindert Googles eigenes Standard-Infofenster -- wir zeigen
+      // stattdessen unser eigenes PlaceSheet.
+      iconEvent.stop();
+      try {
+        const place = await placeByIdFn({ data: { placeId: iconEvent.placeId } });
+        if (place) setSelected({ kind: "google", place });
+      } catch (e) {
+        toast.error(getErrorMessage(e, "Could not open place"));
+      }
+    });
+  }, [ready, placeByIdFn]);
 
   /*
    * Eigener Standort: laufender Punkt auf der Karte, dazu ein Kreis fuer
@@ -521,43 +490,53 @@ function MapPage() {
    * Ortung im Hintergrund weiter und zoege unnoetig Akku.
    */
   useEffect(() => {
-    if (!mapReady) return;
+    if (!ready) return;
 
     const stop = watchPosition((c) => {
       const map = mapRef.current;
       if (!map) return;
 
-      void loadMapLibre().then((maplibre) => {
-        if (!meMarkerRef.current) {
-          meMarkerRef.current = new maplibre.Marker({
-            element: locationMarker(),
-            anchor: "center",
-          })
-            .setLngLat([c.lng, c.lat])
-            .addTo(map);
-        } else {
-          meMarkerRef.current.setLngLat([c.lng, c.lat]);
-        }
-      });
-
+      if (!meMarkerRef.current) {
+        meMarkerRef.current = new google.maps.Marker({
+          map,
+          // Unter allen Ortspins: der eigene Standort soll sie nicht
+          // verdecken, wenn man genau davorsteht.
+          zIndex: 1,
+          clickable: false,
+          icon: currentLocationIcon(),
+        });
+        meAccuracyRef.current = new google.maps.Circle({
+          map,
+          strokeOpacity: 0,
+          fillColor: mapColor("me"),
+          fillOpacity: 0.12,
+          clickable: false,
+        });
+      }
+      meMarkerRef.current.setPosition(c);
       // Nur bei echter Bewegung neu setzen: die Ortung meldet sich alle
       // paar Sekunden, und jede Meldung wuerde sonst die ganze Seite neu
       // zeichnen, obwohl sich an den Entfernungen nichts aendert.
       setMyPos((prev) => (prev && metersBetween(prev, c) < 20 ? prev : { lat: c.lat, lng: c.lng }));
+      meAccuracyRef.current?.setCenter(c);
+      // Bei guter Ortung waere der Kreis winzig und nur Unruhe.
+      meAccuracyRef.current?.setRadius(c.accuracy > 25 ? c.accuracy : 0);
 
       if (!mapSession.centeredOnUser) {
         mapSession.centeredOnUser = true;
-        map.setCenter([c.lng, c.lat]);
+        map.setCenter(c);
         setCenter(c);
       }
     });
 
     return () => {
       stop();
-      meMarkerRef.current?.remove();
+      meMarkerRef.current?.setMap(null);
+      meAccuracyRef.current?.setMap(null);
       meMarkerRef.current = null;
+      meAccuracyRef.current = null;
     };
-  }, [mapReady]);
+  }, [ready]);
 
   // Suchtreffer als Marker zeichnen.
   //
@@ -565,37 +544,30 @@ function MapPage() {
   // Modus mit Suche -- ist es sonst nicht belegt, kollidiert also weder
   // mit Orange (von Freunden bewertet) noch mit Teal (Wunschliste).
   useEffect(() => {
-    if (!mapReady || !mapRef.current) return;
-    const map = mapRef.current;
-    searchMarkersRef.current.forEach((m) => m.remove());
+    if (!ready || !mapRef.current) return;
+    searchMarkersRef.current.forEach((m) => m.setMap(null));
     searchMarkersRef.current = [];
     if (!searchCandidates || searchCandidates.length === 0) return;
-    let cancelled = false;
 
-    void loadMapLibre().then((maplibre) => {
-      if (cancelled) return;
-      searchMarkersRef.current = searchCandidates.map((c) => {
-        const element = searchMarker();
-        // Ueber allen anderen Pins -- es ist das, wonach gerade gesucht
-        // wurde. MapLibre kennt kein zIndex an Markern, also direkt am
-        // Element.
-        element.style.zIndex = "20";
-        element.addEventListener("click", () => setSelected({ kind: "google", place: c }));
-        return new maplibre.Marker({ element, anchor: "bottom" })
-          .setLngLat([c.lng, c.lat])
-          .addTo(map);
+    searchMarkersRef.current = searchCandidates.map((c) => {
+      const marker = new google.maps.Marker({
+        map: mapRef.current!,
+        position: { lat: c.lat, lng: c.lng },
+        title: c.name,
+        // Ueber allen anderen Pins -- es ist das, wonach gerade gesucht wurde.
+        zIndex: 20,
+        icon: searchPinIcon(),
+        animation: google.maps.Animation.DROP,
       });
+      marker.addListener("click", () => setSelected({ kind: "google", place: c }));
+      return marker;
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mapReady, searchCandidates]);
+  }, [ready, searchCandidates]);
 
   // Beim Verlassen der Karte aufraeumen.
   useEffect(() => {
     const markers = searchMarkersRef;
-    return () => markers.current.forEach((m) => m.remove());
+    return () => markers.current.forEach((m) => m.setMap(null));
   }, []);
 
   /*
@@ -607,31 +579,25 @@ function MapPage() {
    * Zeichnen.
    */
   useEffect(() => {
-    const map = mapRef.current;
-    if (!mapReady || !map) return;
-    markersRef.current.forEach((m) => m.remove());
-    let cancelled = false;
+    if (!ready || !mapRef.current) return;
+    markersRef.current.forEach((m) => m.setMap(null));
 
-    void loadMapLibre().then((maplibre) => {
-      if (cancelled) return;
-      markersRef.current = filteredPins.map((p) => {
-        const element = p.rating === undefined ? savedMarker() : ratingMarker(p.rating, p.category);
+    markersRef.current = filteredPins.map((p) => {
+      const marker = new google.maps.Marker({
+        map: mapRef.current!,
+        position: { lat: p.lat, lng: p.lng },
+        title: p.name,
         // Gemerkte Orte eine Stufe hoeher: die eigene, bewusste Liste
         // soll nicht hinter fremden Bewertungen verschwinden.
-        element.style.zIndex = p.saved ? "11" : "10";
-        element.addEventListener("click", () =>
-          setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
-        );
-        return new maplibre.Marker({ element, anchor: "bottom" })
-          .setLngLat([p.lng, p.lat])
-          .addTo(map);
+        zIndex: p.saved ? 11 : 10,
+        icon: ratingPinIcon(p.rating, { saved: p.saved, category: p.category }),
       });
+      marker.addListener("click", () =>
+        setSelected({ kind: "local", id: p.id, name: p.name, lat: p.lat, lng: p.lng }),
+      );
+      return marker;
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mapReady, filteredPins]);
+  }, [ready, filteredPins]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -684,20 +650,13 @@ function MapPage() {
       // gerade betrachtet. Nur wenn kein einziger Treffer sichtbar waere,
       // so weit herausgehen, dass alle hineinpassen. Sonst starrt man auf
       // eine leere Karte.
-      const map = mapRef.current;
-      const view = map.getBounds();
-      const anyVisible = candidates.some(
-        (c) =>
-          c.lat >= view.getSouth() &&
-          c.lat <= view.getNorth() &&
-          c.lng >= view.getWest() &&
-          c.lng <= view.getEast(),
-      );
+      const view = mapRef.current.getBounds();
+      const anyVisible =
+        !!view && candidates.some((c) => view.contains(new google.maps.LatLng(c.lat, c.lng)));
       if (!anyVisible) {
-        const maplibre = await loadMapLibre();
-        const searchBounds = new maplibre.LngLatBounds();
-        candidates.forEach((c) => searchBounds.extend([c.lng, c.lat]));
-        map.fitBounds(searchBounds, { padding: 80, maxZoom: 15, animate: false });
+        const searchBounds = new google.maps.LatLngBounds();
+        candidates.forEach((c) => searchBounds.extend({ lat: c.lat, lng: c.lng }));
+        mapRef.current.fitBounds(searchBounds, 80);
       }
     } catch (e) {
       toast.error(getErrorMessage(e, "Search failed"));
@@ -949,11 +908,11 @@ function MapPage() {
             // hinspringen statt erneut zu messen. Das war vorher eine
             // zweite Anfrage mit spuerbarer Wartezeit, obwohl der Punkt
             // schon auf der Karte lag.
-            const known = meMarkerRef.current?.getLngLat();
+            const known = meMarkerRef.current?.getPosition();
             if (known) {
               mapRef.current?.panTo(known);
               mapRef.current?.setZoom(16);
-              setCenter({ lat: known.lat, lng: known.lng });
+              setCenter({ lat: known.lat(), lng: known.lng() });
               return;
             }
             // Noch keine Ortung erhalten (Berechtigung offen oder kein
