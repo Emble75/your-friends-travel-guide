@@ -6,7 +6,6 @@ import {
   Flag,
   Lock,
   Map as MapIcon,
-  MapPin,
   Rows3,
   ShieldOff,
   Star,
@@ -234,24 +233,6 @@ function ProfilePage() {
 
   const followStatus = clickedStatus ? clickedStatus.value : data?.followStatus;
 
-  /*
-   * Die Staedte mit den meisten Orten -- dasselbe wie im eigenen
-   * Profil. Bei einem fremden Profil ist es sogar die wichtigere
-   * Information: Ob jemand fuer Lissabon oder fuer Stockholm steht,
-   * entscheidet, ob man ihm folgen will.
-   */
-  const topCities = (() => {
-    const counts = new Map<string, number>();
-    for (const r of data?.reviews ?? []) {
-      const city = (r as { places?: { city?: string | null } }).places?.city;
-      if (city) counts.set(city, (counts.get(city) ?? 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([city]) => city);
-  })();
-
   const canSeeReviews = data
     ? !data.profile.is_private || followStatus === "accepted" || data.isMe
     : false;
@@ -386,13 +367,8 @@ function ProfilePage() {
     <>
       <AppHeader title={`@${profile.username}`} showBack fallbackTo="/feed" />
       <div className="app-shell space-y-4 py-4">
-        {/*
-          Der Kopf steht frei auf dem Papier, nicht in einem Kasten --
-          siehe eigenes Profil. Die Kartenform gehoert im Feed EINEM
-          Beitrag; ein Profilkopf in derselben Form las sich wie ein
-          Beitrag ueber eine Person.
-        */}
-        <section>
+        {/* Eigene Flaeche in warmem Ton -- siehe eigenes Profil. */}
+        <section className="rounded-3xl bg-brand-soft px-5 pb-6 pt-6">
           {/*
             Hier lag ein Farbband (zuletzt hellblau, davor zehn Farben,
             dazwischen ein Titelbild). Alles wieder raus: Der Kopf einer
@@ -406,7 +382,7 @@ function ProfilePage() {
             <UserAvatar
               avatarPath={profile.avatar_url}
               name={profile.display_name ?? profile.username}
-              className="size-20 shrink-0"
+              className="size-24 shrink-0"
             />
             <div className="min-w-0 flex-1" />
             {!data.isMe ? (
@@ -466,7 +442,7 @@ function ProfilePage() {
             ) : null}
           </div>
           {/* Der Name steht unter dem Bild -- siehe eigenes Profil. */}
-          <h1 className="font-display mt-4 text-[1.7rem] font-semibold leading-[1.08] tracking-[-0.024em]">
+          <h1 className="font-display mt-4 text-[2rem] font-semibold leading-[1.05] tracking-[-0.028em]">
             {profile.display_name || profile.username}
           </h1>
           <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -524,17 +500,6 @@ function ProfilePage() {
               </button>
             </div>
 
-            {topCities.length > 0 ? (
-              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <MapPin size={14} className="shrink-0 text-primary" />
-                {topCities.map((city, i) => (
-                  <span key={city} className="text-[0.9rem] text-muted-foreground">
-                    {city}
-                    {i < topCities.length - 1 ? " ·" : ""}
-                  </span>
-                ))}
-              </div>
-            ) : null}
             {!data.isMe ? (
               <FollowButton
                 userId={profile.id}

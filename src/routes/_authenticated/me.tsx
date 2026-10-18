@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Map as MapIcon, MapPin, Rows3 } from "lucide-react";
+import { Map as MapIcon, Rows3 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -488,43 +488,23 @@ function MePage() {
    * Siehe fremdes Profil: Waere die Liste selbst sortierbar, zeigten
    * die Nummern der Pins ploetzlich auf andere Zeilen.
    */
-  /*
-   * Die Staedte, in denen die meisten Orte liegen.
-   *
-   * Der Kopf bestand aus Bild, Name, Handle und drei Zahlen -- richtig,
-   * aber inhaltsleer: Nichts davon sagt, WOFUER jemand steht. Bei einer
-   * Reise-App ist das die erste Frage, und die Antwort liegt schon in
-   * den Daten. Vier reichen; eine vollstaendige Liste waere wieder nur
-   * eine Aufzaehlung.
-   */
-  const topCities = (() => {
-    const counts = new Map<string, number>();
-    for (const r of reviews) {
-      const city = r.places?.city;
-      if (city) counts.set(city, (counts.get(city) ?? 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([city]) => city);
-  })();
-
   const orderedMine = [...myMapPlaces].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
 
   return (
     <>
       <div className="app-shell app-top space-y-4 pb-4">
         {/*
-          Der Kopf steht frei auf dem Papier, nicht in einem Kasten.
-          
-          Er war eine Karte mit Rand und Schatten -- dieselbe Form, die
-          im Feed fuer EINEN Beitrag steht. Dadurch las sich das Profil
-          wie ein Beitrag ueber eine Person, mit den echten Beitraegen
-          als zweite Kartenebene darunter. Offen auf dem Grund, getrennt
-          nur durch die Haarlinie unter den Reitern, ist es das, was es
-          ist: der Kopf der Seite.
+          Der Kopf bekommt eine eigene Flaeche und einen eigenen Ton.
+
+          Offen auf dem Papier war er richtig gedacht, aber falsch
+          gewichtet: Bild, Name und drei Zahlen, alles linksbuendig auf
+          Weiss -- da stand nichts, es lag nur etwas herum. Ein ruhiger
+          warmer Ton (brand-soft) gibt ihm einen Anfang und ein Ende,
+          ohne eine weitere weisse Karte zu sein. Er ist hell genug, dass
+          die Fotos der Beitraege darunter weiterhin die Farbe der Seite
+          liefern.
         */}
-        <section>
+        <section className="rounded-3xl bg-brand-soft px-5 pb-6 pt-6">
           <div className="flex items-end justify-between gap-4">
             <label
               className="relative shrink-0 cursor-pointer"
@@ -538,9 +518,9 @@ function MePage() {
               <UserAvatar
                 avatarPath={profile.avatar_url}
                 name={profile.display_name ?? profile.username}
-                className="size-20"
+                className="size-24"
               />
-              <span className="turi-hit absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-card">
+              <span className="turi-hit absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-brand-soft">
                 <Camera size={14} />
               </span>
               <input
@@ -562,7 +542,7 @@ function MePage() {
             die Ueberschrift der Seite, kein Beschriftungsfeld neben
             einem Avatar.
           */}
-          <h1 className="font-display mt-4 text-[1.7rem] font-semibold leading-[1.08] tracking-[-0.024em]">
+          <h1 className="font-display mt-4 text-[2rem] font-semibold leading-[1.05] tracking-[-0.028em]">
             {profile.display_name || profile.username}
           </h1>
           <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -621,18 +601,6 @@ function MePage() {
                 <span className="mt-1 block text-xs text-muted-foreground">Following</span>
               </button>
             </div>
-
-            {topCities.length > 0 ? (
-              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <MapPin size={14} className="shrink-0 text-primary" />
-                {topCities.map((city, i) => (
-                  <span key={city} className="text-[0.9rem] text-muted-foreground">
-                    {city}
-                    {i < topCities.length - 1 ? " ·" : ""}
-                  </span>
-                ))}
-              </div>
-            ) : null}
 
             {editing ? (
               <div className="mt-4 space-y-3">
