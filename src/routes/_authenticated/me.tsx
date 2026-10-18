@@ -54,7 +54,11 @@ export const Route = createFileRoute("/_authenticated/me")({
    * Ortsseite die Ansicht nicht verwirft (wie bei fremden Profilen).
    */
   validateSearch: (search: Record<string, unknown>) => ({
-    ...(search["view"] === "map" ? { view: "map" as const } : {}),
+    ...(search["view"] === "map"
+      ? { view: "map" as const }
+      : search["view"] === "folders"
+        ? { view: "folders" as const }
+        : {}),
     /*
      * Welche Sammlung offen ist, steht ebenfalls in der Adresse.
      *
@@ -111,7 +115,16 @@ const MAP_HEIGHT = "h-[38dvh]";
 
 function MePage() {
   const navigate = useNavigate();
-  const { view = "feed", list } = Route.useSearch();
+  const search = Route.useSearch();
+  /*
+   * "feed" steht nicht in der Adresse -- es ist der Normalfall, und
+   * eine Adresse soll nur tragen, was vom Normalfall abweicht. Die
+   * Union aus validateSearch hat das Feld deshalb nicht in jedem Zweig,
+   * weshalb es hier einmal zusammengefuehrt wird.
+   */
+  const view: "feed" | "map" | "folders" =
+    "view" in search ? (search.view as "map" | "folders") : "feed";
+  const list = "list" in search ? search.list : undefined;
   const mapAnchorRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const deleteAccountFn = useServerFn(deleteOwnAccount);
@@ -548,41 +561,47 @@ function MePage() {
             ) : null}
 
             {/*
-            Vorher drei inline stehende Zahlen, von denen zwei anklickbar
-            waren und eine nicht -- optisch nicht zu unterscheiden. Jetzt ein
-            klar abgegrenzter Block mit Trennlinien, in dem alle drei
-            gleich funktionieren.
-          */}
-            <div className="mt-4 grid grid-cols-3 divide-x divide-border overflow-hidden rounded-2xl bg-secondary/70">
+              Die Kennzahlen stehen frei, nicht in einem grauen Kasten
+              mit Trennlinien.
+
+              Der Kasten kam daher, dass zwei der drei Zahlen anklickbar
+              sind und eine nicht -- er sollte den Unterschied
+              verwischen. Er hat dafuer aber eine weitere Flaeche in
+              einen Kopf gelegt, der schon Bild, Namen, Beschreibung und
+              Reiter traegt. Jetzt tragen alle drei dieselbe Form, und
+              die Zahl in der Serife macht sie auf den ersten Blick als
+              Zahl erkennbar.
+            */}
+            <div className="mt-5 flex gap-6">
               <button
                 type="button"
                 onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth" })}
-                className="turi-tap flex flex-col items-center py-2.5"
+                className="turi-tap text-left"
               >
-                <strong className="font-display text-lg font-semibold leading-tight tracking-tight">
+                <strong className="font-display block text-xl font-semibold leading-none tracking-tight">
                   {reviews.length}
                 </strong>
-                <span className="text-xs text-muted-foreground">Reviews</span>
+                <span className="mt-1 block text-xs text-muted-foreground">Places</span>
               </button>
               <button
                 type="button"
                 onClick={() => setFollowListOpen("followers")}
-                className="turi-tap flex flex-col items-center py-2.5"
+                className="turi-tap text-left"
               >
-                <strong className="font-display text-lg font-semibold leading-tight tracking-tight">
+                <strong className="font-display block text-xl font-semibold leading-none tracking-tight">
                   {data.followers}
                 </strong>
-                <span className="text-xs text-muted-foreground">Followers</span>
+                <span className="mt-1 block text-xs text-muted-foreground">Followers</span>
               </button>
               <button
                 type="button"
                 onClick={() => setFollowListOpen("following")}
-                className="turi-tap flex flex-col items-center py-2.5"
+                className="turi-tap text-left"
               >
-                <strong className="font-display text-lg font-semibold leading-tight tracking-tight">
+                <strong className="font-display block text-xl font-semibold leading-none tracking-tight">
                   {data.following}
                 </strong>
-                <span className="text-xs text-muted-foreground">Following</span>
+                <span className="mt-1 block text-xs text-muted-foreground">Following</span>
               </button>
             </div>
 
@@ -732,48 +751,45 @@ function MePage() {
           className="sticky z-20 -mx-4 bg-background/95 px-4 py-2 backdrop-blur"
           style={{ top: STICKY_TOP }}
         >
-          {/* Reiter als Text mit Unterstrich -- siehe fremdes Profil. */}
+          {/*
+            Reihenfolge wie im abgestimmten Entwurf: Karte zuerst.
+            Sie ist das, wofuer Turi da ist -- die Beitraege erklaeren
+            sie, und die Ordner sind die Sortierung darueber.
+
+            Reiter als Text mit Unterstrich statt Pillen: Eine
+            Pillenleiste sieht aus wie ein Schalter, hier wechselt man
+            aber nur die Sicht auf dieselben Inhalte.
+          */}
           <div className="flex gap-5 border-b border-border">
-            <button
-              type="button"
-              onClick={() =>
-                navigate({
-                  to: "/me",
-                  search: {},
-                  replace: true,
-                  resetScroll: false,
-                  viewTransition: false,
-                })
-              }
-              aria-pressed={view === "feed"}
-              className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
-                view === "feed"
-                  ? "border-brand text-foreground"
-                  : "border-transparent text-muted-foreground"
-              }`}
-            >
-              <Rows3 size={15} /> Feed
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                navigate({
-                  to: "/me",
-                  search: { view: "map" },
-                  replace: true,
-                  resetScroll: false,
-                  viewTransition: false,
-                })
-              }
-              aria-pressed={view === "map"}
-              className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
-                view === "map"
-                  ? "border-brand text-foreground"
-                  : "border-transparent text-muted-foreground"
-              }`}
-            >
-              <MapIcon size={15} /> Map
-            </button>
+            {(
+              [
+                ["map", "Map"],
+                ["feed", "Posts"],
+                ["folders", "Folders"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() =>
+                  navigate({
+                    to: "/me",
+                    search: key === "feed" ? {} : { view: key },
+                    replace: true,
+                    resetScroll: false,
+                    viewTransition: false,
+                  })
+                }
+                aria-pressed={view === key}
+                className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                  view === key
+                    ? "border-brand text-foreground"
+                    : "border-transparent text-muted-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -792,7 +808,7 @@ function MePage() {
           gehoeren ohnehin zum Feed-Teil des Profils: Beides sind Listen,
           die Karte ist die Karte.
         */}
-        {view === "feed" ? (
+        {view === "folders" ? (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"

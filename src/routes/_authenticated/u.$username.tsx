@@ -455,32 +455,39 @@ function ProfilePage() {
               />
             ) : null}
             {profile.bio ? <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p> : null}
-            <div className="mt-4 flex gap-5 text-sm">
+            {/*
+              Die Kennzahlen wie im Entwurf: die Zahl in der Serife und
+              gross, die Beschriftung klein und ruhig daneben. Vorher
+              standen Zahl und Wort in derselben Groesse nebeneinander --
+              damit las sich die Zeile wie Fliesstext, und man musste
+              suchen, was die Zahl ist.
+            */}
+            <div className="mt-5 flex gap-6">
               <span>
-                <strong className="font-display text-lg font-semibold tracking-tight">
+                <strong className="font-display block text-xl font-semibold leading-none tracking-tight">
                   {reviews.length}
-                </strong>{" "}
-                <span className="text-xs text-muted-foreground">Reviews</span>
+                </strong>
+                <span className="mt-1 block text-xs text-muted-foreground">Places</span>
               </span>
               <button
                 type="button"
                 onClick={() => setFollowListOpen("followers")}
                 className="text-left"
               >
-                <strong className="font-display text-lg font-semibold tracking-tight">
+                <strong className="font-display block text-xl font-semibold leading-none tracking-tight">
                   {data.followers}
-                </strong>{" "}
-                <span className="text-xs text-muted-foreground">Followers</span>
+                </strong>
+                <span className="mt-1 block text-xs text-muted-foreground">Followers</span>
               </button>
               <button
                 type="button"
                 onClick={() => setFollowListOpen("following")}
                 className="text-left"
               >
-                <strong className="font-display text-lg font-semibold tracking-tight">
+                <strong className="font-display block text-xl font-semibold leading-none tracking-tight">
                   {data.following}
-                </strong>{" "}
-                <span className="text-xs text-muted-foreground">Following</span>
+                </strong>
+                <span className="mt-1 block text-xs text-muted-foreground">Following</span>
               </button>
             </div>
             {!data.isMe ? (
@@ -533,53 +540,44 @@ function ProfilePage() {
               style={{ top: STICKY_TOP }}
             >
               {/*
-                Reiter als Text mit Unterstrich, nicht als Pillen in
-                einer grauen Leiste. Eine Pillenleiste sieht aus wie ein
-                Schalter; hier wechselt man aber die ANSICHT auf
-                dieselben Inhalte -- dafuer ist der Unterstrich das
-                gelernte Zeichen, und er kostet keine Flaeche.
+                Reihenfolge wie im abgestimmten Entwurf: Karte zuerst.
+                Auf einem fremden Profil ist sie der Grund, warum man
+                dort ist -- die Beitraege erklaeren sie.
+
+                Reiter als Text mit Unterstrich statt Pillen: Eine
+                Pillenleiste sieht aus wie ein Schalter, hier wechselt
+                man aber nur die Sicht auf dieselben Inhalte.
               */}
               <div className="flex gap-5 border-b border-border">
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate({
-                      to: "/u/$username",
-                      params: { username },
-                      search: {},
-                      replace: true,
-                      resetScroll: false,
-                      viewTransition: false,
-                    })
-                  }
-                  className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
-                    view === "feed"
-                      ? "border-brand text-foreground"
-                      : "border-transparent text-muted-foreground"
-                  }`}
-                >
-                  <Rows3 size={15} /> Feed
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate({
-                      to: "/u/$username",
-                      params: { username },
-                      search: { view: "map" },
-                      replace: true,
-                      resetScroll: false,
-                      viewTransition: false,
-                    })
-                  }
-                  className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
-                    view === "map"
-                      ? "border-brand text-foreground"
-                      : "border-transparent text-muted-foreground"
-                  }`}
-                >
-                  <MapIcon size={15} /> Map
-                </button>
+                {(
+                  [
+                    ["map", "Map"],
+                    ["feed", "Posts"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() =>
+                      navigate({
+                        to: "/u/$username",
+                        params: { username },
+                        search: key === "map" ? { view: "map" } : {},
+                        replace: true,
+                        resetScroll: false,
+                        viewTransition: false,
+                      })
+                    }
+                    aria-pressed={view === key}
+                    className={`-mb-px border-b-2 px-1 pb-2.5 text-[0.95rem] font-semibold transition-colors ${
+                      view === key
+                        ? "border-brand text-foreground"
+                        : "border-transparent text-muted-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
