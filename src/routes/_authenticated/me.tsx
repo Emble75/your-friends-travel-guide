@@ -58,18 +58,9 @@ export const Route = createFileRoute("/_authenticated/me")({
       ? { view: "map" as const }
       : search["view"] === "folders"
         ? { view: "folders" as const }
-        : {}),
-    /*
-     * Welche Sammlung offen ist, steht ebenfalls in der Adresse.
-     *
-     * Vorher war das ein blosser Zustand der Seite: Wer aus der
-     * Wunschliste einen Ort oeffnete und zurueckkam, stand wieder vor
-     * dem Profil -- die Liste war zu. Genau derselbe Fehler wie beim
-     * Feed/Karte-Umschalter, an derselben Stelle behoben.
-     */
-    ...(search["list"] === "folders" || search["list"] === "saved"
-      ? { list: search["list"] as "folders" | "saved" }
-      : {}),
+        : search["view"] === "saved"
+          ? { view: "saved" as const }
+          : {}),
   }),
   head: () => ({
     meta: [
@@ -122,9 +113,8 @@ function MePage() {
    * Union aus validateSearch hat das Feld deshalb nicht in jedem Zweig,
    * weshalb es hier einmal zusammengefuehrt wird.
    */
-  const view: "feed" | "map" | "folders" =
-    "view" in search ? (search.view as "map" | "folders") : "feed";
-  const list = "list" in search ? search.list : undefined;
+  const view: "feed" | "map" | "folders" | "saved" =
+    "view" in search ? (search.view as "map" | "folders" | "saved") : "feed";
   const mapAnchorRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const deleteAccountFn = useServerFn(deleteOwnAccount);
@@ -137,7 +127,6 @@ function MePage() {
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
   // Welche Sammlung gerade aufgeklappt ist (Ordner oder Wunschliste) --
   // aus der Adresse, siehe validateSearch oben.
-  const collection = list ?? null;
 
   /*
    * Oeffnen legt einen Eintrag in der Historie an, Schliessen ersetzt
@@ -145,18 +134,6 @@ function MePage() {
    * Profil zu fuehren), und sie ist wieder da, wenn man von einem Ort
    * zurueckkommt -- ohne dass sich Eintraege anhaeufen.
    */
-  function setCollection(next: "folders" | "saved" | null) {
-    navigate({
-      to: "/me",
-      search: {
-        ...(view === "map" ? { view: "map" as const } : {}),
-        ...(next ? { list: next } : {}),
-      },
-      resetScroll: false,
-      viewTransition: false,
-      ...(next ? {} : { replace: true }),
-    });
-  }
   // Sprungziel fuer die Zahl "Reviews" -- auf einem vollen Profil liegt die
   // Bewertungsliste sonst weit unterhalb aller Sammlungen.
   const reviewsRef = useRef<HTMLDivElement | null>(null);
@@ -493,18 +470,16 @@ function MePage() {
         saved: false,
       });
     }
-    for (const saved of savedPlaces ?? []) {
-      const existing = byId.get(saved.id);
-      if (existing) {
-        byId.set(saved.id, { ...existing, saved: true });
-      } else {
-        // Gemerkt, aber noch nicht bewertet: ohne Note, mit Lesezeichen.
-        // rating wird WEGGELASSEN statt auf undefined gesetzt -- die
-        // strikte Typpruefung unterscheidet beides.
-        const { rating: _friendsRating, ...rest } = saved;
-        byId.set(saved.id, { ...rest, friends: 0, saved: true });
-      }
-    }
+    /*
+     * Gemerkte Orte stehen hier NICHT mehr mit drin.
+     *
+     * Sie waren frueher eingemischt, weil es nur eine eigene Karte gab.
+     * Jetzt haben sie einen eigenen Bereich mit eigener Karte -- und
+     * die Vermischung war ohnehin schief: "Karte" beantwortet "wo war
+     * ich und wie war es", die Wunschliste "wo will ich noch hin". In
+     * einer Liste nebeneinander stehen Bewertetes und Vorgemerktes
+     * aussehen wie dasselbe, sind aber das Gegenteil voneinander.
+     */
     return Array.from(byId.values());
   })();
 
@@ -766,6 +741,7 @@ function MePage() {
                 ["map", "Map"],
                 ["feed", "Posts"],
                 ["folders", "Folders"],
+                ["saved", "Want to go"],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -808,41 +784,105 @@ function MePage() {
           gehoeren ohnehin zum Feed-Teil des Profils: Beides sind Listen,
           die Karte ist die Karte.
         */}
+        {/*
+          Der Ordner-Reiter zeigt ORDNER -- nicht noch einmal die
+          Beitraege und auch keine Kachel, die erst ein Blatt oeffnet.
+
+          Vorher standen hier zwei Kacheln ("Folders", "Want to go"),
+          die beide ein Blatt ueber die Seite zogen. Ein Reiter, der
+          einen Knopf zeigt, der eine Liste zeigt, ist ein Schritt zu
+          viel: Der Reiter IST schon die Auswahl.
+        */}
         {view === "folders" ? (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
-              onClick={() => setCollection("folders")}
-            >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                <Folder size={16} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">Folders</span>
-                <span className="turi-meta block text-xs text-muted-foreground">
-                  {folders.length + sharedWithMe.length}
-                </span>
-              </span>
-              <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
-            </button>
-            <button
-              type="button"
-              className="turi-card turi-tap flex items-center gap-3 p-4 text-left transition-colors hover:border-foreground/15"
-              onClick={() => setCollection("saved")}
-            >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                <Bookmark size={16} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">Want to go</span>
-                <span className="turi-meta block text-xs text-muted-foreground">
-                  {savedPlaces?.length ?? 0}
-                </span>
-              </span>
-              <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
-            </button>
-          </div>
+          folders.length + sharedWithMe.length === 0 ? (
+            <EmptyState
+              icon={Folder}
+              title="No folders yet"
+              text="Group reviews into a folder while writing one — a trip, a city, a weekend."
+            />
+          ) : (
+            <div className="space-y-2">
+              {folders.map((f) => (
+                <Link
+                  key={f.id}
+                  to="/folder/$folderId"
+                  params={{ folderId: f.id }}
+                  className="turi-card turi-tap flex items-center gap-3 p-4 transition-colors hover:border-foreground/15"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                    <Folder size={17} />
+                  </span>
+                  <span className="font-display min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">
+                    {f.name}
+                  </span>
+                  <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+                </Link>
+              ))}
+
+              {sharedWithMe.map((f) => (
+                <Link
+                  key={f.id}
+                  to="/folder/$folderId"
+                  params={{ folderId: f.id }}
+                  className="turi-card turi-tap flex items-center gap-3 p-4 transition-colors hover:border-foreground/15"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                    <Folder size={17} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-display block truncate text-lg font-semibold tracking-tight">
+                      {f.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      shared by @{f.profiles?.username}
+                    </span>
+                  </span>
+                  <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+                </Link>
+              ))}
+            </div>
+          )
+        ) : null}
+
+        {/*
+          Die Wunschliste als eigener Bereich mit eigener Karte.
+          "Wo will ich noch hin" ist eine eigene Frage -- und eine, die
+          man auf einer Karte beantwortet, nicht in einer Aufzaehlung.
+        */}
+        {view === "saved" ? (
+          (savedPlaces ?? []).length === 0 ? (
+            <EmptyState
+              icon={Bookmark}
+              title="Nothing saved yet"
+              text="Tap the bookmark on a place to keep it here."
+            />
+          ) : (
+            <div className="space-y-3">
+              {(savedPlaces ?? []).filter((p) => p.lat != null && p.lng != null).length > 0 ? (
+                <PinMap
+                  pins={savedPlaces ?? []}
+                  heading="Want to go"
+                  mapKey="saved"
+                  className={MAP_HEIGHT}
+                  onlyUserId={profile.id}
+                />
+              ) : null}
+
+              <PlaceList
+                items={savedPlaces ?? []}
+                showCity
+                summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
+                /*
+                  Bewusst OHNE onPick: Die Zeilen sind nicht antippbar.
+                  Die Liste sagt mit Name, Art und Stadt bereits alles,
+                  was man ueber einen gemerkten Ort wissen will. Was
+                  fehlte, war nicht mehr Information, sondern die eine
+                  Handlung: hinfahren.
+                */
+                showDirections
+              />
+            </div>
+          )
         ) : null}
 
         <div ref={reviewsRef} className="scroll-mt-20 space-y-4">
@@ -999,101 +1039,6 @@ function MePage() {
           </section>
         ) : null}
       </div>
-
-      <Sheet open={collection !== null} onOpenChange={(open) => !open && setCollection(null)}>
-        <SheetContent side="bottom" className="max-h-[75vh] rounded-t-3xl border-0 pb-8">
-          <SheetHeader className="text-left">
-            <SheetTitle>{collection === "folders" ? "Folders" : "Want to go"}</SheetTitle>
-          </SheetHeader>
-          <div
-            className={
-              collection === "saved" && (savedPlaces ?? []).length > 0
-                ? "mt-2 flex max-h-[58vh] min-h-0 flex-col overflow-hidden"
-                : "mt-2 max-h-[55vh] space-y-1 overflow-y-auto px-1"
-            }
-          >
-            {collection === "folders" ? (
-              folders.length + sharedWithMe.length === 0 ? (
-                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                  No folders yet. You can group reviews into a folder while writing one.
-                </p>
-              ) : (
-                <>
-                  {folders.map((f) => (
-                    <Link
-                      key={f.id}
-                      to="/folder/$folderId"
-                      params={{ folderId: f.id }}
-                      onClick={() => setCollection(null)}
-                      className="turi-tap flex items-center gap-3 rounded-2xl p-3 hover:bg-secondary"
-                    >
-                      <Folder size={16} className="shrink-0 text-muted-foreground" />
-                      <span className="truncate text-sm font-medium">{f.name}</span>
-                    </Link>
-                  ))}
-                  {sharedWithMe.map((f) => (
-                    <Link
-                      key={f.id}
-                      to="/folder/$folderId"
-                      params={{ folderId: f.id }}
-                      onClick={() => setCollection(null)}
-                      className="turi-tap flex items-center gap-3 rounded-2xl p-3 hover:bg-secondary"
-                    >
-                      <Folder size={16} className="shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{f.name}</span>
-                      <span className="turi-meta shrink-0 text-xs text-muted-foreground">
-                        from @{f.profiles?.username}
-                      </span>
-                    </Link>
-                  ))}
-                </>
-              )
-            ) : (savedPlaces ?? []).length === 0 ? (
-              <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                Nothing saved yet. Tap the bookmark on a place to keep it here.
-              </p>
-            ) : (
-              /*
-                Dieselbe Darstellung wie die Liste auf der Karte:
-                sortierbar nach Note oder Entfernung. Es ist dieselbe
-                Frage -- "welcher dieser Orte ist jetzt der richtige?" --
-                und sie wurde hier bisher anders beantwortet als dort.
-              */
-              <>
-                {/*
-                  Der Hinweis steht hier und nicht auf der Karte: Wer die
-                  Liste oeffnet, sucht seine gemerkten Orte -- dass sie
-                  auch auf der Karte liegen, ist genau in diesem Moment
-                  eine neue Information. Auf der Karte selbst waere es
-                  eine Erklaerung fuer etwas, das man dort schon sieht.
-                */}
-                <p className="turi-meta flex items-center gap-2 px-3 pb-2 text-xs text-muted-foreground">
-                  <Bookmark size={13} className="shrink-0 text-map-accent" fill="currentColor" />
-                  You&apos;ll find these marked on your map, too.
-                </p>
-                <PlaceList
-                  items={savedPlaces ?? []}
-                  showCity
-                  summary={`${savedPlaces!.length} ${savedPlaces!.length === 1 ? "place" : "places"}`}
-                  /*
-                    Bewusst OHNE onPick: Die Zeilen sind nicht antippbar.
-
-                    Zwei Fassungen lagen hier schon -- erst das Panel der
-                    Karte, dann die Ortsseite. Beide waren ein Umweg: Die
-                    Liste sagt mit Name, Art, Stadt und Note bereits
-                    alles, was man ueber einen gemerkten Ort wissen will,
-                    und der Hinweis darueber sagt, dass sie auch auf der
-                    eigenen Karte stehen. Was tatsaechlich fehlte, war
-                    nicht mehr Information, sondern die eine Handlung:
-                    hinfahren. Die steht jetzt als Wegweiser in der Zeile.
-                  */
-                  showDirections
-                />
-              </>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
 
       <FollowListSheet
         userId={profile.id}
