@@ -367,7 +367,13 @@ function ProfilePage() {
     <>
       <AppHeader title={`@${profile.username}`} showBack fallbackTo="/feed" />
       <div className="app-shell space-y-4 py-4">
-        <section className="turi-card overflow-hidden">
+        {/*
+          Der Kopf steht frei auf dem Papier, nicht in einem Kasten --
+          siehe eigenes Profil. Die Kartenform gehoert im Feed EINEM
+          Beitrag; ein Profilkopf in derselben Form las sich wie ein
+          Beitrag ueber eine Person.
+        */}
+        <section>
           {/*
             Hier lag ein Farbband (zuletzt hellblau, davor zehn Farben,
             dazwischen ein Titelbild). Alles wieder raus: Der Kopf einer
@@ -377,18 +383,13 @@ function ProfilePage() {
             der Bewertungen, die weiter unten die eigentliche Farbe der
             Seite liefern.
           */}
-          <div className="flex items-end gap-4 px-5 pt-5">
+          <div className="flex items-end gap-4">
             <UserAvatar
               avatarPath={profile.avatar_url}
               name={profile.display_name ?? profile.username}
               className="size-20 shrink-0"
             />
-            <div className="min-w-0 flex-1">
-              <h1 className="font-display truncate text-[1.45rem] font-semibold leading-[1.1] tracking-[-0.02em]">
-                {profile.display_name || profile.username}
-              </h1>
-              <p className="truncate text-sm text-muted-foreground">@{profile.username}</p>
-            </div>
+            <div className="min-w-0 flex-1" />
             {!data.isMe ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -445,7 +446,16 @@ function ProfilePage() {
               </DropdownMenu>
             ) : null}
           </div>
-          <div className="px-5 pb-5">
+          {/* Der Name steht unter dem Bild -- siehe eigenes Profil. */}
+          <h1 className="font-display mt-4 text-[1.7rem] font-semibold leading-[1.08] tracking-[-0.024em]">
+            {profile.display_name || profile.username}
+          </h1>
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            @{profile.username}
+            {profile.is_private ? " · Private" : ""}
+          </p>
+
+          <div>
             {!data.isMe ? (
               <ReportDialog
                 reportedUserId={profile.id}
@@ -454,7 +464,11 @@ function ProfilePage() {
                 onOpenChange={setReportOpen}
               />
             ) : null}
-            {profile.bio ? <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p> : null}
+            {profile.bio ? (
+              <p className="mt-3 text-[0.95rem] leading-relaxed text-foreground/90">
+                {profile.bio}
+              </p>
+            ) : null}
             {/*
               Die Kennzahlen wie im Entwurf: die Zahl in der Serife und
               gross, die Beschriftung klein und ruhig daneben. Vorher

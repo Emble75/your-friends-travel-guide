@@ -493,9 +493,18 @@ function MePage() {
   return (
     <>
       <div className="app-shell app-top space-y-4 pb-4">
-        <section className="turi-card overflow-hidden">
-          {/* Siehe fremdes Profil: das Farbband ist ersatzlos entfallen. */}
-          <div className="flex items-end gap-4 px-5 pt-5">
+        {/*
+          Der Kopf steht frei auf dem Papier, nicht in einem Kasten.
+          
+          Er war eine Karte mit Rand und Schatten -- dieselbe Form, die
+          im Feed fuer EINEN Beitrag steht. Dadurch las sich das Profil
+          wie ein Beitrag ueber eine Person, mit den echten Beitraegen
+          als zweite Kartenebene darunter. Offen auf dem Grund, getrennt
+          nur durch die Haarlinie unter den Reitern, ist es das, was es
+          ist: der Kopf der Seite.
+        */}
+        <section>
+          <div className="flex items-end justify-between gap-4">
             <label
               className="relative shrink-0 cursor-pointer"
               onClick={async (e) => {
@@ -520,19 +529,31 @@ function MePage() {
                 onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])}
               />
             </label>
-            <div className="min-w-0 flex-1">
-              <h1 className="font-display truncate text-[1.45rem] font-semibold leading-[1.1] tracking-[-0.02em]">
-                {profile.display_name || profile.username}
-              </h1>
-              <p className="truncate text-sm text-muted-foreground">
-                @{profile.username}
-                {profile.is_private ? " · Private" : ""}
-              </p>
-            </div>
           </div>
-          <div className="px-5 pb-5">
+
+          {/*
+            Der Name steht UNTER dem Bild, nicht daneben.
+
+            Daneben teilte er sich die Zeile mit dem Bild und musste
+            abgeschnitten werden, sobald jemand zwei Vornamen hat. Unter
+            dem Bild hat er die ganze Breite -- und erst dadurch traegt
+            die Serife ueberhaupt etwas: Ein Name in dieser Groesse ist
+            die Ueberschrift der Seite, kein Beschriftungsfeld neben
+            einem Avatar.
+          */}
+          <h1 className="font-display mt-4 text-[1.7rem] font-semibold leading-[1.08] tracking-[-0.024em]">
+            {profile.display_name || profile.username}
+          </h1>
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            @{profile.username}
+            {profile.is_private ? " · Private" : ""}
+          </p>
+
+          <div>
             {profile.bio && !editing ? (
-              <p className="mt-3 text-sm text-foreground/90">{profile.bio}</p>
+              <p className="mt-3 text-[0.95rem] leading-relaxed text-foreground/90">
+                {profile.bio}
+              </p>
             ) : null}
 
             {/*
