@@ -100,7 +100,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "description",
         content: "Turi shows you only your friends' reviews for every place.",
       },
-      { name: "theme-color", content: "#EEF0F3" },
+      /*
+       * Die Farbe, die Safari und Chrome um die Seite legen -- Leiste
+       * oben, Flaeche beim Ueberdehnen. Sie stand noch auf dem kuehlen
+       * Grau der alten Palette und war damit das letzte Stueck der App,
+       * das nicht nach Papier aussah.
+       */
+      { name: "theme-color", content: "#FBFAF7" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -113,6 +119,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
       },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
+      /*
+       * Fuer "Zum Home-Bildschirm": Ohne dieses Bild schneidet iOS sich
+       * selbst einen Schnappschuss der Seite zurecht -- und der sah aus
+       * wie ein zufaelliger Ausschnitt, nicht wie eine App.
+       */
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,
