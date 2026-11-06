@@ -22,6 +22,12 @@ type TripFolderRow = {
   name: string;
   owner_id: string;
   created_at: string;
+  /*
+   * Der Schluessel im Teilen-Link steht NICHT hier: Er ist auf
+   * Spaltenebene gesperrt und kommt nur ueber folder_share_token() --
+   * sonst saehe ihn jeder, mit dem der Ordner geteilt ist, und koennte
+   * sich nach dem Entfernen selbst wieder hinzufuegen.
+   */
 };
 
 type TripFolderShareRow = {
@@ -84,6 +90,25 @@ export type AppDatabase = Omit<GeneratedDatabase, "public"> & {
       set_place_category: {
         Args: { p_place_id: string; p_category: string };
         Returns: undefined;
+      };
+      /*
+       * Ordner-Freigaben entstehen nur noch durch das Oeffnen eines
+       * Links -- der Empfaenger legt sie sich selbst an, was die Regeln
+       * der Tabelle sonst nur dem Besitzer erlauben. Der Schluessel im
+       * Link wird dabei geprueft. Siehe Migration
+       * 20261106090000_folder_sharing_by_link.sql.
+       */
+      redeem_folder_link: {
+        Args: { p_folder_id: string; p_token: string };
+        Returns: boolean;
+      };
+      rotate_folder_link: {
+        Args: { p_folder_id: string };
+        Returns: string;
+      };
+      folder_share_token: {
+        Args: { p_folder_id: string };
+        Returns: string | null;
       };
     };
     Tables: Omit<GenTables, "follows" | "places" | "profiles" | "reviews"> & {

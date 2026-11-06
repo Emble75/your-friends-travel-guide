@@ -104,7 +104,6 @@ const MAP_HEIGHT = "h-[38dvh]";
 function ProfilePage() {
   const { username } = Route.useParams();
   const { view = "feed" } = Route.useSearch();
-  const mapAnchorRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
@@ -301,28 +300,6 @@ function ProfilePage() {
 
   // Die Karte wartet auf dieselbe Abfrage wie der Rest der Seite.
   const mapLoading = isLoading;
-
-  /*
-   * Beim Wechsel auf "Map" zur Karte scrollen.
-   *
-   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
-   * Umschalten weiter das Profil und musste erst von Hand nach unten
-   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
-   */
-  useEffect(() => {
-    if (view !== "map") return;
-    const id = window.setTimeout(
-      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
-      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
-      // koennte.
-      60,
-    );
-    return () => window.clearTimeout(id);
-    // mapLoading gehoert in die Abhaengigkeiten: Beim ersten Umschalten
-    // laufen Wechsel und Ladevorgang auseinander -- ohne dies bliebe es
-    // beim Platzhalter stehen.
-  }, [view, mapLoading]);
 
   if (isLoading) {
     return (
@@ -602,7 +579,7 @@ function ProfilePage() {
                 haette springen koennen, und passierte erst beim zweiten
                 Mal, wenn die Daten schon im Speicher lagen.
               */
-              <div ref={mapAnchorRef} className="scroll-mt-[calc(7rem+env(safe-area-inset-top))]">
+              <div>
                 {mapLoading ? (
                   <Skeleton className={`${MAP_HEIGHT} rounded-3xl`} />
                 ) : // Orte ohne gespeicherte Position koennen nicht auf die

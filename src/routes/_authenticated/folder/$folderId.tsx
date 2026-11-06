@@ -49,6 +49,13 @@ export const Route = createFileRoute("/_authenticated/folder/$folderId")({
    */
   validateSearch: (search: Record<string, unknown>) => ({
     ...(search["view"] === "map" ? { view: "map" as const } : {}),
+    /*
+     * Der Schluessel aus einem Teilen-Link. Wer die Seite damit
+     * oeffnet, nimmt die Freigabe an -- siehe den Effekt in der
+     * Komponente. Er steht nur einmal in der Adresse und wird danach
+     * daraus entfernt.
+     */
+    ...(typeof search["k"] === "string" ? { k: search["k"] } : {}),
   }),
   head: () => ({
     meta: [{ title: "Folder – Turi" }],
@@ -84,11 +91,49 @@ const MAP_HEIGHT = "h-[38dvh]";
 
 function FolderPage() {
   const { folderId } = Route.useParams();
-  const { view = "feed" } = Route.useSearch();
-  const mapAnchorRef = useRef<HTMLDivElement | null>(null);
+  const search = Route.useSearch();
+  const view = "view" in search ? search.view : "feed";
+  const shareKey = "k" in search ? search.k : undefined;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [shareOpen, setShareOpen] = useState(false);
+
+  /*
+   * Einen Teilen-Link annehmen.
+   *
+   * Frueher legte der Besitzer die Freigabe direkt an -- der Ordner
+   * erschien im Profil des Empfaengers, ohne dass der etwas getan
+   * hatte. Bei einem Konto mit vielen Followern waere das ein
+   * Briefkasten ohne Schloss gewesen.
+   *
+   * Jetzt entsteht die Freigabe genau hier: durch das Oeffnen des
+   * Links. Der Schluessel verschwindet danach aus der Adresse, damit
+   * er nicht in Verlauf, Lesezeichen oder beim naechsten Teilen
+   * weiterwandert.
+   */
+  useEffect(() => {
+    if (!shareKey) return;
+    let active = true;
+    void (async () => {
+      const { error } = await supabase.rpc("redeem_folder_link", {
+        p_folder_id: folderId,
+        p_token: shareKey,
+      });
+      if (!active) return;
+      if (error) toast.error(getErrorMessage(error, "This link is no longer valid"));
+      await queryClient.invalidateQueries({ queryKey: ["trip-folder", folderId] });
+      navigate({
+        to: "/folder/$folderId",
+        params: { folderId },
+        search: {},
+        replace: true,
+        resetScroll: false,
+      });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [shareKey, folderId, navigate, queryClient]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["trip-folder", folderId],
@@ -113,23 +158,13 @@ function FolderPage() {
   });
 
   /*
-   * Beim Wechsel auf "Map" zur Karte scrollen.
+   * ENTFERNT: das automatische Scrollen zur Karte beim Umschalten.
    *
-   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
-   * Umschalten weiter das Profil und musste erst von Hand nach unten
-   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
+   * Es sollte den Weg abkuerzen, war in der Hand aber ein Ruck: Man
+   * tippt oben auf einen Reiter und die Seite springt weg. Seit der
+   * Kopf kuerzer ist, liegt die Karte ohnehin fast im Bild -- und wer
+   * nach unten will, scrollt lieber selbst, als geschoben zu werden.
    */
-  useEffect(() => {
-    if (view !== "map") return;
-    const id = window.setTimeout(
-      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
-      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
-      // koennte.
-      60,
-    );
-    return () => window.clearTimeout(id);
-  }, [view]);
 
   async function deleteFolder() {
     const { error } = await supabase.from("trip_folders").delete().eq("id", folderId);
@@ -338,7 +373,6 @@ function FolderPage() {
                 />
               ) : (
                 <div
-                  ref={mapAnchorRef}
                   /*
                     Der Abstand entspricht genau der Hoehe der klebenden
                     Kopfzeile (AppHeader: 3.5rem plus die sichere Zone
@@ -373,6 +407,20 @@ function FolderPage() {
   );
 }
 
+/*
+ * Teilen geht nur noch ueber einen Link.
+ *
+ * Vorher suchte man hier Leute aus seinem Netzwerk aus, und der Ordner
+ * landete sofort in deren Profil -- ohne Zutun und ohne Nachfrage. Bei
+ * zwanzig Freunden ist das bequem; bei einem Konto mit vielen
+ * Followern waere es ein Briefkasten ohne Schloss gewesen, in den
+ * jeder ungefragt Ordner legen kann.
+ *
+ * Jetzt bekommt man einen Link und entscheidet selbst, wem man ihn
+ * gibt. Die Freigabe entsteht erst, wenn der Empfaenger ihn oeffnet.
+ * Was dieses Fenster zusaetzlich zeigt: wer dadurch schon Zugriff hat
+ * -- und den kann man einzeln wieder entziehen.
+ */
 function ShareDialog({
   folderId,
   open,
@@ -383,76 +431,82 @@ function ShareDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
-  const [term, setTerm] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const { data: candidates } = useQuery({
-    queryKey: ["folder-share-candidates", folderId],
+  const { data: token } = useQuery({
+    queryKey: ["folder-share-token", folderId],
     enabled: open,
+    // Der Schluessel ist auf Spaltenebene gesperrt und kommt nur ueber
+    // diese Funktion -- und nur, wenn der Ordner einem gehoert.
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const me = auth.user!.id;
-      // Kandidaten: das eigene Netzwerk (wem ich folge + wer mir folgt),
-      // damit man nicht zufaellig Fremde suchen kann.
-      const [{ data: iFollow }, { data: followMe }, { data: shares }] = await Promise.all([
-        supabase
-          .from("follows")
-          .select("profiles!follows_following_id_fkey(id, username, display_name, avatar_url)")
-          .eq("follower_id", me)
-          .eq("status", "accepted"),
-        supabase
-          .from("follows")
-          .select("profiles!follows_follower_id_fkey(id, username, display_name, avatar_url)")
-          .eq("following_id", me)
-          .eq("status", "accepted"),
-        supabase.from("trip_folder_shares").select("shared_with_id").eq("folder_id", folderId),
-      ]);
-      type Person = {
-        id: string;
-        username: string;
-        display_name: string | null;
-        avatar_url: string | null;
-      };
-      const byId = new Map<string, Person>();
-      for (const row of [...(iFollow ?? []), ...(followMe ?? [])]) {
-        const p = row.profiles as unknown as Person;
-        if (p) byId.set(p.id, p);
-      }
-      const sharedIds = new Set((shares ?? []).map((s) => s.shared_with_id));
-      return Array.from(byId.values()).map((p) => ({ ...p, shared: sharedIds.has(p.id) }));
+      const { data, error } = await supabase.rpc("folder_share_token", {
+        p_folder_id: folderId,
+      });
+      if (error) throw error;
+      return data as string | null;
     },
   });
 
-  const t = term.trim().toLowerCase();
-  const data = (candidates ?? []).filter(
-    (p) => !t || p.username.toLowerCase().includes(t) || p.display_name?.toLowerCase().includes(t),
-  );
+  const { data: people } = useQuery({
+    queryKey: ["folder-shared-with", folderId],
+    enabled: open,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("trip_folder_shares")
+        .select(
+          "shared_with_id, profiles:profiles!trip_folder_shares_shared_with_id_fkey(username, display_name, avatar_url)",
+        )
+        .eq("folder_id", folderId);
+      return (data ?? []).map((row) => {
+        const p = row.profiles as unknown as {
+          username: string;
+          display_name: string | null;
+          avatar_url: string | null;
+        } | null;
+        return {
+          id: row.shared_with_id,
+          username: p?.username ?? "",
+          displayName: p?.display_name ?? null,
+          avatar: p?.avatar_url ?? null,
+        };
+      });
+    },
+  });
 
-  async function toggleShare(personId: string, shared: boolean) {
-    const { error } = shared
-      ? await supabase
-          .from("trip_folder_shares")
-          .delete()
-          .eq("folder_id", folderId)
-          .eq("shared_with_id", personId)
-      : await supabase
-          .from("trip_folder_shares")
-          .insert({ folder_id: folderId, shared_with_id: personId });
-    if (error) {
-      toast.error(getErrorMessage(error, "Action failed"));
-      return;
-    }
-    queryClient.invalidateQueries({ queryKey: ["folder-share-candidates", folderId] });
-  }
+  const link = token ? `${getAppUrl()}/folder/${folderId}?k=${token}` : null;
 
   async function sendLink() {
-    const result = await share({
-      title: "Turi trip",
-      url: `${getAppUrl()}/folder/${folderId}`,
-    });
+    if (!link) return;
+    const result = await share({ title: "Turi trip", url: link });
     if (result === "copied") toast.success("Link copied");
   }
 
-  const hasSharedWithAnyone = (data ?? []).some((p) => p.shared);
+  async function revoke(personId: string) {
+    setBusy(true);
+    const { error } = await supabase
+      .from("trip_folder_shares")
+      .delete()
+      .eq("folder_id", folderId)
+      .eq("shared_with_id", personId);
+    setBusy(false);
+    if (error) {
+      toast.error(getErrorMessage(error, "Could not remove"));
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: ["folder-shared-with", folderId] });
+  }
+
+  async function newLink() {
+    setBusy(true);
+    const { error } = await supabase.rpc("rotate_folder_link", { p_folder_id: folderId });
+    setBusy(false);
+    if (error) {
+      toast.error(getErrorMessage(error, "Could not create a new link"));
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: ["folder-share-token", folderId] });
+    toast.success("New link created — the old one no longer works");
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -460,52 +514,61 @@ function ShareDialog({
         <DialogHeader>
           <DialogTitle>Share folder</DialogTitle>
         </DialogHeader>
-        <Input
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          placeholder="Search for a person"
-          className="h-11 rounded-2xl"
-        />
-        <div className="max-h-[45vh] space-y-1 overflow-y-auto">
-          {(data ?? []).length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No one found in your network.
-            </p>
-          ) : (
-            (data ?? []).map((p) => (
-              <div key={p.id} className="flex items-center gap-3 rounded-2xl p-2">
-                <UserAvatar avatarPath={p.avatar_url} name={p.display_name ?? p.username} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">
-                    {p.display_name || p.username}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    @{p.username}
-                  </span>
-                </span>
-                <Button
-                  size="sm"
-                  variant={p.shared ? "secondary" : "default"}
-                  className="rounded-full"
-                  onClick={() => toggleShare(p.id, p.shared)}
-                >
-                  {p.shared ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                  <span className="ml-1">{p.shared ? "Remove" : "Share"}</span>
-                </Button>
-              </div>
-            ))
-          )}
-        </div>
 
-        {hasSharedWithAnyone ? (
-          <Button variant="secondary" className="rounded-2xl" onClick={sendLink}>
-            <ExternalLink size={16} className="mr-2" /> Send link
-          </Button>
-        ) : (
-          <p className="text-center text-xs text-muted-foreground">
-            Share with at least one person above to unlock a sendable link.
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground">
+          Anyone with this link can see the folder. They only get access once they open it.
+        </p>
+
+        <Button disabled={!link} className="h-12 rounded-2xl" onClick={sendLink}>
+          <ExternalLink size={16} className="mr-2" />
+          {link ? "Send link" : "Preparing link…"}
+        </Button>
+
+        {(people ?? []).length > 0 ? (
+          <div className="space-y-1">
+            <h3 className="turi-eyebrow">Has access</h3>
+            <div className="max-h-[38vh] space-y-1 overflow-y-auto">
+              {(people ?? []).map((p) => (
+                <div key={p.id} className="flex items-center gap-3 rounded-2xl p-2">
+                  <UserAvatar avatarPath={p.avatar} name={p.displayName ?? p.username} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">
+                      {p.displayName || p.username}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      @{p.username}
+                    </span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    className="rounded-full"
+                    onClick={() => void revoke(p.id)}
+                  >
+                    <UserMinus size={14} />
+                    <span className="ml-1">Remove</span>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/*
+          Ein neuer Link macht alle alten ungueltig. Steht bewusst
+          unten und ruhig: Man braucht ihn selten, aber wenn ein Link
+          irgendwo gelandet ist, wo er nicht hingehoert, ist er der
+          einzige Weg zurueck.
+        */}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void newLink()}
+          className="text-center text-xs text-muted-foreground underline underline-offset-2"
+        >
+          Create a new link and disable the old one
+        </button>
       </DialogContent>
     </Dialog>
   );

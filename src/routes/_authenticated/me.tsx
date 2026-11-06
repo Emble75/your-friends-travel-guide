@@ -115,7 +115,6 @@ function MePage() {
    */
   const view: "feed" | "map" | "folders" | "saved" =
     "view" in search ? (search.view as "map" | "folders" | "saved") : "feed";
-  const mapAnchorRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const deleteAccountFn = useServerFn(deleteOwnAccount);
   const [editing, setEditing] = useState(false);
@@ -284,25 +283,6 @@ function MePage() {
       });
     },
   });
-
-  /*
-   * Beim Wechsel auf "Map" zur Karte scrollen.
-   *
-   * Die Karte steht unter der Profilkarte; ohne dies sah man nach dem
-   * Umschalten weiter das Profil und musste erst von Hand nach unten
-   * schieben, um das zu sehen, wofuer man gerade umgeschaltet hat.
-   */
-  useEffect(() => {
-    if (view !== "map") return;
-    const id = window.setTimeout(
-      () => mapAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      // Kurz warten: Die Karte wird erst nach diesem Durchlauf
-      // gezeichnet, vorher gaebe es nichts, wohin gescrollt werden
-      // koennte.
-      60,
-    );
-    return () => window.clearTimeout(id);
-  }, [view]);
 
   async function respondToRequest(followerId: string, accept: boolean) {
     // Verhindert doppeltes Antworten bei schnellem Doppelklick, waehrend
@@ -922,7 +902,7 @@ function MePage() {
                 }
               />
             ) : (
-              <div ref={mapAnchorRef} className="scroll-mt-[calc(3.5rem+env(safe-area-inset-top))]">
+              <div>
                 <>
                   <PinMap
                     pins={orderedMine}
